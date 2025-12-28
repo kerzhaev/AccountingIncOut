@@ -1,0 +1,32 @@
+{
+    "files.encoding": "windows1251",
+    "files.autoGuessEncoding": false,
+    
+    // Ассоциации файлов (чтобы он понимал расширения)
+    "files.associations": {
+        "*.bas": "vb",
+        "*.cls": "vb",
+        "*.frm": "vb",
+        "*.dcm": "vb"
+    },
+    
+    // Настройки для VBA (оставляем кириллицу)
+    "[vb]": {
+        "files.encoding": "windows1251"
+    },
+
+    // НОВОЕ: Настройки для Markdown (Spec Kit и Context) !!!
+    "[markdown]": {
+        "files.encoding": "utf8"
+    },
+
+    // Исключения (скрываем мусор)
+    "files.exclude": {
+        "**/.git": true,
+        "**/.DS_Store": true,
+        "**/*.frx": true,
+        "**/desktop.ini": true,
+        "**/*.tmp": true,
+        "**/~$*": true
+    }
+}
