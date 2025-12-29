@@ -137,7 +137,7 @@ Public Function ValidateDates() As Boolean
     With UserFormVhIsh
         ' Проверка всех полей дат
         If Trim(.txtDataVhFRP.Text) <> "" Then
-            If Not IsValidDateFormat(.txtDataVhFRP.Text) Then
+            If Not CommonUtilities.IsValidDateFormat(.txtDataVhFRP.Text) Then
                 MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата Вх.ФРП/Исх.ФРП'", vbExclamation, "Проверка данных"
                 .txtDataVhFRP.SetFocus
                 ValidateDates = False
@@ -146,7 +146,7 @@ Public Function ValidateDates() As Boolean
         End If
         
         If Trim(.txtDataPeredachi.Text) <> "" Then
-            If Not IsValidDateFormat(.txtDataPeredachi.Text) Then
+            If Not CommonUtilities.IsValidDateFormat(.txtDataPeredachi.Text) Then
                 MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата передачи исполнителю'", vbExclamation, "Проверка данных"
                 .txtDataPeredachi.SetFocus
                 ValidateDates = False
@@ -155,7 +155,7 @@ Public Function ValidateDates() As Boolean
         End If
         
         If Trim(.txtDataIshVSlujbu.Text) <> "" Then
-            If Not IsValidDateFormat(.txtDataIshVSlujbu.Text) Then
+            If Not CommonUtilities.IsValidDateFormat(.txtDataIshVSlujbu.Text) Then
                 MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата исх. в службу'", vbExclamation, "Проверка данных"
                 .txtDataIshVSlujbu.SetFocus
                 ValidateDates = False
@@ -164,7 +164,7 @@ Public Function ValidateDates() As Boolean
         End If
         
         If Trim(.txtDataVozvrata.Text) <> "" Then
-            If Not IsValidDateFormat(.txtDataVozvrata.Text) Then
+            If Not CommonUtilities.IsValidDateFormat(.txtDataVozvrata.Text) Then
                 MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата возврата со службы'", vbExclamation, "Проверка данных"
                 .txtDataVozvrata.SetFocus
                 ValidateDates = False
@@ -173,7 +173,7 @@ Public Function ValidateDates() As Boolean
         End If
         
         If Trim(.txtDataIshKonvert.Text) <> "" Then
-            If Not IsValidDateFormat(.txtDataIshKonvert.Text) Then
+            If Not CommonUtilities.IsValidDateFormat(.txtDataIshKonvert.Text) Then
                 MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата исх. конверт'", vbExclamation, "Проверка данных"
                 .txtDataIshKonvert.SetFocus
                 ValidateDates = False
@@ -183,33 +183,7 @@ Public Function ValidateDates() As Boolean
     End With
 End Function
 
-Private Function IsValidDateFormat(DateText As String) As Boolean
-    On Error GoTo DateError
-    
-    ' Проверка формата ДД.ММ.ГГ
-    If Len(DateText) = 8 And Mid(DateText, 3, 1) = "." And Mid(DateText, 6, 1) = "." Then
-        Dim TestDate As Date
-        ' Преобразуем ГГ в полный год (20ГГ)
-        Dim fullDateText As String
-        fullDateText = Left(DateText, 6) & "20" & Right(DateText, 2)
-        TestDate = CDate(fullDateText)
-        
-        ' Проверка, что дата не в будущем
-        If TestDate > Date Then
-            MsgBox "Дата не может быть позднее текущей даты!", vbExclamation, "Проверка данных"
-            IsValidDateFormat = False
-        Else
-            IsValidDateFormat = True
-        End If
-    Else
-        IsValidDateFormat = False
-    End If
-    
-    Exit Function
-    
-DateError:
-    IsValidDateFormat = False
-End Function
+' Функция IsValidDateFormat перенесена в CommonUtilities.bas
 
 Public Sub WriteFormDataToTable(tbl As ListObject, RowIndex As Long)
     On Error GoTo WriteError
@@ -233,24 +207,24 @@ Public Sub WriteFormDataToTable(tbl As ListObject, RowIndex As Long)
         tbl.DataBodyRange.Cells(RowIndex, 7).value = .txtVhFRP.Text
         
         ' Безопасная запись даты
-        Call WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 8), .txtDataVhFRP.Text)
+        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 8), .txtDataVhFRP.Text)
         
         tbl.DataBodyRange.Cells(RowIndex, 9).value = .cmbOtKogoPostupil.value
         
-        Call WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 10), .txtDataPeredachi.Text)
+        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 10), .txtDataPeredachi.Text)
         
         tbl.DataBodyRange.Cells(RowIndex, 11).value = .cmbIspolnitel.value
         tbl.DataBodyRange.Cells(RowIndex, 12).value = .txtNomerIshVSlujbu.Text
         
-        Call WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 13), .txtDataIshVSlujbu.Text)
+        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 13), .txtDataIshVSlujbu.Text)
         
         tbl.DataBodyRange.Cells(RowIndex, 14).value = .txtNomerVozvrata.Text
         
-        Call WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 15), .txtDataVozvrata.Text)
+        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 15), .txtDataVozvrata.Text)
         
         tbl.DataBodyRange.Cells(RowIndex, 16).value = .txtNomerIshKonvert.Text
         
-        Call WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 17), .txtDataIshKonvert.Text)
+        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 17), .txtDataIshKonvert.Text)
         
         tbl.DataBodyRange.Cells(RowIndex, 18).value = .txtOtmetkaIspolnenie.Text
         tbl.DataBodyRange.Cells(RowIndex, 19).value = .cmbStatusPodtverjdenie.value
@@ -265,16 +239,7 @@ WriteError:
     MsgBox "Ошибка записи данных в таблицу: " & Err.description, vbCritical, "Ошибка"
 End Sub
 
-Private Sub WriteDateToCell(cell As Range, DateText As String)
-    If Trim(DateText) <> "" And IsValidDateFormat(DateText) Then
-        ' Преобразуем ГГ в полный год для записи
-        Dim fullDateText As String
-        fullDateText = Left(DateText, 6) & "20" & Right(DateText, 2)
-        cell.value = CDate(fullDateText)
-    Else
-        cell.value = ""
-    End If
-End Sub
+' Функция WriteDateToCell перенесена в CommonUtilities.bas
 
 Public Sub MarkFormAsChanged()
     FormDataChanged = True

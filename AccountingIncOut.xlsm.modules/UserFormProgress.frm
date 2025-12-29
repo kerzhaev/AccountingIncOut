@@ -13,6 +13,8 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+
+
 ' Код формы UserFormProgress
 Private Sub btnCancel_Click()
     Call ProgressManager.CancelOperation

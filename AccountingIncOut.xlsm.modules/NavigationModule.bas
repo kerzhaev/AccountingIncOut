@@ -262,20 +262,7 @@ RefreshError:
     Call DataManager.ClearForm
 End Sub
 
-Private Function FormatDateCell(cell As Range) As String
-    On Error GoTo FormatError
-    
-    If Not IsEmpty(cell.value) And IsDate(cell.value) Then
-        FormatDateCell = Format(cell.value, "dd.mm.yy")
-    Else
-        FormatDateCell = ""
-    End If
-    
-    Exit Function
-    
-FormatError:
-    FormatDateCell = ""
-End Function
+' Функция FormatDateCell перенесена в CommonUtilities.bas
 
 Public Function CanNavigate() As Boolean
     ' Проверка возможности навигации

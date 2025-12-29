@@ -13,6 +13,7 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+
 '==============================================
 ' МОДУЛЬ УПРАВЛЕНИЯ ФОРМОЙ "ВходящиеИсходящие" - UserFormVhIsh
 ' Назначение: Полнофункциональная форма для добавления, редактирования и поиска записей
@@ -109,7 +110,7 @@ End Sub
 Private Sub UserForm_Initialize()
     Call InitializeForm
     Call LoadSettings
-    Call UpdateStatusBar
+    Call NavigationModule.UpdateStatusBar
 '    Me.KeyPreview = True
 End Sub
 
@@ -145,7 +146,7 @@ Private Sub UserForm_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift
             Case vbKeyS ' Ctrl+S = Сохранить
                 Call SaveCurrentRecord
             Case vbKeyN ' Ctrl+N = Новая запись
-                Call ClearForm
+                Call DataManager.ClearForm
             Case vbKeyF ' Ctrl+F = Фокус на поиск
                 Me.txtSearch.SetFocus
         End Select
@@ -180,7 +181,7 @@ Private Sub InitializeForm()
     ' Инициализация элементов формы
     Call LoadComboBoxData
     Call SetupNewComboBoxes
-    Call ClearForm
+    Call DataManager.ClearForm
     
     ' Настройка элементов поиска
     Me.txtSearch.Text = ""
@@ -418,7 +419,7 @@ Private Sub btnCancel_Click()
 End Sub
 
 Private Sub btnClear_Click()
-    Call ClearForm
+    Call DataManager.ClearForm
 End Sub
 
 Private Sub btnNew_Click()
@@ -435,7 +436,7 @@ Private Sub btnNew_Click()
         End Select
     End If
     
-    Call ClearForm
+    Call DataManager.ClearForm
     Me.lblStatusBar.Caption = "Создание новой записи"
 End Sub
 
@@ -761,7 +762,7 @@ Private Sub ValidateAndFormatDate(dateField As MSForms.TextBox, Cancel As MSForm
         End If
         
         ' Валидация формата
-        If Not IsValidDateFormat(dateField.Text) Then
+        If Not CommonUtilities.IsValidDateFormat(dateField.Text) Then
             MsgBox "Введите дату в формате ДД.ММ.ГГ", vbExclamation, "Проверка данных"
             Cancel = True
             dateField.BackColor = RGB(255, 200, 200)
@@ -788,7 +789,7 @@ Private Sub SaveCurrentRecord()
     End If
     
     ' Валидация дат
-    If Not ValidateDates() Then
+    If Not DataManager.ValidateDates() Then
         Exit Sub
     End If
     
@@ -911,79 +912,7 @@ Private Function ValidateRequiredFieldsConditional() As Boolean
     End If
 End Function
 
-Private Function ValidateDates() As Boolean
-    ValidateDates = True
-    
-    If Trim(Me.txtDataVhFRP.Text) <> "" Then
-        If Not IsValidDateFormat(Me.txtDataVhFRP.Text) Then
-            MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата Вх.ФРП/Исх.ФРП'", vbExclamation, "Проверка данных"
-            Me.txtDataVhFRP.SetFocus
-            ValidateDates = False
-            Exit Function
-        End If
-    End If
-    
-    If Trim(Me.txtDataPeredachi.Text) <> "" Then
-        If Not IsValidDateFormat(Me.txtDataPeredachi.Text) Then
-            MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата передачи исполнителю'", vbExclamation, "Проверка данных"
-            Me.txtDataPeredachi.SetFocus
-            ValidateDates = False
-            Exit Function
-        End If
-    End If
-    
-    If Trim(Me.txtDataIshVSlujbu.Text) <> "" Then
-        If Not IsValidDateFormat(Me.txtDataIshVSlujbu.Text) Then
-            MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата исх. в службу'", vbExclamation, "Проверка данных"
-            Me.txtDataIshVSlujbu.SetFocus
-            ValidateDates = False
-            Exit Function
-        End If
-    End If
-    
-    If Trim(Me.txtDataVozvrata.Text) <> "" Then
-        If Not IsValidDateFormat(Me.txtDataVozvrata.Text) Then
-            MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата возврата со службы'", vbExclamation, "Проверка данных"
-            Me.txtDataVozvrata.SetFocus
-            ValidateDates = False
-            Exit Function
-        End If
-    End If
-    
-    If Trim(Me.txtDataIshKonvert.Text) <> "" Then
-        If Not IsValidDateFormat(Me.txtDataIshKonvert.Text) Then
-            MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата исх. конверт'", vbExclamation, "Проверка данных"
-            Me.txtDataIshKonvert.SetFocus
-            ValidateDates = False
-            Exit Function
-        End If
-    End If
-End Function
-
-Private Function IsValidDateFormat(DateText As String) As Boolean
-    On Error GoTo DateError
-    
-    If Len(DateText) = 8 And Mid(DateText, 3, 1) = "." And Mid(DateText, 6, 1) = "." Then
-        Dim TestDate As Date
-        Dim fullDateText As String
-        fullDateText = Left(DateText, 6) & "20" & Right(DateText, 2)
-        TestDate = CDate(fullDateText)
-        
-        If TestDate > Date Then
-            MsgBox "Дата не может быть позднее текущей даты!", vbExclamation, "Проверка данных"
-            IsValidDateFormat = False
-        Else
-            IsValidDateFormat = True
-        End If
-    Else
-        IsValidDateFormat = False
-    End If
-    
-    Exit Function
-    
-DateError:
-    IsValidDateFormat = False
-End Function
+' Функции ValidateDates и IsValidDateFormat перенесены в DataManager.bas и CommonUtilities.bas
 
 ' Запись данных формы в таблицу
 Private Sub WriteFormDataToTable(tbl As ListObject, RowIndex As Long)
@@ -1002,16 +931,16 @@ Private Sub WriteFormDataToTable(tbl As ListObject, RowIndex As Long)
     End If
     
     tbl.DataBodyRange.Cells(RowIndex, 7).value = Me.txtVhFRP.Text
-    Call WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 8), Me.txtDataVhFRP.Text)
+    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 8), Me.txtDataVhFRP.Text)
     tbl.DataBodyRange.Cells(RowIndex, 9).value = Me.cmbOtKogoPostupil.value
-    Call WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 10), Me.txtDataPeredachi.Text)
+    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 10), Me.txtDataPeredachi.Text)
     tbl.DataBodyRange.Cells(RowIndex, 11).value = Me.cmbIspolnitel.value
     tbl.DataBodyRange.Cells(RowIndex, 12).value = Me.txtNomerIshVSlujbu.Text
-    Call WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 13), Me.txtDataIshVSlujbu.Text)
+    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 13), Me.txtDataIshVSlujbu.Text)
     tbl.DataBodyRange.Cells(RowIndex, 14).value = Me.txtNomerVozvrata.Text
-    Call WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 15), Me.txtDataVozvrata.Text)
+    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 15), Me.txtDataVozvrata.Text)
     tbl.DataBodyRange.Cells(RowIndex, 16).value = Me.txtNomerIshKonvert.Text
-    Call WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 17), Me.txtDataIshKonvert.Text)
+    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 17), Me.txtDataIshKonvert.Text)
     tbl.DataBodyRange.Cells(RowIndex, 18).value = Me.txtOtmetkaIspolnenie.Text
     tbl.DataBodyRange.Cells(RowIndex, 19).value = Me.cmbStatusPodtverjdenie.value
     tbl.DataBodyRange.Cells(RowIndex, 20).value = Me.txtNaryadInfo.Text
@@ -1022,15 +951,7 @@ WriteError:
     MsgBox "Ошибка записи данных в таблицу: " & Err.description, vbCritical, "Ошибка"
 End Sub
 
-Private Sub WriteDateToCell(cell As Range, DateText As String)
-    If Trim(DateText) <> "" And IsValidDateFormat(DateText) Then
-        Dim fullDateText As String
-        fullDateText = Left(DateText, 6) & "20" & Right(DateText, 2)
-        cell.value = CDate(fullDateText)
-    Else
-        cell.value = ""
-    End If
-End Sub
+' Функция WriteDateToCell перенесена в CommonUtilities.bas
 
 ' ===============================================
 ' ЗАГРУЗКА ЗАПИСИ ИЗ ТАБЛИЦЫ В ФОРМУ
@@ -1073,16 +994,16 @@ Public Sub LoadRecordToForm(RowIndex As Long)
     Me.txtNomerDoc.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 5).value)
     Me.txtSummaDoc.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 6).value)
     Me.txtVhFRP.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 7).value)
-    Me.txtDataVhFRP.Text = FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 8))
+    Me.txtDataVhFRP.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 8))
     Me.cmbOtKogoPostupil.value = CStr(tblData.DataBodyRange.Cells(RowIndex, 9).value)
-    Me.txtDataPeredachi.Text = FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 10))
+    Me.txtDataPeredachi.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 10))
     Me.cmbIspolnitel.value = CStr(tblData.DataBodyRange.Cells(RowIndex, 11).value)
     Me.txtNomerIshVSlujbu.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 12).value)
-    Me.txtDataIshVSlujbu.Text = FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 13))
+    Me.txtDataIshVSlujbu.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 13))
     Me.txtNomerVozvrata.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 14).value)
-    Me.txtDataVozvrata.Text = FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 15))
+    Me.txtDataVozvrata.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 15))
     Me.txtNomerIshKonvert.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 16).value)
-    Me.txtDataIshKonvert.Text = FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 17))
+    Me.txtDataIshKonvert.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 17))
     Me.txtOtmetkaIspolnenie.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 18).value)
     Me.cmbStatusPodtverjdenie.value = CStr(tblData.DataBodyRange.Cells(RowIndex, 19).value)
     
@@ -1101,23 +1022,10 @@ Public Sub LoadRecordToForm(RowIndex As Long)
     
 LoadError:
     MsgBox "Ошибка загрузки записи: " & Err.description, vbExclamation, "Ошибка"
-    Call ClearForm
+    Call DataManager.ClearForm
 End Sub
 
-Private Function FormatDateCell(cell As Range) As String
-    On Error GoTo FormatError
-    
-    If IsDate(cell.value) Then
-        FormatDateCell = Format(cell.value, "dd.mm.yy")
-    Else
-        FormatDateCell = ""
-    End If
-    
-    Exit Function
-    
-FormatError:
-    FormatDateCell = ""
-End Function
+' Функция FormatDateCell перенесена в CommonUtilities.bas
 
 ' ===============================================
 ' ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -1129,7 +1037,7 @@ End Function
 
 Private Sub CancelChanges()
     If IsNewRecord Then
-        Call ClearForm
+        Call DataManager.ClearForm
     Else
         Call NavigateToRecord(CurrentRecordRow)
     End If
@@ -1138,58 +1046,8 @@ Private Sub CancelChanges()
     Me.lblStatusBar.Caption = "Изменения отменены"
 End Sub
 
-' Очистка формы с обновлением подсветки
-Private Sub ClearForm()
-    IsNewRecord = True
-    CurrentRecordRow = 0
-    FormDataChanged = False
-    
-    Dim wsData As Worksheet
-    Dim tblData As ListObject
-    Dim nextNumber As Long
-    
-    On Error Resume Next
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
-    
-    If Not wsData Is Nothing And Not tblData Is Nothing Then
-        nextNumber = tblData.ListRows.Count + 1
-    Else
-        nextNumber = 1
-    End If
-    On Error GoTo 0
-    
-    Me.txtNomerPP.Text = CStr(nextNumber)
-    Me.cmbVidDocumenta.value = ""
-    Me.txtNomerDoc.Text = ""
-    Me.txtSummaDoc.Text = ""
-    Me.txtVhFRP.Text = ""
-    Me.txtDataVhFRP.Text = ""
-    Me.cmbOtKogoPostupil.value = ""
-    Me.txtDataPeredachi.Text = ""
-    Me.txtNomerIshVSlujbu.Text = ""
-    Me.txtDataIshVSlujbu.Text = ""
-    Me.txtNomerVozvrata.Text = ""
-    Me.txtDataVozvrata.Text = ""
-    Me.txtNomerIshKonvert.Text = ""
-    Me.txtDataIshKonvert.Text = ""
-    Me.txtOtmetkaIspolnenie.Text = ""
-    Me.cmbStatusPodtverjdenie.listIndex = 0
-    Me.cmbSlujba.value = ""
-    Me.cmbVidDoc.value = ""
-    Me.cmbIspolnitel.value = ""
-    Me.txtNaryadInfo.Text = ""
-    
-    Me.txtSearch.Text = ""
-    Me.lstSearchResults.Clear
-    Me.lstSearchResults.Visible = False
-    
-    ' Обновляем подсветку полей после очистки
-    Call SetupFormAppearance
-    
-    Call UpdateNavigationButtons
-    Call UpdateStatusBar
-End Sub
+' Функция ClearForm перенесена в DataManager.bas
+' Используйте DataManager.ClearForm() для очистки формы
 
 ' Методы для работы с формой из таблицы
 Public Sub ShowFromTable(RowNumber As Long, fieldName As String)
@@ -1233,39 +1091,12 @@ NavigationError:
     Me.btnLast.Enabled = False
 End Sub
 
-Private Sub UpdateStatusBar()
-    Dim wsData As Worksheet
-    Dim tblData As ListObject
-    Dim statusText As String
-    
-    On Error GoTo StatusError
-    
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
-    
-    If IsNewRecord Then
-        statusText = "Новая запись"
-    ElseIf tblData.ListRows.Count = 0 Then
-        statusText = "Нет записей в таблице"
-    Else
-        statusText = "Запись " & CurrentRecordRow & " из " & tblData.ListRows.Count
-    End If
-    
-    If FormDataChanged Then
-        statusText = statusText & " (изменено)"
-    End If
-    
-    Me.lblStatusBar.Caption = statusText
-    
-    Exit Sub
-    
-StatusError:
-    Me.lblStatusBar.Caption = "Ошибка обновления статуса"
-End Sub
+' Функция UpdateStatusBar перенесена в NavigationModule.bas
+' Используйте NavigationModule.UpdateStatusBar() для обновления статус-бара
 
 Private Sub MarkFormAsChanged()
     FormDataChanged = True
-    Call UpdateStatusBar
+    Call NavigationModule.UpdateStatusBar
 End Sub
 
 ' ===============================================
@@ -1323,7 +1154,7 @@ Private Sub LoadSettings()
     If CurrentRecordRow > 0 Then
         Call NavigateToRecord(CurrentRecordRow)
     Else
-        Call ClearForm
+        Call DataManager.ClearForm
     End If
     
     Exit Sub

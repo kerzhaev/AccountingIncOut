@@ -63,15 +63,15 @@ Public Sub GenerateDashboard()
     Application.Calculation = xlCalculationManual
     
     ' ѕолучаем ссылки на листы и таблицу
-    Set wsDashboard = GetWorksheetSafe("Dashboard")
-    Set wsData = GetWorksheetSafe("¬х»сх")
+    Set wsDashboard = CommonUtilities.GetWorksheetSafe("Dashboard")
+    Set wsData = CommonUtilities.GetWorksheetSafe("¬х»сх")
     
     If wsDashboard Is Nothing Or wsData Is Nothing Then
         MsgBox "ќшибка: Ќе найдены необходимые листы дл€ генерации Dashboard", vbCritical, "ќшибка"
         GoTo CleanupAndExit
     End If
     
-    Set tblData = GetListObjectSafe(wsData, "¬ход€щие»сход€щие")
+    Set tblData = CommonUtilities.GetListObjectSafe(wsData, "¬ход€щие»сход€щие")
     
     If tblData Is Nothing Then
         MsgBox "ќшибка: Ќе найдена таблица '¬ход€щие»сход€щие' дл€ генерации Dashboard", vbCritical, "ќшибка"
@@ -385,7 +385,7 @@ Private Sub GetFilterParameters(ByRef dateFrom As Date, ByRef dateTo As Date, By
     
     On Error GoTo DefaultParameters
     
-    Set wsReports = GetWorksheetSafe("ќтчеты")
+    Set wsReports = CommonUtilities.GetWorksheetSafe("ќтчеты")
     
     If Not wsReports Is Nothing Then
         On Error Resume Next
@@ -1418,7 +1418,7 @@ End Sub
 
 Public Sub StartAutoUpdate()
     Dim wsDashboard As Worksheet
-    Set wsDashboard = GetWorksheetSafe("Dashboard")
+    Set wsDashboard = CommonUtilities.GetWorksheetSafe("Dashboard")
     
     If Not wsDashboard Is Nothing Then
         If UCase(CStr(wsDashboard.Range("Q3").value)) = "¬ Ћ" Then
@@ -1443,23 +1443,7 @@ Public Sub AutoUpdateDashboard()
     End If
 End Sub
 
-Private Function GetWorksheetSafe(sheetName As String) As Worksheet
-    Dim Ws As Worksheet
-    On Error Resume Next
-    Set Ws = ThisWorkbook.Worksheets(sheetName)
-    On Error GoTo 0
-    Set GetWorksheetSafe = Ws
-End Function
-
-Private Function GetListObjectSafe(Ws As Worksheet, tableName As String) As ListObject
-    Dim tbl As ListObject
-    On Error Resume Next
-    If Not Ws Is Nothing Then
-        Set tbl = Ws.ListObjects(tableName)
-    End If
-    On Error GoTo 0
-    Set GetListObjectSafe = tbl
-End Function
+' ‘ункции GetWorksheetSafe и GetListObjectSafe перенесены в CommonUtilities.bas
 
 Public Sub RefreshDashboard()
     Call GenerateDashboard
@@ -1467,7 +1451,7 @@ End Sub
 
 Public Sub ToggleAutoUpdate()
     Dim wsDashboard As Worksheet
-    Set wsDashboard = GetWorksheetSafe("Dashboard")
+    Set wsDashboard = CommonUtilities.GetWorksheetSafe("Dashboard")
     
     If Not wsDashboard Is Nothing Then
         If UCase(CStr(wsDashboard.Range("Q3").value)) = "¬ Ћ" Then
@@ -1491,9 +1475,9 @@ Public Sub DiagnoseDashboardData()
     Dim wsData As Worksheet
     Dim tblData As ListObject
     
-    Set wsDashboard = GetWorksheetSafe("Dashboard")
-    Set wsData = GetWorksheetSafe("¬х»сх")
-    Set tblData = GetListObjectSafe(wsData, "¬ход€щие»сход€щие")
+    Set wsDashboard = CommonUtilities.GetWorksheetSafe("Dashboard")
+    Set wsData = CommonUtilities.GetWorksheetSafe("¬х»сх")
+    Set tblData = CommonUtilities.GetListObjectSafe(wsData, "¬ход€щие»сход€щие")
     
     Debug.Print "=== ƒ»ј√Ќќ—“» ј DASHBOARD ==="
     Debug.Print "Ћист Dashboard найден: " & Not (wsDashboard Is Nothing)
@@ -1531,7 +1515,7 @@ End Sub
 
 Public Sub AddProvodkaIntegrationControls()
     Dim wsDashboard As Worksheet
-    Set wsDashboard = GetWorksheetSafe("Dashboard")
+    Set wsDashboard = CommonUtilities.GetWorksheetSafe("Dashboard")
     
     If wsDashboard Is Nothing Then Exit Sub
     
