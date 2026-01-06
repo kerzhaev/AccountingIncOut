@@ -136,7 +136,7 @@ End Sub
 
 ' Поиск соответствующей проводки в файле выгрузки 1С
 Private Function FindMatchInFile(suma As Double, Correspondent As String, ws1C As Worksheet) As MatchResult
-    Dim Result As MatchResult
+    Dim result As MatchResult
     Dim LastRow As Long
     Dim i As Long
     
@@ -155,18 +155,18 @@ Private Function FindMatchInFile(suma As Double, Correspondent As String, ws1C A
     On Error GoTo FindError
     
     ' Инициализация результата
-    Result.Found = False
-    Result.MatchCount = 0
-    Result.StatusMessage = "Не найдено"
-    Result.candidatesList = ""
+    result.Found = False
+    result.MatchCount = 0
+    result.StatusMessage = "Не найдено"
+    result.candidatesList = ""
     
     ' Определяем последнюю строку с данными
     LastRow = ws1C.Cells(ws1C.Rows.Count, 1).End(xlUp).Row
     
     ' Проверяем наличие данных
     If LastRow < 2 Then
-        Result.StatusMessage = "Файл выгрузки пустой"
-        FindMatchInFile = Result
+        result.StatusMessage = "Файл выгрузки пустой"
+        FindMatchInFile = result
         Exit Function
     End If
     
@@ -213,34 +213,34 @@ End If
     Next i
     
     ' Определяем результат поиска
-    Result.MatchCount = CandidatesCount
-    Result.candidatesList = candidatesList
+    result.MatchCount = CandidatesCount
+    result.candidatesList = candidatesList
     
     If CandidatesCount = 1 Then
-        Result.Found = True
-        Result.ProvodkaNumber = bestCandidate
-        Result.ProvodkaDate = bestCandidateDate
-        Result.StatusMessage = "Найдено единственное соответствие"
+        result.Found = True
+        result.ProvodkaNumber = bestCandidate
+        result.ProvodkaDate = bestCandidateDate
+        result.StatusMessage = "Найдено единственное соответствие"
         
     ElseIf CandidatesCount > 1 Then
-        Result.Found = False ' Требует ручного выбора
-        Result.ProvodkaNumber = bestCandidate
-        Result.ProvodkaDate = bestCandidateDate
-        Result.StatusMessage = "Найдено " & CandidatesCount & " вариантов (выбран по дате)"
+        result.Found = False ' Требует ручного выбора
+        result.ProvodkaNumber = bestCandidate
+        result.ProvodkaDate = bestCandidateDate
+        result.StatusMessage = "Найдено " & CandidatesCount & " вариантов (выбран по дате)"
         
     Else
-        Result.Found = False
-        Result.StatusMessage = "Соответствие не найдено"
+        result.Found = False
+        result.StatusMessage = "Соответствие не найдено"
     End If
     
-    FindMatchInFile = Result
+    FindMatchInFile = result
     Exit Function
     
 FindError:
-    Result.Found = False
-    Result.MatchCount = 0
-    Result.StatusMessage = "Ошибка поиска: " & Err.description
-    FindMatchInFile = Result
+    result.Found = False
+    result.MatchCount = 0
+    result.StatusMessage = "Ошибка поиска: " & Err.description
+    FindMatchInFile = result
 End Function
 
 ' Обработка одной записи (для ручного поиска из формы)
@@ -417,20 +417,20 @@ End Sub
 
 ' Очистка всех отметок об исполнении (для повторной обработки)
 Public Sub ClearAllProvodkaMarks()
-    Dim Response As VbMsgBoxResult
+    Dim response As VbMsgBoxResult
     Dim wsData As Worksheet
     Dim tblData As ListObject
     Dim i As Long
     Dim clearedCount As Long
     
-    Response = MsgBox("?? ВНИМАНИЕ!" & vbCrLf & vbCrLf & _
+    response = MsgBox("?? ВНИМАНИЕ!" & vbCrLf & vbCrLf & _
                       "Вы собираетесь очистить ВСЕ отметки об исполнении" & vbCrLf & _
                       "в таблице ВходящиеИсходящие." & vbCrLf & vbCrLf & _
                       "Это действие нельзя отменить!" & vbCrLf & _
                       "Продолжить?", _
                       vbYesNo + vbExclamation + vbDefaultButton2, "Подтверждение очистки")
     
-    If Response = vbNo Then Exit Sub
+    If response = vbNo Then Exit Sub
     
     Set wsData = ThisWorkbook.Worksheets("ВхИсх")
     Set tblData = wsData.ListObjects("ВходящиеИсходящие")

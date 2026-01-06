@@ -1,0 +1,101 @@
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui">
+  <ribbon>
+    <tabs>
+      <tab id="tabUchetVhIsh" label="УчётВхИсх" insertAfterMso="TabData">
+        
+        <!-- Группа: Обработка данных -->
+        <group id="grpProcessing" label="Обработка данных">
+          <button id="btnMassProcess" 
+                  label="📊 Массовая обработка" 
+                  size="large" 
+                  onAction="RibbonCallbacks.btnMassProcess_Click"
+                  screentip="Массовая обработка записей"
+                  supertip="Автоматическое сопоставление всех записей ВхИсх с проводками 1С"/>
+          
+          <separator id="sep1"/>
+          
+          <button id="btnMatchDoverennosti" 
+                  label="🔗 Сопоставить доверенности" 
+                  size="large" 
+                  onAction="RibbonCallbacks.btnMatchDoverennosti_Click"
+                  screentip="Сопоставление доверенностей"
+                  supertip="Поиск соответствий между доверенностями и операциями"/>
+        </group>
+        
+        <!-- Группа: Анализ и отчеты -->
+        <group id="grpAnalysis" label="Анализ и отчеты">
+          <button id="btnStatistics" 
+                  label="📈 Статистика" 
+                  size="normal" 
+                  onAction="RibbonCallbacks.btnStatistics_Click"
+                  screentip="Статистика интеграции"
+                  supertip="Отчет по результатам сопоставления с 1С"/>
+          
+          <button id="btnAnalyzeOperations" 
+                  label="🔍 Анализ операций" 
+                  size="normal" 
+                  onAction="RibbonCallbacks.btnAnalyzeOperations_Click"
+                  screentip="Анализ операций"
+                  supertip="Детальный анализ операций и документооборота"/>
+          
+          <button id="btnShowLog" 
+                  label="📋 Журнал" 
+                  size="normal" 
+                  onAction="RibbonCallbacks.btnShowLog_Click"
+                  screentip="Журнал операций"
+                  supertip="Просмотр журнала всех выполненных операций"/>
+                  
+                  <!-- НОВАЯ КНОПКА -->
+              <separator id="sep3"/>
+              
+              <button id="btnGenerateWordLetters" 
+                      label="📝 Письма по доверенностям" 
+                      size="large" 
+                      onAction="RibbonCallbacks.btnGenerateWordLetters_Click"
+                      screentip="Формирование писем"
+                      supertip="Создание Word-документов с письмами по несопоставленным доверенностям"/>
+                                    
+                  
+        </group>
+            
+            
+
+            
+        
+        <!-- Группа: Управление -->
+        <group id="grpManagement" label="Управление">
+          <button id="btnSettings" 
+                  label="⚙️ Настройки" 
+                  size="normal" 
+                  onAction="RibbonCallbacks.btnSettings_Click"
+                  screentip="Настройки системы"
+                  supertip="Конфигурация параметров системы"/>
+          
+          <button id="btnClearMarks" 
+                  label="🗑️ Очистить отметки" 
+                  size="normal" 
+                  onAction="RibbonCallbacks.btnClearMarks_Click"
+                  screentip="Очистить отметки"
+                  supertip="Очистить все отметки об исполнении"/>
+          
+          <separator id="sep2"/>
+          
+          <button id="btnBackupManager" 
+                  label="💾 Резервные копии" 
+                  size="normal" 
+                  onAction="RibbonCallbacks.btnBackupManager_Click"
+                  screentip="Менеджер копий"
+                  supertip="Управление резервными копиями"/>
+          
+          <button id="btnHelp" 
+                  label="❓ Справка" 
+                  size="normal" 
+                  onAction="RibbonCallbacks.btnHelp_Click"
+                  screentip="Справка"
+                  supertip="Справка по использованию системы"/>
+        </group>
+        
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>

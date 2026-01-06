@@ -14,6 +14,10 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 
+
+
+
+
 '==============================================
 ' МОДУЛЬ УПРАВЛЕНИЯ ФОРМОЙ "ВходящиеИсходящие" - UserFormVhIsh
 ' Назначение: Полнофункциональная форма для добавления, редактирования и поиска записей
@@ -48,20 +52,20 @@ End Sub
 
 ' Кнопка массовой проверки всех записей с выгрузкой 1С
 Private Sub btnMassCheck_Click()
-    Dim Response As VbMsgBoxResult
+    Dim response As VbMsgBoxResult
     Dim StartTime As Double
     
     On Error GoTo MassCheckError
     
     ' Предупреждение пользователя
-    Response = MsgBox("?? МАССОВАЯ ПРОВЕРКА ЗАПИСЕЙ" & vbCrLf & vbCrLf & _
+    response = MsgBox("?? МАССОВАЯ ПРОВЕРКА ЗАПИСЕЙ" & vbCrLf & vbCrLf & _
                      "Будет выполнена проверка ВСЕХ записей в таблице" & vbCrLf & _
                      "ВходящиеИсходящие на соответствие с выгрузкой 1С." & vbCrLf & vbCrLf & _
                      "Это может занять некоторое время." & vbCrLf & _
                      "Продолжить?", _
                      vbYesNo + vbQuestion, "Подтверждение массовой проверки")
     
-    If Response = vbNo Then Exit Sub
+    If response = vbNo Then Exit Sub
     
     ' Обновляем статус в форме
     Me.lblStatusBar.Caption = "Выполняется массовая проверка..."
@@ -116,11 +120,11 @@ End Sub
 
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
     If HasUnsavedChanges() Then
-        Dim Response As VbMsgBoxResult
-        Response = MsgBox("У вас есть несохранённые изменения. Сохранить перед закрытием?", _
+        Dim response As VbMsgBoxResult
+        response = MsgBox("У вас есть несохранённые изменения. Сохранить перед закрытием?", _
                          vbYesNoCancel + vbQuestion, "Несохранённые изменения")
         
-        Select Case Response
+        Select Case response
             Case vbYes
                 Call SaveCurrentRecord
                 Call SaveSettings
@@ -424,11 +428,11 @@ End Sub
 
 Private Sub btnNew_Click()
     If HasUnsavedChanges() Then
-        Dim Response As VbMsgBoxResult
-        Response = MsgBox("У вас есть несохранённые изменения. Сохранить перед созданием новой записи?", _
+        Dim response As VbMsgBoxResult
+        response = MsgBox("У вас есть несохранённые изменения. Сохранить перед созданием новой записи?", _
                          vbYesNoCancel + vbQuestion, "Несохранённые изменения")
         
-        Select Case Response
+        Select Case response
             Case vbYes
                 Call SaveCurrentRecord
             Case vbCancel

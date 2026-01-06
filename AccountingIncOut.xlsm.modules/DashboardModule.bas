@@ -730,17 +730,17 @@ End Sub
 ' ===============================================
 
 Private Function GetMetricValue(metrics As Collection, keyName As String) As Variant
-    Dim Result As Variant
+    Dim result As Variant
     
     On Error Resume Next
-    Result = metrics.item(keyName)
+    result = metrics.item(keyName)
     If Err.Number <> 0 Then
-        Result = 0
+        result = 0
     End If
     Err.Clear
     On Error GoTo 0
     
-    GetMetricValue = Result
+    GetMetricValue = result
 End Function
 
 ' ===============================================

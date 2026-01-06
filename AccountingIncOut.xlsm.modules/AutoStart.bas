@@ -189,9 +189,9 @@ End Sub
 
 ' ОТКЛЮЧЕНЫ ВСПЛЫВАЮЩИЕ ОКНА: Тест контекстного меню
 Public Sub TestContextMenu()
-    Dim Result As String
+    Dim result As String
     
-    Result = "ТЕСТ КОНТЕКСТНОГО МЕНЮ:" & vbCrLf & vbCrLf
+    result = "ТЕСТ КОНТЕКСТНОГО МЕНЮ:" & vbCrLf & vbCrLf
     
     ' Активируем лист
     On Error Resume Next
@@ -200,26 +200,26 @@ Public Sub TestContextMenu()
     
     ' Проверяем наличие меню
     If CheckContextMenuExists() Then
-        Result = Result & "? Контекстное меню найдено в системе" & vbCrLf
-        Result = Result & "Щелкните ПРАВОЙ кнопкой по ячейке ВНУТРИ таблицы"
+        result = result & "? Контекстное меню найдено в системе" & vbCrLf
+        result = result & "Щелкните ПРАВОЙ кнопкой по ячейке ВНУТРИ таблицы"
         Application.StatusBar = "Контекстное меню найдено - готово к использованию"
     Else
-        Result = Result & "? Контекстное меню НЕ найдено!" & vbCrLf
-        Result = Result & "Выполняю принудительную активацию..."
+        result = result & "? Контекстное меню НЕ найдено!" & vbCrLf
+        result = result & "Выполняю принудительную активацию..."
         
         Call ForceActivateContextMenu
         
         If CheckContextMenuExists() Then
-            Result = Result & vbCrLf & "? Активация успешна!"
+            result = result & vbCrLf & "? Активация успешна!"
             Application.StatusBar = "Контекстное меню активировано успешно"
         Else
-            Result = Result & vbCrLf & "? Активация не удалась!"
+            result = result & vbCrLf & "? Активация не удалась!"
             Application.StatusBar = "Ошибка активации контекстного меню"
         End If
     End If
     
     ' ОТКЛЮЧЕНО ВСПЛЫВАЮЩЕЕ ОКНО: Только Debug и статус-бар
-    Debug.Print Result
+    Debug.Print result
 End Sub
 
 ' Деактивация системы (переименована из DeactivateSystem)

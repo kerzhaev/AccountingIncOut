@@ -104,13 +104,13 @@ Sub RestoreFromSnapshot()
     Set folder = fso.GetFolder(importPath)
     
     ' Предупреждение пользователя
-    Dim Response As VbMsgBoxResult
-    Response = MsgBox("ВНИМАНИЕ!" & vbCrLf & _
+    Dim response As VbMsgBoxResult
+    response = MsgBox("ВНИМАНИЕ!" & vbCrLf & _
                      "Это действие удалит все текущие модули VBA и заменит их модулями из снапшота." & vbCrLf & _
                      "Вы уверены, что хотите продолжить?", _
                      vbYesNo + vbExclamation, "Подтверждение восстановления")
     
-    If Response = vbNo Then Exit Sub
+    If response = vbNo Then Exit Sub
     
     ' Удаляем все пользовательские модули (кроме модулей листов)
     For Each vbComp In ThisWorkbook.VBProject.VBComponents

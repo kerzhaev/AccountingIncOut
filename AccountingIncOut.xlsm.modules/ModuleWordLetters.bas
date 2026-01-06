@@ -845,7 +845,7 @@ End Function
 
 
 Private Function ExtractCorrespondentName(FullCorrespondent As String) As String
-    Dim Result As String
+    Dim result As String
     Dim BracketPos As Long
     Dim i As Long
     Dim InNumberSequence As Boolean
@@ -853,17 +853,17 @@ Private Function ExtractCorrespondentName(FullCorrespondent As String) As String
     Dim CurrentChar As String
     Dim NextChar As String
     
-    Result = Trim(FullCorrespondent)
+    result = Trim(FullCorrespondent)
     
     Debug.Print "=== ИЗВЛЕЧЕНИЕ КОРРЕСПОНДЕНТА v1.1.9 ==="
-    Debug.Print "Исходный текст: '" & Result & "'"
+    Debug.Print "Исходный текст: '" & result & "'"
     
     ' ПРАВИЛО 1: Если есть скобка - берем текст до первой скобки
-    BracketPos = InStr(Result, "(")
+    BracketPos = InStr(result, "(")
     If BracketPos > 0 Then
-        Result = Trim(Left(Result, BracketPos - 1))
+        result = Trim(Left(result, BracketPos - 1))
         Debug.Print "? Найдена скобка в позиции " & BracketPos
-        Debug.Print "? Результат до скобки: '" & Result & "'"
+        Debug.Print "? Результат до скобки: '" & result & "'"
         ' Дальше обрабатываем как обычно для извлечения номера
     End If
     
@@ -874,10 +874,10 @@ Private Function ExtractCorrespondentName(FullCorrespondent As String) As String
     LastValidPos = 0
     
     ' Проходим по всем символам
-    For i = 1 To Len(Result)
-        CurrentChar = Mid(Result, i, 1)
+    For i = 1 To Len(result)
+        CurrentChar = Mid(result, i, 1)
         NextChar = ""
-        If i < Len(Result) Then NextChar = Mid(Result, i + 1, 1)
+        If i < Len(result) Then NextChar = Mid(result, i + 1, 1)
         
         If CurrentChar >= "0" And CurrentChar <= "9" Then
             ' Цифра - начинаем или продолжаем номер
@@ -910,7 +910,7 @@ ElseIf InNumberSequence And ((CurrentChar >= "А" And CurrentChar <= "я") Or (Cur
     Dim j As Long
     For j = i - 1 To 1 Step -1
         Dim CheckChar As String
-        CheckChar = Mid(Result, j, 1)
+        CheckChar = Mid(result, j, 1)
         If CheckChar = "-" Then
             AfterDash = True
             Exit For
@@ -947,14 +947,14 @@ ElseIf InNumberSequence And ((CurrentChar >= "А" And CurrentChar <= "я") Or (Cur
     
     ' Если найден номер, обрезаем до его окончания
     If LastValidPos > 0 Then
-        Result = Trim(Left(Result, LastValidPos))
-        Debug.Print "? Результат до окончания номера: '" & Result & "'"
+        result = Trim(Left(result, LastValidPos))
+        Debug.Print "? Результат до окончания номера: '" & result & "'"
     Else
-        Debug.Print "? Номер не найден, оставляем текст как есть: '" & Result & "'"
+        Debug.Print "? Номер не найден, оставляем текст как есть: '" & result & "'"
     End If
     
-    ExtractCorrespondentName = Result
-    Debug.Print "=== ИТОГОВЫЙ РЕЗУЛЬТАТ: '" & Result & "' ==="
+    ExtractCorrespondentName = result
+    Debug.Print "=== ИТОГОВЫЙ РЕЗУЛЬТАТ: '" & result & "' ==="
 End Function
 
 
@@ -1013,20 +1013,20 @@ End Function
 
 
 Private Function CleanFileName(FileName As String) As String
-    Dim Result As String
+    Dim result As String
     
-    Result = FileName
-    Result = Replace(Result, "\", "_")
-    Result = Replace(Result, "/", "_")
-    Result = Replace(Result, ":", "_")
-    Result = Replace(Result, "*", "_")
-    Result = Replace(Result, "?", "_")
-    Result = Replace(Result, """", "_")
-    Result = Replace(Result, "<", "_")
-    Result = Replace(Result, ">", "_")
-    Result = Replace(Result, "|", "_")
+    result = FileName
+    result = Replace(result, "\", "_")
+    result = Replace(result, "/", "_")
+    result = Replace(result, ":", "_")
+    result = Replace(result, "*", "_")
+    result = Replace(result, "?", "_")
+    result = Replace(result, """", "_")
+    result = Replace(result, "<", "_")
+    result = Replace(result, ">", "_")
+    result = Replace(result, "|", "_")
     
-    CleanFileName = Result
+    CleanFileName = result
 End Function
 
 Private Sub CreateFIOGroups(Doverennosti() As DoverennostInfo, Count As Long, ByRef FIOGroups() As FIOGroup, ByRef FIOGroupCount As Long)

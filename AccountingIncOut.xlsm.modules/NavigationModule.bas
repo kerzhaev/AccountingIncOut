@@ -30,9 +30,9 @@ Public Sub NavigateToRecord(RowNumber As Long)
     
     ' Проверка несохранённых изменений
     If DataManager.HasUnsavedChanges() And DataManager.CurrentRecordRow <> RowNumber And DataManager.CurrentRecordRow > 0 Then
-        Dim Response As VbMsgBoxResult
-        Response = MsgBox("Сохранить изменения в текущей записи перед переходом?", vbYesNo + vbQuestion, "Несохранённые изменения")
-        If Response = vbYes Then
+        Dim response As VbMsgBoxResult
+        response = MsgBox("Сохранить изменения в текущей записи перед переходом?", vbYesNo + vbQuestion, "Несохранённые изменения")
+        If response = vbYes Then
             Call DataManager.SaveCurrentRecord
         End If
     End If

@@ -646,15 +646,15 @@ Public Sub DuplicateCurrentRecord()
             RowNumber = intersectRange.Row - tblVhIsh.DataBodyRange.Row + 1
             
             ' ОСТАВЛЕНО: Подтверждение дублирования (основная функциональность)
-            Dim Response As VbMsgBoxResult
-            Response = MsgBox("Дублировать запись №" & RowNumber & "?" & vbCrLf & vbCrLf & _
+            Dim response As VbMsgBoxResult
+            response = MsgBox("Дублировать запись №" & RowNumber & "?" & vbCrLf & vbCrLf & _
                              "Будут скопированы все данные кроме:" & vbCrLf & _
                              "• Номера документа" & vbCrLf & _
                              "• Суммы документа" & vbCrLf & _
                              "• Информации о наряде", _
                              vbYesNo + vbQuestion, "Подтверждение дублирования")
             
-            If Response = vbYes Then
+            If response = vbYes Then
                 Call PerformDuplication(RowNumber)
             End If
         Else

@@ -151,13 +151,13 @@ End Sub
 ' Очистка журнала
 Public Sub ClearLog()
     Dim wsLog As Worksheet
-    Dim Response As VbMsgBoxResult
+    Dim response As VbMsgBoxResult
     
-    Response = MsgBox("Очистить весь журнал операций?" & vbCrLf & _
+    response = MsgBox("Очистить весь журнал операций?" & vbCrLf & _
                      "Это действие нельзя отменить!", _
                      vbYesNo + vbExclamation + vbDefaultButton2, "Подтверждение очистки")
     
-    If Response = vbYes Then
+    If response = vbYes Then
         Set wsLog = ThisWorkbook.Worksheets(LOG_SHEET_NAME)
         wsLog.Range("2:" & wsLog.Rows.Count).ClearContents
         MsgBox "Журнал операций очищен.", vbInformation, "Очистка завершена"

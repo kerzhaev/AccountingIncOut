@@ -341,12 +341,12 @@ End Function
 ' ОСНОВНАЯ ИСПРАВЛЕННАЯ ФУНКЦИЯ АДАПТИВНОГО REGEX ПОИСКА
 ' ОСНОВНАЯ ФУНКЦИЯ УМНОГО ПОИСКА ПО КОМПОНЕНТАМ
 Private Function FindBySmartComponents(DoverData As ParsedNaryad, OperData As Variant) As MatchResult
-    Dim Result As MatchResult
+    Dim result As MatchResult
     Dim i As Long
     Dim OperComment As String
     
-    Result.FoundMatch = False
-    Result.MatchScore = 0
+    result.FoundMatch = False
+    result.MatchScore = 0
     
 '    Debug.Print ">>> УМНЫЙ ПОИСК КОМПОНЕНТОВ ДЛЯ: № '" & DoverData.DocumentNumber & "' от '" & DoverData.DocumentDate & "'"
     
@@ -374,18 +374,18 @@ Private Function FindBySmartComponents(DoverData As ParsedNaryad, OperData As Va
                 
                 ' Финальная проверка с учетом корреспондента
                 If ComponentMatch.Confidence >= 40 Then
-                    Result.FoundMatch = True
-                    Result.MatchScore = ComponentMatch.Confidence
-                    Result.OperationRow = i + 1
-                    Result.OperationNumber = Trim(CStr(OperData(i, 3)))
+                    result.FoundMatch = True
+                    result.MatchScore = ComponentMatch.Confidence
+                    result.OperationRow = i + 1
+                    result.OperationNumber = Trim(CStr(OperData(i, 3)))
                     
                     ' НОВОЕ: Добавляем комментарий из 1С в детали
                     ComponentMatch.MatchDetails = ComponentMatch.MatchDetails & " | 1С: " & OperComment
 
-                    Result.MatchDetails = ComponentMatch.MatchDetails
+                    result.MatchDetails = ComponentMatch.MatchDetails
                     
                     On Error Resume Next
-                    Result.OperationDate = CDate(OperData(i, 2))
+                    result.OperationDate = CDate(OperData(i, 2))
                     On Error GoTo 0
                     
 '                    Debug.Print ">>> ? НАЙДЕНО УМНЫМ ПОИСКОМ! Строка " & (i + 1) & " Уверенность: " & ComponentMatch.Confidence & "%"
@@ -396,12 +396,12 @@ Private Function FindBySmartComponents(DoverData As ParsedNaryad, OperData As Va
         End If
     Next i
     
-    If Not Result.FoundMatch Then
-        Result.MatchDetails = "умный поиск не нашел подходящих компонентов"
+    If Not result.FoundMatch Then
+        result.MatchDetails = "умный поиск не нашел подходящих компонентов"
 '        Debug.Print ">>> ? УМНЫЙ ПОИСК НЕ НАШЕЛ ПОДХОДЯЩИХ КОМПОНЕНТОВ"
     End If
     
-    FindBySmartComponents = Result
+    FindBySmartComponents = result
 End Function
 
 
@@ -579,25 +579,25 @@ End Sub
 
 ' УЛУЧШЕННАЯ ФУНКЦИЯ: Умное экранирование regex символов
 Private Function EscapeMinimal(Text As String) As String
-    Dim Result As String
-    Result = Text
+    Dim result As String
+    result = Text
     
     ' Экранируем только самые критичные символы для regex
-    Result = Replace(Result, ".", "\.")
-    Result = Replace(Result, "(", "\(")
-    Result = Replace(Result, ")", "\)")
-    Result = Replace(Result, "[", "\[")
-    Result = Replace(Result, "]", "\]")
-    Result = Replace(Result, "*", "\*")
-    Result = Replace(Result, "+", "\+")
-    Result = Replace(Result, "?", "\?")
-    Result = Replace(Result, "^", "\^")
-    Result = Replace(Result, "$", "\$")
-    Result = Replace(Result, "|", "\|")
+    result = Replace(result, ".", "\.")
+    result = Replace(result, "(", "\(")
+    result = Replace(result, ")", "\)")
+    result = Replace(result, "[", "\[")
+    result = Replace(result, "]", "\]")
+    result = Replace(result, "*", "\*")
+    result = Replace(result, "+", "\+")
+    result = Replace(result, "?", "\?")
+    result = Replace(result, "^", "\^")
+    result = Replace(result, "$", "\$")
+    result = Replace(result, "|", "\|")
     
     ' НЕ экранируем слеши и дефисы - пусть остаются как есть
     
-    EscapeMinimal = Result
+    EscapeMinimal = result
 End Function
 
 
@@ -617,11 +617,11 @@ End Sub
 
 ' Парсинг наряда для 1-го прохода
 Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
-    Dim Result As ParsedNaryad
+    Dim result As ParsedNaryad
     
-    Result.OriginalText = Text
-    Result.IsValid = False
-    Result.DocumentType = "НАРЯД"
+    result.OriginalText = Text
+    result.IsValid = False
+    result.DocumentType = "НАРЯД"
     
     On Error GoTo SubstringParseError
     
@@ -630,38 +630,38 @@ Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
     
     If InStr(1, UCase(Text), "НАРЯД") = 0 Then
         Debug.Print "? Слово 'наряд' не найдено"
-        Result.MatchDetails = "Нет слова 'наряд'"
-        ParseNaryadForSubstring = Result
+        result.MatchDetails = "Нет слова 'наряд'"
+        ParseNaryadForSubstring = result
         Exit Function
     End If
     
     Debug.Print "? Найдено слово 'наряд'"
     
-    Result.DocumentNumber = ExtractSubstringNumber(Text, "НАРЯД")
-    Debug.Print "Номер: '" & Result.DocumentNumber & "'"
+    result.DocumentNumber = ExtractSubstringNumber(Text, "НАРЯД")
+    Debug.Print "Номер: '" & result.DocumentNumber & "'"
     
-    Result.DocumentDate = ExtractSubstringDate(Text)
-    Debug.Print "Дата: '" & Result.DocumentDate & "'"
+    result.DocumentDate = ExtractSubstringDate(Text)
+    Debug.Print "Дата: '" & result.DocumentDate & "'"
     
-    If Result.DocumentNumber <> "" And Result.DocumentDate <> "" Then
-        Result.IsValid = True
-        Result.MatchDetails = "Подстроки: успешно"
+    If result.DocumentNumber <> "" And result.DocumentDate <> "" Then
+        result.IsValid = True
+        result.MatchDetails = "Подстроки: успешно"
         Debug.Print "? ПАРСИНГ НАРЯДА УСПЕШЕН"
     Else
-        Result.MatchDetails = "Подстроки: нет номера или даты"
+        result.MatchDetails = "Подстроки: нет номера или даты"
         Debug.Print "? ПАРСИНГ НАРЯДА НЕУСПЕШЕН"
     End If
     
     Debug.Print "========================="
     
-    ParseNaryadForSubstring = Result
+    ParseNaryadForSubstring = result
     Exit Function
     
 SubstringParseError:
     Debug.Print "? Ошибка парсинга наряда: " & Err.description
-    Result.IsValid = False
-    Result.MatchDetails = "Ошибка парсинга: " & Err.description
-    ParseNaryadForSubstring = Result
+    result.IsValid = False
+    result.MatchDetails = "Ошибка парсинга: " & Err.description
+    ParseNaryadForSubstring = result
 End Function
 
 ' Извлечение номера документа
@@ -789,12 +789,12 @@ End Function
 
 ' Поиск по подстрокам (1-й проход)
 Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As Variant) As MatchResult
-    Dim Result As MatchResult
+    Dim result As MatchResult
     Dim i As Long
     Dim OperComment As String
     
-    Result.FoundMatch = False
-    Result.MatchScore = 0
+    result.FoundMatch = False
+    result.MatchScore = 0
     
     For i = 1 To UBound(OperArray, 1)
         OperComment = Trim(CStr(OperArray(i, 9)))
@@ -814,14 +814,14 @@ Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As
             End If
             
             If HasNumber And HasDate Then
-                Result.FoundMatch = True
-                Result.MatchScore = 100
-                Result.OperationRow = i + 1
-                Result.OperationNumber = Trim(CStr(OperArray(i, 3)))
-                Result.MatchDetails = "найден номер И дата"
+                result.FoundMatch = True
+                result.MatchScore = 100
+                result.OperationRow = i + 1
+                result.OperationNumber = Trim(CStr(OperArray(i, 3)))
+                result.MatchDetails = "найден номер И дата"
                 
                 On Error Resume Next
-                Result.OperationDate = CDate(OperArray(i, 2))
+                result.OperationDate = CDate(OperArray(i, 2))
                 On Error GoTo 0
                 
                 Exit For
@@ -829,11 +829,11 @@ Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As
         End If
     Next i
     
-    If Not Result.FoundMatch Then
-        Result.MatchDetails = "номер или дата не найдены"
+    If Not result.FoundMatch Then
+        result.MatchDetails = "номер или дата не найдены"
     End If
     
-    FindBySubstringEnhanced = Result
+    FindBySubstringEnhanced = result
 End Function
 
 ' Преобразование в короткий формат даты
@@ -905,13 +905,13 @@ End Function
 
 ' Парсинг универсальных документов
 Private Function ParseUniversalDocument(Text As String) As ParsedNaryad
-    Dim Result As ParsedNaryad
+    Dim result As ParsedNaryad
     Dim DocumentTypes(3) As String
     Dim i As Long
     Dim FoundType As String
     
-    Result.OriginalText = Text
-    Result.IsValid = False
+    result.OriginalText = Text
+    result.IsValid = False
     
     DocumentTypes(0) = "РАЗНАРЯДКА"
     DocumentTypes(1) = "ТЕЛЕГРАММА"
@@ -931,41 +931,41 @@ Private Function ParseUniversalDocument(Text As String) As ParsedNaryad
     
     If FoundType = "" Then
         Debug.Print "? Тип универсального документа не найден"
-        Result.MatchDetails = "Тип документа не найден"
-        ParseUniversalDocument = Result
+        result.MatchDetails = "Тип документа не найден"
+        ParseUniversalDocument = result
         Exit Function
     End If
     
-    Result.DocumentType = FoundType
+    result.DocumentType = FoundType
     
-    Result.DocumentNumber = ExtractSubstringNumber(Text, FoundType)
-    Debug.Print "Номер: '" & Result.DocumentNumber & "'"
+    result.DocumentNumber = ExtractSubstringNumber(Text, FoundType)
+    Debug.Print "Номер: '" & result.DocumentNumber & "'"
     
-    Result.DocumentDate = ExtractSubstringDate(Text)
-    Debug.Print "Дата: '" & Result.DocumentDate & "'"
+    result.DocumentDate = ExtractSubstringDate(Text)
+    Debug.Print "Дата: '" & result.DocumentDate & "'"
     
-    If Result.DocumentNumber <> "" And Result.DocumentDate <> "" Then
-        Result.IsValid = True
-        Result.MatchDetails = "3-й проход: успешно"
+    If result.DocumentNumber <> "" And result.DocumentDate <> "" Then
+        result.IsValid = True
+        result.MatchDetails = "3-й проход: успешно"
         Debug.Print "? УНИВЕРСАЛЬНЫЙ ДОКУМЕНТ РАСПАРСЕН"
     Else
-        Result.MatchDetails = "3-й проход: нет номера или даты"
+        result.MatchDetails = "3-й проход: нет номера или даты"
         Debug.Print "? УНИВЕРСАЛЬНЫЙ ДОКУМЕНТ НЕ РАСПАРСЕН"
     End If
     
     Debug.Print "========================="
     
-    ParseUniversalDocument = Result
+    ParseUniversalDocument = result
 End Function
 
 ' Поиск по универсальному документу
 Private Function FindByUniversalDocument(UniversalDoc As ParsedNaryad, OperData As Variant) As MatchResult
-    Dim Result As MatchResult
+    Dim result As MatchResult
     Dim i As Long
     Dim OperComment As String
     
-    Result.FoundMatch = False
-    Result.MatchScore = 0
+    result.FoundMatch = False
+    result.MatchScore = 0
     
     Debug.Print ">>> 3-Й ПРОХОД ПОИСКА ДЛЯ: " & UniversalDoc.DocumentType & " № '" & UniversalDoc.DocumentNumber & "' от '" & UniversalDoc.DocumentDate & "'"
     
@@ -987,14 +987,14 @@ Private Function FindByUniversalDocument(UniversalDoc As ParsedNaryad, OperData 
             End If
             
             If HasNumber And HasDate Then
-                Result.FoundMatch = True
-                Result.MatchScore = 100
-                Result.OperationRow = i + 1
-                Result.OperationNumber = Trim(CStr(OperData(i, 3)))
-                Result.MatchDetails = "найден " & UniversalDoc.DocumentType
+                result.FoundMatch = True
+                result.MatchScore = 100
+                result.OperationRow = i + 1
+                result.OperationNumber = Trim(CStr(OperData(i, 3)))
+                result.MatchDetails = "найден " & UniversalDoc.DocumentType
                 
                 On Error Resume Next
-                Result.OperationDate = CDate(OperData(i, 2))
+                result.OperationDate = CDate(OperData(i, 2))
                 On Error GoTo 0
                 
                 Debug.Print ">>> ? НАЙДЕНО 3-М ПРОХОДОМ в строке " & (i + 1)
@@ -1003,12 +1003,12 @@ Private Function FindByUniversalDocument(UniversalDoc As ParsedNaryad, OperData 
         End If
     Next i
     
-    If Not Result.FoundMatch Then
-        Result.MatchDetails = "номер или дата не найдены"
+    If Not result.FoundMatch Then
+        result.MatchDetails = "номер или дата не найдены"
         Debug.Print ">>> ? НЕ НАЙДЕНО 3-М ПРОХОДОМ"
     End If
     
-    FindByUniversalDocument = Result
+    FindByUniversalDocument = result
 End Function
 
 ' =============================================
@@ -1055,16 +1055,16 @@ End Function
 Private Sub AddThreePassResultColumns(Ws As Worksheet)
     Dim LastCol As Long
     Dim i As Long
-    Dim AlreadyExists As Boolean
+    Dim alreadyExists As Boolean
     
     For i = 1 To 25
         If Trim(CStr(Ws.Cells(1, i).value)) = "Трехпроходный поиск" Then
-            AlreadyExists = True
+            alreadyExists = True
             Exit For
         End If
     Next i
     
-    If Not AlreadyExists Then
+    If Not alreadyExists Then
         LastCol = Ws.Cells(1, Ws.Columns.Count).End(xlToLeft).Column
         
         With Ws
@@ -1159,12 +1159,12 @@ End Sub
 
 ' Создание пустого результата
 Private Function CreateEmptyMatchResult(Message As String) As MatchResult
-    Dim Result As MatchResult
-    Result.FoundMatch = False
-    Result.MatchDetails = Message
-    Result.MatchScore = 0
-    Result.PassNumber = 0
-    CreateEmptyMatchResult = Result
+    Dim result As MatchResult
+    result.FoundMatch = False
+    result.MatchDetails = Message
+    result.MatchScore = 0
+    result.PassNumber = 0
+    CreateEmptyMatchResult = result
 End Function
 
 ' Показ статистики
@@ -1288,10 +1288,10 @@ End Function
 ' =============================================
 
 Private Function AnalyzeComponents(CommentText As String, TargetNumber As String, TargetDate As String) As ComponentMatchResult
-    Dim Result As ComponentMatchResult
+    Dim result As ComponentMatchResult
     
-    Result.IsMatch = False
-    Result.Confidence = 0
+    result.IsMatch = False
+    result.Confidence = 0
     
     Debug.Print "      >>> АНАЛИЗ КОМПОНЕНТОВ В: " & CommentText
     Debug.Print "      Ищем номер: '" & TargetNumber & "' и дату: '" & TargetDate & "'"
@@ -1310,10 +1310,10 @@ Private Function AnalyzeComponents(CommentText As String, TargetNumber As String
     
     ' ЭТАП 3: Интеллектуальное сопоставление
     If NumberCount > 0 And DateCount > 0 Then
-        Result = FindBestComponentMatch(CommentText, NumberCandidates, NumberCount, DateCandidates, DateCount, TargetNumber, TargetDate)
+        result = FindBestComponentMatch(CommentText, NumberCandidates, NumberCount, DateCandidates, DateCount, TargetNumber, TargetDate)
     End If
     
-    AnalyzeComponents = Result
+    AnalyzeComponents = result
 End Function
 
 ' =============================================
@@ -1416,12 +1416,12 @@ End Sub
 ' =============================================
 
 Private Function FindBestComponentMatch(Text As String, NumberCandidates() As NumberCandidate, NumberCount As Long, DateCandidates() As DateCandidate, DateCount As Long, TargetNumber As String, TargetDate As String) As ComponentMatchResult
-    Dim Result As ComponentMatchResult
+    Dim result As ComponentMatchResult
     Dim BestScore As Double
     Dim i As Long, j As Long
     Dim TempResult As ComponentMatchResult
     
-    Result.IsMatch = False
+    result.IsMatch = False
     BestScore = 0
     
 '    Debug.Print "        Сопоставление " & NumberCount & " номеров с " & DateCount & " датами"
@@ -1435,20 +1435,20 @@ Private Function FindBestComponentMatch(Text As String, NumberCandidates() As Nu
             
             If TempResult.Confidence > BestScore Then
                 BestScore = TempResult.Confidence
-                Result = TempResult
+                result = TempResult
 '                Debug.Print "          ? НОВЫЙ ЛУЧШИЙ РЕЗУЛЬТАТ: " & BestScore & "%"
             End If
         Next j
     Next i
     
     If BestScore >= 40 Then
-        Result.IsMatch = True
+        result.IsMatch = True
 '        Debug.Print "        ИТОГО: Лучшее совпадение " & BestScore & "% - " & Result.MatchDetails
     Else
 '        Debug.Print "        ИТОГО: Лучший результат " & BestScore & "% недостаточен (нужно ?40%)"
     End If
     
-    FindBestComponentMatch = Result
+    FindBestComponentMatch = result
 End Function
 
 ' =============================================
@@ -1456,14 +1456,14 @@ End Function
 ' =============================================
 
 Private Function EvaluateComponentPair(Text As String, NumberCand As NumberCandidate, DateCand As DateCandidate, TargetNumber As String, TargetDate As String) As ComponentMatchResult
-    Dim Result As ComponentMatchResult
+    Dim result As ComponentMatchResult
     Dim Score As Double
     
     Score = 0
-    Result.FoundNumber = NumberCand.Text
-    Result.FoundDate = DateCand.Text
-    Result.NumberPosition = NumberCand.Position
-    Result.DatePosition = DateCand.Position
+    result.FoundNumber = NumberCand.Text
+    result.FoundDate = DateCand.Text
+    result.NumberPosition = NumberCand.Position
+    result.DatePosition = DateCand.Position
     
     ' КРИТЕРИЙ 1: Совпадение номера (0-50 баллов)
     Dim NumberScore As Double
@@ -1480,10 +1480,10 @@ Private Function EvaluateComponentPair(Text As String, NumberCand As NumberCandi
     PositionScore = EvaluatePositions(Text, NumberCand.Position, DateCand.Position)
     Score = Score + PositionScore
     
-    Result.Confidence = Score
-    Result.MatchDetails = "номер:" & NumberCand.Text & "(" & Format(NumberScore, "0") & "%) дата:" & DateCand.Text & "(" & Format(DateScore, "0") & "%) поз:(" & Format(PositionScore, "0") & "%)"
+    result.Confidence = Score
+    result.MatchDetails = "номер:" & NumberCand.Text & "(" & Format(NumberScore, "0") & "%) дата:" & DateCand.Text & "(" & Format(DateScore, "0") & "%) поз:(" & Format(PositionScore, "0") & "%)"
     
-    EvaluateComponentPair = Result
+    EvaluateComponentPair = result
 End Function
 
 ' =============================================
@@ -1723,18 +1723,18 @@ End Function
 
 ' Очистка названия корреспондента (убираем скобки)
 Private Function CleanCorrespondentName(FullName As String) As String
-    Dim Result As String
+    Dim result As String
     Dim BracketPos As Long
     
-    Result = Trim(FullName)
+    result = Trim(FullName)
     
     ' Убираем все с первой открывающейся скобки
-    BracketPos = InStr(Result, "(")
+    BracketPos = InStr(result, "(")
     If BracketPos > 0 Then
-        Result = Trim(Left(Result, BracketPos - 1))
+        result = Trim(Left(result, BracketPos - 1))
     End If
     
-    CleanCorrespondentName = Result
+    CleanCorrespondentName = result
 End Function
 
 ' Извлечение корреспондента из комментария доверенности (упрощенная версия)
@@ -1841,13 +1841,13 @@ End Function
 
 ' ОСНОВНАЯ ФУНКЦИЯ: Поиск по поставщику и службе
 Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As Variant) As MatchResult
-    Dim Result As MatchResult
+    Dim result As MatchResult
     Dim i As Long
     Dim OperComment As String, OperSupplier As String
     Dim DoverService As String
     
-    Result.FoundMatch = False
-    Result.MatchScore = 0
+    result.FoundMatch = False
+    result.MatchScore = 0
     
     ' Извлекаем службу из комментария доверенности
     DoverService = ExtractServiceFromComment(DoverData.OriginalText)
@@ -1869,14 +1869,14 @@ Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As
             
             ' Если найдено хорошее совпадение
             If MatchScore >= 60 Then ' Порог для второго прохода
-                Result.FoundMatch = True
-                Result.MatchScore = MatchScore
-                Result.OperationRow = i + 1
-                Result.OperationNumber = Trim(CStr(OperData(i, 3)))
-                Result.MatchDetails = MatchDetails & " | 1С: " & OperComment
+                result.FoundMatch = True
+                result.MatchScore = MatchScore
+                result.OperationRow = i + 1
+                result.OperationNumber = Trim(CStr(OperData(i, 3)))
+                result.MatchDetails = MatchDetails & " | 1С: " & OperComment
                 
                 On Error Resume Next
-                Result.OperationDate = CDate(OperData(i, 2))
+                result.OperationDate = CDate(OperData(i, 2))
                 On Error GoTo 0
                 
                 Debug.Print ">>> ? НАЙДЕНО ПОСТАВЩИКОМ+СЛУЖБОЙ! Строка " & (i + 1) & " Уверенность: " & MatchScore & "%"
@@ -1886,12 +1886,12 @@ Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As
         End If
     Next i
     
-    If Not Result.FoundMatch Then
-        Result.MatchDetails = "поставщик+служба не совпадают"
+    If Not result.FoundMatch Then
+        result.MatchDetails = "поставщик+служба не совпадают"
         Debug.Print ">>> ? ПОИСК ПО ПОСТАВЩИКУ+СЛУЖБЕ НЕ НАШЕЛ ПОДХОДЯЩИХ"
     End If
     
-    FindBySupplierAndService = Result
+    FindBySupplierAndService = result
 End Function
 
 ' НОВАЯ ФУНКЦИЯ: Анализ совпадения номера, поставщика и службы
@@ -2021,20 +2021,20 @@ End Function
 
 ' ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: Очистка названия поставщика
 Private Function CleanSupplierName(SupplierName As String) As String
-    Dim Result As String
+    Dim result As String
     
-    Result = Trim(SupplierName)
+    result = Trim(SupplierName)
     
     ' Убираем кавычки
-    Result = Replace(Result, """", "")
-    Result = Replace(Result, "'", "")
+    result = Replace(result, """", "")
+    result = Replace(result, "'", "")
     
     ' Убираем лишние пробелы
-    Do While InStr(Result, "  ") > 0
-        Result = Replace(Result, "  ", " ")
+    Do While InStr(result, "  ") > 0
+        result = Replace(result, "  ", " ")
     Loop
     
-    CleanSupplierName = Result
+    CleanSupplierName = result
 End Function
 
 ' ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: Проверка частичного совпадения номера
