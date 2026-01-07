@@ -29,6 +29,17 @@ Attribute VB_Exposed = False
 
 Option Explicit
 
+' API объявления для работы с разрешением экрана
+#If VBA7 Then
+    Private Declare PtrSafe Function GetSystemMetrics Lib "user32" (ByVal nIndex As Long) As Long
+#Else
+    Private Declare Function GetSystemMetrics Lib "user32" (ByVal nIndex As Long) As Long
+#End If
+
+' Константы для GetSystemMetrics
+Private Const SM_CXSCREEN As Long = 0
+Private Const SM_CYSCREEN As Long = 1
+
 ' Глобальные переменные модуля формы
 Private CurrentRecordRow As Long
 Private IsNewRecord As Boolean
@@ -112,6 +123,9 @@ End Sub
 ' ===============================================
 
 Private Sub UserForm_Initialize()
+    ' Масштабирование и центрирование формы ДО инициализации остальных элементов
+    Call ResizeAndCenterForm
+    
     Call InitializeForm
     Call LoadSettings
     Call NavigationModule.UpdateStatusBar
@@ -1146,13 +1160,8 @@ Private Sub LoadSettings()
             CurrentRecordRow = .Cells(1, 2).value
         End If
         
-        If .Cells(2, 2).value <> "" Then
-            Me.Top = .Cells(2, 2).value
-        End If
-        
-        If .Cells(3, 2).value <> "" Then
-            Me.Left = .Cells(3, 2).value
-        End If
+        ' НЕ загружаем сохранённые позиции - форма всегда центрируется автоматически
+        ' Размеры и позиция устанавливаются в ResizeAndCenterForm
     End With
     
     If CurrentRecordRow > 0 Then
@@ -1256,6 +1265,167 @@ Private Sub SetupStatusBar()
         .Font.Size = 9
         .Font.Name = "Segoe UI"
     End With
+End Sub
+
+' ===============================================
+' ФУНКЦИИ РАБОТЫ С РАЗРЕШЕНИЕМ ЭКРАНА И МАСШТАБИРОВАНИЕМ
+' ===============================================
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Получает разрешение основного экрана в пикселях
+' @return [String] Строка вида "ширинаxвысота"
+' =============================================
+Private Function GetScreenResolution() As String
+    On Error GoTo ErrorHandler
+    
+    Dim screenWidth As Long
+    Dim screenHeight As Long
+    
+    ' Получаем разрешение основного экрана
+    screenWidth = GetSystemMetrics(SM_CXSCREEN)
+    screenHeight = GetSystemMetrics(SM_CYSCREEN)
+    
+    GetScreenResolution = screenWidth & "x" & screenHeight
+    
+    Exit Function
+    
+ErrorHandler:
+    ' В случае ошибки возвращаем стандартное разрешение
+    GetScreenResolution = "1920x1080"
+End Function
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Получает ширину экрана в пикселях
+' @return [Long] Ширина экрана
+' =============================================
+Private Function GetScreenWidth() As Long
+    On Error GoTo ErrorHandler
+    
+    GetScreenWidth = GetSystemMetrics(SM_CXSCREEN)
+    Exit Function
+    
+ErrorHandler:
+    GetScreenWidth = 1920 ' Значение по умолчанию
+End Function
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Получает высоту экрана в пикселях
+' @return [Long] Высота экрана
+' =============================================
+Private Function GetScreenHeight() As Long
+    On Error GoTo ErrorHandler
+    
+    GetScreenHeight = GetSystemMetrics(SM_CYSCREEN)
+    Exit Function
+    
+ErrorHandler:
+    GetScreenHeight = 1080 ' Значение по умолчанию
+End Function
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Масштабирует форму под разрешение экрана и центрирует её
+' =============================================
+Private Sub ResizeAndCenterForm()
+    On Error GoTo ErrorHandler
+    
+    Dim screenWidth As Long
+    Dim screenHeight As Long
+    Dim formWidth As Single
+    Dim formHeight As Single
+    Dim scaleFactor As Double
+    Dim minScaleFactor As Double
+    Dim originalWidth As Single
+    Dim originalHeight As Single
+    Dim newLeft As Single
+    Dim newTop As Single
+    Dim usableScreenWidth As Single
+    Dim usableScreenHeight As Single
+    
+    ' Получаем текущие (исходные) размеры формы из свойств
+    ' Эти размеры уже установлены из файла .frm и гарантируют видимость всех элементов
+    originalWidth = Me.Width
+    originalHeight = Me.Height
+    
+    ' Получаем разрешение экрана
+    screenWidth = GetScreenWidth()
+    screenHeight = GetScreenHeight()
+    
+    ' Переводим пиксели экрана в точки (96 DPI = 72 точки на дюйм)
+    Dim screenWidthPoints As Double
+    Dim screenHeightPoints As Double
+    screenWidthPoints = screenWidth * (72 / 96)
+    screenHeightPoints = screenHeight * (72 / 96)
+    
+    ' Используем рабочую область экрана (90% от размера экрана, чтобы оставить место для панели задач)
+    ' Но ограничиваем максимальный размер, чтобы форма не была слишком большой
+    usableScreenWidth = screenWidthPoints * 0.9
+    usableScreenHeight = screenHeightPoints * 0.9
+    
+    ' Если исходная форма помещается на экран, используем её размеры без изменений
+    ' Иначе масштабируем только при необходимости
+    If originalWidth <= usableScreenWidth And originalHeight <= usableScreenHeight Then
+        ' Форма помещается на экран - используем исходные размеры
+        formWidth = originalWidth
+        formHeight = originalHeight
+        scaleFactor = 1.0
+    Else
+        ' Форма не помещается - вычисляем коэффициент масштабирования
+        Dim scaleX As Double
+        Dim scaleY As Double
+        scaleX = usableScreenWidth / originalWidth
+        scaleY = usableScreenHeight / originalHeight
+        
+        ' Используем минимальный коэффициент для сохранения пропорций
+        scaleFactor = Application.WorksheetFunction.Min(scaleX, scaleY)
+        
+        ' Минимальный масштаб - 0.75 (75%), чтобы все элементы оставались видимыми
+        minScaleFactor = 0.75
+        If scaleFactor < minScaleFactor Then scaleFactor = minScaleFactor
+        
+        ' Вычисляем новые размеры формы
+        formWidth = originalWidth * scaleFactor
+        formHeight = originalHeight * scaleFactor
+        
+        ' Дополнительная проверка: убеждаемся, что форма помещается
+        If formWidth > usableScreenWidth Then
+            formWidth = usableScreenWidth
+            scaleFactor = formWidth / originalWidth
+            formHeight = originalHeight * scaleFactor
+        End If
+        If formHeight > usableScreenHeight Then
+            formHeight = usableScreenHeight
+            scaleFactor = formHeight / originalHeight
+            formWidth = originalWidth * scaleFactor
+        End If
+    End If
+    
+    ' Устанавливаем размеры формы
+    Me.Width = formWidth
+    Me.Height = formHeight
+    
+    ' Центрируем форму на основном экране
+    newLeft = (screenWidthPoints - formWidth) / 2
+    newTop = (screenHeightPoints - formHeight) / 2
+    
+    ' Убеждаемся, что форма не выходит за границы экрана
+    If newLeft < 0 Then newLeft = 0
+    If newTop < 0 Then newTop = 0
+    If newLeft + formWidth > screenWidthPoints Then newLeft = screenWidthPoints - formWidth
+    If newTop + formHeight > screenHeightPoints Then newTop = screenHeightPoints - formHeight
+    
+    ' Устанавливаем позицию формы
+    Me.Left = newLeft
+    Me.Top = newTop
+    
+    Exit Sub
+    
+ErrorHandler:
+    ' В случае ошибки оставляем исходные размеры и центрируем через StartUpPosition
+    Me.StartUpPosition = 1 ' CenterOwner
 End Sub
 
 

@@ -126,8 +126,8 @@ Public Sub btnMatchDoverennosti_Click(control As IRibbonControl)
     ' Логируем начало
     Call SystemLogger.LogOperation("MatchDoverennosti", "Запуск сопоставления доверенностей", "START", StartTime)
     
-    ' Запускаем основную процедуру
-    Call DoverennostMatchingModule.ProcessDoverennostMatching
+    ' Запускаем мастер-сценарий (мастер-файл + выгрузка периода + операции 1С)
+    Call DoverennostMatchingModule.ProcessDoverennostMasterMatching
     
     ' Логируем завершение
     Call SystemLogger.LogOperation("MatchDoverennosti", "Сопоставление доверенностей завершено", "SUCCESS", Timer - StartTime)

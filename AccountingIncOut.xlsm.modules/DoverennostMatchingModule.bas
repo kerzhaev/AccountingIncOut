@@ -105,6 +105,72 @@ ProcessError:
 End Sub
 
 ' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Мастер-сценарий: пользователь выбирает (1) мастер-файл доверенностей, (2) выгрузку доверенностей за период, (3) выгрузку операций 1С. Макрос добавляет новые доверенности в мастер без дублей и выполняет сопоставление с операциями 1С. Кэш хранится в мастер-файле в колонках результата.
+' =============================================
+Public Sub ProcessDoverennostMasterMatching()
+    Dim FileMaster As String
+    Dim FilePeriod As String
+    Dim FileOperations As String
+    
+    Dim WbMaster As Workbook
+    Dim WbPeriod As Workbook
+    Dim WbOperations As Workbook
+    
+    Dim AddedCount As Long
+    
+    On Error GoTo ProcessError
+    
+    Debug.Print "=== МАСТЕР: Сопоставление доверенностей (слияние + 1С) ==="
+    
+    FileMaster = Application.GetOpenFilename("Excel Files (*.xlsx),*.xlsx,CSV Files (*.csv),*.csv", , _
+        "Выберите МАСТЕР-файл доверенностей (нарастающий итог)")
+    If FileMaster = "False" Then Exit Sub
+    
+    FilePeriod = Application.GetOpenFilename("Excel Files (*.xlsx),*.xlsx,CSV Files (*.csv),*.csv", , _
+        "Выберите файл доверенностей за период (выгрузка)")
+    If FilePeriod = "False" Then Exit Sub
+    
+    FileOperations = Application.GetOpenFilename("Excel Files (*.xlsx),*.xlsx,CSV Files (*.csv),*.csv", , _
+        "Выберите файл журнала операций 1С (выгрузка)")
+    If FileOperations = "False" Then Exit Sub
+    
+    Application.StatusBar = "Открытие файлов..."
+    Set WbMaster = Workbooks.Open(FileMaster, ReadOnly:=False)
+    Set WbPeriod = Workbooks.Open(FilePeriod, ReadOnly:=True)
+    Set WbOperations = Workbooks.Open(FileOperations, ReadOnly:=True)
+    
+    Application.StatusBar = "Слияние доверенностей в мастер..."
+    Call MergePeriodDoverennostiIntoMaster(WbMaster.Worksheets(1), WbPeriod.Worksheets(1), AddedCount)
+    
+    Application.StatusBar = "Сопоставление мастер-файла с операциями 1С..."
+    Call PerformThreePassMatching(WbMaster, WbOperations)
+    
+    Application.StatusBar = "Сохранение мастер-файла..."
+    WbOperations.Close False
+    WbPeriod.Close False
+    WbMaster.Save
+    WbMaster.Close
+    
+    Application.StatusBar = False
+    
+    MsgBox "Готово." & vbCrLf & vbCrLf & _
+           "Добавлено новых доверенностей в мастер: " & AddedCount, vbInformation, "Сопоставление доверенностей"
+    
+    Exit Sub
+    
+ProcessError:
+    On Error Resume Next
+    If Not WbOperations Is Nothing Then WbOperations.Close False
+    If Not WbPeriod Is Nothing Then WbPeriod.Close False
+    If Not WbMaster Is Nothing Then WbMaster.Close False
+    Application.StatusBar = False
+    
+    Debug.Print "Ошибка мастер-сопоставления: " & Err.Description
+    MsgBox "Ошибка: " & Err.Description, vbCritical
+End Sub
+
+' =============================================
 ' ТРЕХПРОХОДНАЯ ФУНКЦИЯ СОПОСТАВЛЕНИЯ
 ' =============================================
 
@@ -115,9 +181,8 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
     Dim ProcessedCount As Long, SkippedEmpty As Long, SkippedFound As Long
 
     
-    ' Статистика по проходам
-    Dim Pass1Found As Long, Pass2Found As Long, Pass3Found As Long
-    Dim Pass3ByType(4) As Long
+    ' Статистика
+    Dim Pass1Found As Long
     
     Dim StartTime As Double
     
@@ -153,17 +218,9 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
     Dim ResultColumn As Long
     ResultColumn = FindResultColumn(WsDover)
     
-    Debug.Print "ТРЕХПРОХОДНАЯ СИСТЕМА С ИСПРАВЛЕННЫМ REGEX: " & (LastRowDover - 1) & " доверенностей против " & FilteredCount & " операций"
+    Debug.Print "СОПОСТАВЛЕНИЕ (МАСТЕР, 1-й проход: точные наряды): " & (LastRowDover - 1) & " доверенностей против " & FilteredCount & " операций"
 
     Debug.Print "Пропущено " & SkippedEmpty & " операций с пустым корреспондентом"
-    
-    ' Массивы для хранения не найденных записей
-    Dim Pass1NotFound() As Long, Pass1NotFoundData() As ParsedNaryad
-    Dim Pass2NotFound() As Long, Pass2NotFoundData() As ParsedNaryad
-    Dim Pass1Count As Long, Pass2Count As Long
-    
-    Pass1Count = 0
-    Pass2Count = 0
     
     Dim DoverComment As String
     Dim ParsedDover As ParsedNaryad
@@ -176,7 +233,7 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
         DoverComment = Trim(CStr(DoverData(i, 9)))
         
         If i Mod 25 = 0 Then
-            Application.StatusBar = "3-проходная система с исправленным REGEX: " & i & " из " & UBound(DoverData, 1)
+            Application.StatusBar = "Сопоставление доверенностей (мастер): " & i & " из " & UBound(DoverData, 1)
         End If
         
         ' Проверяем, была ли строка уже обработана с результатом "НАЙДЕНО"
@@ -198,26 +255,9 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
                 
                 If MatchResult.FoundMatch Then
                     Pass1Found = Pass1Found + 1
-                    MatchResult.MatchDetails = "1-й проход: " & MatchResult.MatchDetails
-                Else
-                    ' Сохраняем для 2-го прохода
-                    Pass1Count = Pass1Count + 1
-                    ReDim Preserve Pass1NotFound(Pass1Count - 1)
-                    ReDim Preserve Pass1NotFoundData(Pass1Count - 1)
-                    Pass1NotFound(Pass1Count - 1) = CurrentRow
-                    Pass1NotFoundData(Pass1Count - 1) = ParsedDover
-                    MatchResult.MatchDetails = "Ждет 2-й проход (исправленный REGEX)"
                 End If
             Else
-                ' Если не наряд или не распарсился - сохраняем для 3-го прохода
-                Pass2Count = Pass2Count + 1
-                ReDim Preserve Pass2NotFound(Pass2Count - 1)
-                ReDim Preserve Pass2NotFoundData(Pass2Count - 1)
-                Pass2NotFound(Pass2Count - 1) = CurrentRow
-                Pass2NotFoundData(Pass2Count - 1).OriginalText = DoverComment
-                Pass2NotFoundData(Pass2Count - 1).IsValid = False
-                
-                MatchResult = CreateEmptyMatchResult("Ждет 3-й проход")
+                MatchResult = CreateEmptyMatchResult("Не удалось распознать наряд")
                 MatchResult.PassNumber = 0
             End If
             
@@ -233,25 +273,7 @@ NextIteration:
         Next i
 
     
-    ' === 2-Й ПРОХОД: ИСПРАВЛЕННЫЙ АДАПТИВНЫЙ REGEX ===
-    If Pass1Count > 0 Then
-        Debug.Print "=== 2-Й ПРОХОД: ИСПРАВЛЕННЫЙ АДАПТИВНЫЙ REGEX ==="
-'Pass2Found = ProcessSecondPassWithSmartComponent(WsDover, FilteredOperData, Pass1NotFound, Pass1NotFoundData, Pass1Count, Pass2NotFound, Pass2NotFoundData, Pass2Count)
-
-Pass2Found = ProcessSecondPassWithSupplierService(WsDover, FilteredOperData, Pass1NotFound, Pass1NotFoundData, Pass1Count, Pass2NotFound, Pass2NotFoundData, Pass2Count)
-
-    End If
-    
-    ' === 3-Й ПРОХОД: УНИВЕРСАЛЬНЫЕ ДОКУМЕНТЫ ===
-    If Pass2Count > 0 Then
-        Debug.Print "=== 3-Й ПРОХОД: УНИВЕРСАЛЬНЫЕ ДОКУМЕНТЫ ==="
-        Pass3Found = ProcessThirdPass(WsDover, FilteredOperData, Pass2NotFound, Pass2NotFoundData, Pass2Count, Pass3ByType)
-        Debug.Print "3-й проход нашел: " & Pass3Found
-        Debug.Print "  Разнарядки: " & Pass3ByType(0)
-        Debug.Print "  Телеграммы: " & Pass3ByType(1)
-        Debug.Print "  Аттестаты: " & Pass3ByType(2)
-        Debug.Print "  Заявки: " & Pass3ByType(3)
-    End If
+    ' 2-й и 3-й проходы отключены согласно спецификации
     
     ' Восстанавливаем настройки
     Application.Calculation = xlCalculationAutomatic
@@ -263,18 +285,14 @@ Pass2Found = ProcessSecondPassWithSupplierService(WsDover, FilteredOperData, Pas
     Dim TotalTime As Double
     TotalTime = Timer - StartTime
     
-    Debug.Print "=== РЕЗУЛЬТАТЫ ТРЕХПРОХОДНОЙ СИСТЕМЫ С ИСПРАВЛЕННЫМ REGEX ==="
+    Debug.Print "=== РЕЗУЛЬТАТЫ СОПОСТАВЛЕНИЯ (МАСТЕР, ТОЛЬКО 1-Й ПРОХОД) ==="
     Debug.Print "Время выполнения: " & Format(TotalTime, "0.0") & " сек"
     Debug.Print "Обработано: " & ProcessedCount
     Debug.Print "Пропущено уже найденных: " & SkippedFound
-    Debug.Print "1-й проход (точные наряды): " & Pass1Found
-
-    Debug.Print "2-й проход (исправленный REGEX наряды): " & Pass2Found
-    Debug.Print "3-й проход (другие документы): " & Pass3Found
-    Debug.Print "Всего найдено: " & (Pass1Found + Pass2Found + Pass3Found) & " (" & Format((Pass1Found + Pass2Found + Pass3Found) / ProcessedCount * 100, "0.0") & "%)"
+    Debug.Print "Найдено (точные наряды): " & Pass1Found
+    Debug.Print "Всего найдено: " & (Pass1Found) & " (" & IIf(ProcessedCount > 0, Format((Pass1Found / ProcessedCount) * 100, "0.0"), "0.0") & "%)"
     Debug.Print "Пропущено операций с пустым корреспондентом: " & SkippedEmpty
-    
-    Call ShowThreePassStatistics(ProcessedCount, Pass1Found, Pass2Found, Pass3Found, Pass3ByType, SkippedEmpty, SkippedFound)
+    ' Убрали показ статистики по проходам
 
     
     Application.Calculate
@@ -292,6 +310,144 @@ MatchingError:
     Debug.Print "Ошибка трехпроходной системы: " & Err.description
     MsgBox "Ошибка: " & Err.description, vbCritical
 End Sub
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Слияние (merge) выгрузки доверенностей за период в мастер-лист без дубликатов. Сравнение выполняется по нормализованному ключу исходных полей A:I.
+' @param WsMaster [Worksheet] Лист мастер-файла доверенностей.
+' @param WsPeriod [Worksheet] Лист периодной выгрузки доверенностей.
+' @param AddedCount [Long] Количество добавленных строк (возвращается через ByRef).
+' =============================================
+Private Sub MergePeriodDoverennostiIntoMaster(WsMaster As Worksheet, WsPeriod As Worksheet, ByRef AddedCount As Long)
+    Dim LastRowMaster As Long, LastRowPeriod As Long
+    Dim MasterData As Variant, PeriodData As Variant
+    Dim Dict As Object
+    Dim i As Long
+    Dim Key As String
+    
+    On Error GoTo ErrorHandler
+    
+    AddedCount = 0
+    
+    LastRowMaster = WsMaster.Cells(WsMaster.Rows.Count, 1).End(xlUp).Row
+    LastRowPeriod = WsPeriod.Cells(WsPeriod.Rows.Count, 1).End(xlUp).Row
+    
+    If LastRowPeriod < 2 Then Exit Sub
+    
+    Set Dict = CreateObject("Scripting.Dictionary")
+    Dict.CompareMode = 1 ' TextCompare
+    
+    If LastRowMaster >= 2 Then
+        MasterData = WsMaster.Range("A2:I" & LastRowMaster).Value2
+        For i = 1 To UBound(MasterData, 1)
+            Key = BuildMasterRowKey(MasterData, i)
+            If Key <> "" Then
+                If Not Dict.Exists(Key) Then Dict.Add Key, True
+            End If
+        Next i
+    End If
+    
+    PeriodData = WsPeriod.Range("A2:I" & LastRowPeriod).Value2
+    
+    For i = 1 To UBound(PeriodData, 1)
+        Key = BuildMasterRowKey(PeriodData, i)
+        If Key <> "" Then
+            If Not Dict.Exists(Key) Then
+                LastRowMaster = LastRowMaster + 1
+                WsMaster.Range("A" & LastRowMaster & ":I" & LastRowMaster).Value2 = GetRowAs2DArray(PeriodData, i, 9)
+                Dict.Add Key, True
+                AddedCount = AddedCount + 1
+            End If
+        End If
+    Next i
+    
+    Exit Sub
+    
+ErrorHandler:
+    Debug.Print "Ошибка слияния мастер-файла: " & Err.Description
+    Err.Raise Err.Number, , "Ошибка слияния мастер-файла: " & Err.Description
+End Sub
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Формирует нормализованный ключ строки доверенности по исходным полям A:I.
+' =============================================
+Private Function BuildMasterRowKey(DataArr As Variant, RowIndex As Long) As String
+    Dim j As Long
+    Dim Key As String
+    
+    On Error GoTo ErrorHandler
+    
+    For j = 1 To 9
+        If j = 1 Then
+            Key = NormalizeKeyPart(DataArr(RowIndex, j))
+        Else
+            Key = Key & "|" & NormalizeKeyPart(DataArr(RowIndex, j))
+        End If
+    Next j
+    
+    BuildMasterRowKey = Key
+    Exit Function
+    
+ErrorHandler:
+    BuildMasterRowKey = ""
+End Function
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Нормализует элемент ключа: даты приводятся к строке формата yyyy-mm-dd hh:nn:ss, прочие значения к UCase/Trim с схлопыванием пробелов.
+' =============================================
+Private Function NormalizeKeyPart(ByVal v As Variant) As String
+    Dim s As String
+    
+    On Error GoTo ErrorHandler
+    
+    If IsError(v) Then
+        NormalizeKeyPart = ""
+        Exit Function
+    End If
+    
+    If IsEmpty(v) Or IsNull(v) Then
+        NormalizeKeyPart = ""
+        Exit Function
+    End If
+    
+    If IsDate(v) Then
+        NormalizeKeyPart = Format(CDate(v), "yyyy-mm-dd hh:nn:ss")
+        Exit Function
+    End If
+    
+    s = CStr(v)
+    s = Replace(s, vbCr, " ")
+    s = Replace(s, vbLf, " ")
+    s = Trim(s)
+    
+    Do While InStr(s, "  ") > 0
+        s = Replace(s, "  ", " ")
+    Loop
+    
+    NormalizeKeyPart = UCase(s)
+    Exit Function
+    
+ErrorHandler:
+    NormalizeKeyPart = ""
+End Function
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Возвращает строку из двумерного массива как 2D-массив 1xN для быстрой записи в Range.Value2.
+' =============================================
+Private Function GetRowAs2DArray(DataArr As Variant, RowIndex As Long, ColCount As Long) As Variant
+    Dim OutArr() As Variant
+    Dim j As Long
+    
+    ReDim OutArr(1 To 1, 1 To ColCount)
+    For j = 1 To ColCount
+        OutArr(1, j) = DataArr(RowIndex, j)
+    Next j
+    
+    GetRowAs2DArray = OutArr
+End Function
 
 ' =============================================
 ' 2-Й ПРОХОД: ИСПРАВЛЕННЫЙ АДАПТИВНЫЙ REGEX
@@ -818,7 +974,7 @@ Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As
                 result.MatchScore = 100
                 result.OperationRow = i + 1
                 result.OperationNumber = Trim(CStr(OperArray(i, 3)))
-                result.MatchDetails = "найден номер И дата"
+                result.MatchDetails = "найден номер и дата | 1С: " & OperComment
                 
                 On Error Resume Next
                 result.OperationDate = CDate(OperArray(i, 2))
@@ -1057,8 +1213,9 @@ Private Sub AddThreePassResultColumns(Ws As Worksheet)
     Dim i As Long
     Dim alreadyExists As Boolean
     
+    ' Проверяем наличие основной колонки результата
     For i = 1 To 25
-        If Trim(CStr(Ws.Cells(1, i).value)) = "Трехпроходный поиск" Then
+        If Trim(CStr(Ws.Cells(1, i).value)) = "Статус сопоставления" Then
             alreadyExists = True
             Exit For
         End If
@@ -1068,16 +1225,12 @@ Private Sub AddThreePassResultColumns(Ws As Worksheet)
         LastCol = Ws.Cells(1, Ws.Columns.Count).End(xlToLeft).Column
         
         With Ws
-            .Cells(1, LastCol + 1).value = "Трехпроходный поиск"
+            .Cells(1, LastCol + 1).value = "Статус сопоставления"
             .Cells(1, LastCol + 2).value = "Номер операции"
             .Cells(1, LastCol + 3).value = "Дата операции"
-            .Cells(1, LastCol + 4).value = "Процент"
-            .Cells(1, LastCol + 5).value = "Детали"
-            .Cells(1, LastCol + 6).value = "Комментарий 1С" ' НОВЫЙ СТОЛБЕЦ!
+            .Cells(1, LastCol + 4).value = "Комментарий 1С"
             
-            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 6)).Font.Bold = True
-            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 6)).Interior.Color = RGB(220, 220, 255)
-            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 6)).Borders.LineStyle = xlContinuous
+            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 4)).Font.Bold = True
         End With
     End If
 End Sub
@@ -1087,10 +1240,13 @@ End Sub
 Private Sub WriteThreePassResult(Ws As Worksheet, Row As Long, MatchResult As MatchResult)
     Dim ResultCol As Long
     Static CachedCol As Long
+    Dim Comment1C As String
+    Dim CommentStart As Long
     
     If CachedCol = 0 Then
-        For ResultCol = 10 To 30
-            If Trim(CStr(Ws.Cells(1, ResultCol).value)) = "Трехпроходный поиск" Then
+        For ResultCol = 1 To 200
+            If Trim(CStr(Ws.Cells(1, ResultCol).Value)) = "Статус сопоставления" Or _
+               Trim(CStr(Ws.Cells(1, ResultCol).Value)) = "Трехпроходный поиск" Then
                 CachedCol = ResultCol
                 Exit For
             End If
@@ -1099,59 +1255,25 @@ Private Sub WriteThreePassResult(Ws As Worksheet, Row As Long, MatchResult As Ma
     
     If CachedCol > 0 Then
         If MatchResult.FoundMatch Then
-            ' Определяем, нужно ли добавить "ВЕРОЯТНО"
-            Dim ResultText As String
-            If MatchResult.MatchScore >= 80 Then
-                ResultText = "НАЙДЕНО"
-            ElseIf MatchResult.MatchScore >= 60 Then
-                ResultText = "ВЕРОЯТНО НАЙДЕНО"
-            Else
-                ResultText = "ВЕРОЯТНО"
-            End If
-            
-            Ws.Cells(Row, CachedCol).value = ResultText
+            Ws.Cells(Row, CachedCol).value = "НАЙДЕНО"
             Ws.Cells(Row, CachedCol + 1).value = MatchResult.OperationNumber
             Ws.Cells(Row, CachedCol + 2).value = MatchResult.OperationDate
-            Ws.Cells(Row, CachedCol + 3).value = Format(MatchResult.MatchScore, "0") & "%"
-            Ws.Cells(Row, CachedCol + 4).value = MatchResult.MatchDetails
             
-            ' НОВОЕ: Извлекаем комментарий из 1С из MatchDetails
-            ' ИСПРАВЛЕННОЕ: Извлекаем полный комментарий из 1С
-Dim Comment1C As String
-Dim CommentStart As Long
-CommentStart = InStr(MatchResult.MatchDetails, "| 1С: ")
-
-If CommentStart > 0 Then
-    Comment1C = Mid(MatchResult.MatchDetails, CommentStart + 5)
-    Comment1C = Trim(Comment1C)
-    Call WriteFullComment(Ws, Row, CachedCol + 5, Comment1C)
-End If
-
-
-            
-            ' ЦВЕТОВАЯ МАРКИРОВКА ПО ПРОХОДАМ И УВЕРЕННОСТИ
-            Select Case MatchResult.PassNumber
-                Case 1: ' 1-й проход - темно-зеленый
-                    Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(0, 200, 0)
-                Case 2: ' 2-й проход - зависит от уверенности
-                    If MatchResult.MatchScore >= 80 Then
-                        Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(150, 255, 150) ' Светло-зеленый
-                    Else
-                        Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(255, 255, 150) ' Желтый - требует проверки
-                    End If
-                Case 3: ' 3-й проход - голубой
-                    Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(150, 200, 255)
-            End Select
-        Else
-            Ws.Cells(Row, CachedCol).value = "НЕ НАЙДЕНО"
-            Ws.Cells(Row, CachedCol + 3).value = "0%"
-            Ws.Cells(Row, CachedCol + 4).value = MatchResult.MatchDetails
-            
-            If InStr(MatchResult.MatchDetails, "проход") > 0 Then
-                Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(255, 255, 150) ' Желтый - ожидание
+            ' Извлекаем полный комментарий 1С из MatchDetails (если передан)
+            CommentStart = InStr(MatchResult.MatchDetails, "| 1С: ")
+            If CommentStart > 0 Then
+                Comment1C = Mid(MatchResult.MatchDetails, CommentStart + 5)
+                Comment1C = Trim(Comment1C)
+                Call WriteFullComment(Ws, Row, CachedCol + 3, Comment1C)
             Else
-                Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(255, 200, 200) ' Красный - не найдено
+                Ws.Cells(Row, CachedCol + 3).value = ""
             End If
+        Else
+            ' Не найдено: пишем статус и очищаем связанные колонки
+            Ws.Cells(Row, CachedCol).value = "НЕ НАЙДЕНО"
+            Ws.Cells(Row, CachedCol + 1).value = ""
+            Ws.Cells(Row, CachedCol + 2).value = ""
+            Ws.Cells(Row, CachedCol + 3).value = ""
         End If
     End If
 End Sub
@@ -1784,11 +1906,17 @@ End Function
 ' Находит номер столбца с результатами поиска
 Private Function FindResultColumn(Ws As Worksheet) As Long
     Dim i As Long
+    Dim header As String
     
     FindResultColumn = 0
     
     For i = 1 To 30
-        If Trim(UCase(CStr(Ws.Cells(1, i).value))) = "ТРЕХПРОХОДНЫЙ ПОИСК" Then
+        header = Trim(CStr(Ws.Cells(1, i).value))
+        If UCase(header) = "СТАТУС СОПОСТАВЛЕНИЯ" Then
+            FindResultColumn = i
+            Exit For
+        End If
+        If UCase(header) = "ТРЕХПРОХОДНЫЙ ПОИСК" Then
             FindResultColumn = i
             Exit For
         End If
