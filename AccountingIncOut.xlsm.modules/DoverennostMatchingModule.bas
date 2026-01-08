@@ -60,6 +60,13 @@ Public Type DateCandidate
     ParsedDate As Date
     DateFormat As String ' "FULL", "SHORT", "PARTIAL"
 End Type
+
+' Структура для пары номер+дата
+Public Type NumberDatePair
+    Number As String
+    DateStr As String
+    OtPosition As Long  ' Позиция слова "ОТ" для отладки
+End Type
 ' =============================================
 ' ОСНОВНАЯ ПРОЦЕДУРА
 ' =============================================
@@ -181,8 +188,9 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
     Dim ProcessedCount As Long, SkippedEmpty As Long, SkippedFound As Long
 
     
-    ' Статистика
-    Dim Pass1Found As Long
+    ' Статистика по проходам
+    Dim Pass1Found As Long, Pass2Found As Long, Pass3Found As Long
+    Dim Pass3ByType(4) As Long
     
     Dim StartTime As Double
     
@@ -218,9 +226,17 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
     Dim ResultColumn As Long
     ResultColumn = FindResultColumn(WsDover)
     
-    Debug.Print "СОПОСТАВЛЕНИЕ (МАСТЕР, 1-й проход: точные наряды): " & (LastRowDover - 1) & " доверенностей против " & FilteredCount & " операций"
+    Debug.Print "ТРЕХПРОХОДНАЯ СИСТЕМА С ИСПРАВЛЕННЫМ REGEX: " & (LastRowDover - 1) & " доверенностей против " & FilteredCount & " операций"
 
     Debug.Print "Пропущено " & SkippedEmpty & " операций с пустым корреспондентом"
+    
+    ' Массивы для хранения не найденных записей
+    Dim Pass1NotFound() As Long, Pass1NotFoundData() As ParsedNaryad
+    Dim Pass2NotFound() As Long, Pass2NotFoundData() As ParsedNaryad
+    Dim Pass1Count As Long, Pass2Count As Long
+    
+    Pass1Count = 0
+    Pass2Count = 0
     
     Dim DoverComment As String
     Dim ParsedDover As ParsedNaryad
@@ -233,7 +249,7 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
         DoverComment = Trim(CStr(DoverData(i, 9)))
         
         If i Mod 25 = 0 Then
-            Application.StatusBar = "Сопоставление доверенностей (мастер): " & i & " из " & UBound(DoverData, 1)
+            Application.StatusBar = "3-проходная система с исправленным REGEX: " & i & " из " & UBound(DoverData, 1)
         End If
         
         ' Проверяем, была ли строка уже обработана с результатом "НАЙДЕНО"
@@ -255,9 +271,26 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
                 
                 If MatchResult.FoundMatch Then
                     Pass1Found = Pass1Found + 1
+                    MatchResult.MatchDetails = "1-й проход: " & MatchResult.MatchDetails
+                Else
+                    ' Сохраняем для 2-го прохода
+                    Pass1Count = Pass1Count + 1
+                    ReDim Preserve Pass1NotFound(Pass1Count - 1)
+                    ReDim Preserve Pass1NotFoundData(Pass1Count - 1)
+                    Pass1NotFound(Pass1Count - 1) = CurrentRow
+                    Pass1NotFoundData(Pass1Count - 1) = ParsedDover
+                    MatchResult.MatchDetails = "Ждет 2-й проход (исправленный REGEX)"
                 End If
             Else
-                MatchResult = CreateEmptyMatchResult("Не удалось распознать наряд")
+                ' Если не наряд или не распарсился - сохраняем для 3-го прохода
+                Pass2Count = Pass2Count + 1
+                ReDim Preserve Pass2NotFound(Pass2Count - 1)
+                ReDim Preserve Pass2NotFoundData(Pass2Count - 1)
+                Pass2NotFound(Pass2Count - 1) = CurrentRow
+                Pass2NotFoundData(Pass2Count - 1).OriginalText = DoverComment
+                Pass2NotFoundData(Pass2Count - 1).IsValid = False
+                
+                MatchResult = CreateEmptyMatchResult("Ждет 3-й проход")
                 MatchResult.PassNumber = 0
             End If
             
@@ -273,7 +306,22 @@ NextIteration:
         Next i
 
     
-    ' 2-й и 3-й проходы отключены согласно спецификации
+    ' === 2-Й ПРОХОД: ИСПРАВЛЕННЫЙ АДАПТИВНЫЙ REGEX ===
+    If Pass1Count > 0 Then
+        Debug.Print "=== 2-Й ПРОХОД: ИСПРАВЛЕННЫЙ АДАПТИВНЫЙ REGEX ==="
+        Pass2Found = ProcessSecondPassWithSupplierService(WsDover, FilteredOperData, Pass1NotFound, Pass1NotFoundData, Pass1Count, Pass2NotFound, Pass2NotFoundData, Pass2Count)
+    End If
+    
+    ' === 3-Й ПРОХОД: УНИВЕРСАЛЬНЫЕ ДОКУМЕНТЫ ===
+    If Pass2Count > 0 Then
+        Debug.Print "=== 3-Й ПРОХОД: УНИВЕРСАЛЬНЫЕ ДОКУМЕНТЫ ==="
+        Pass3Found = ProcessThirdPass(WsDover, FilteredOperData, Pass2NotFound, Pass2NotFoundData, Pass2Count, Pass3ByType)
+        Debug.Print "3-й проход нашел: " & Pass3Found
+        Debug.Print "  Разнарядки: " & Pass3ByType(0)
+        Debug.Print "  Телеграммы: " & Pass3ByType(1)
+        Debug.Print "  Аттестаты: " & Pass3ByType(2)
+        Debug.Print "  Заявки: " & Pass3ByType(3)
+    End If
     
     ' Восстанавливаем настройки
     Application.Calculation = xlCalculationAutomatic
@@ -285,14 +333,18 @@ NextIteration:
     Dim TotalTime As Double
     TotalTime = Timer - StartTime
     
-    Debug.Print "=== РЕЗУЛЬТАТЫ СОПОСТАВЛЕНИЯ (МАСТЕР, ТОЛЬКО 1-Й ПРОХОД) ==="
+    Debug.Print "=== РЕЗУЛЬТАТЫ ТРЕХПРОХОДНОЙ СИСТЕМЫ С ИСПРАВЛЕННЫМ REGEX ==="
     Debug.Print "Время выполнения: " & Format(TotalTime, "0.0") & " сек"
     Debug.Print "Обработано: " & ProcessedCount
     Debug.Print "Пропущено уже найденных: " & SkippedFound
-    Debug.Print "Найдено (точные наряды): " & Pass1Found
-    Debug.Print "Всего найдено: " & (Pass1Found) & " (" & IIf(ProcessedCount > 0, Format((Pass1Found / ProcessedCount) * 100, "0.0"), "0.0") & "%)"
+    Debug.Print "1-й проход (точные наряды): " & Pass1Found
+
+    Debug.Print "2-й проход (исправленный REGEX наряды): " & Pass2Found
+    Debug.Print "3-й проход (другие документы): " & Pass3Found
+    Debug.Print "Всего найдено: " & (Pass1Found + Pass2Found + Pass3Found) & " (" & Format((Pass1Found + Pass2Found + Pass3Found) / ProcessedCount * 100, "0.0") & "%)"
     Debug.Print "Пропущено операций с пустым корреспондентом: " & SkippedEmpty
-    ' Убрали показ статистики по проходам
+    
+    Call ShowThreePassStatistics(ProcessedCount, Pass1Found, Pass2Found, Pass3Found, Pass3ByType, SkippedEmpty, SkippedFound)
 
     
     Application.Calculate
@@ -768,16 +820,230 @@ Public Sub AddCustomPatternForText(ByRef Patterns() As String, ByRef PatternCoun
 End Sub
 
 ' =============================================
-' ПАРСИНГ ДОКУМЕНТОВ (СУЩЕСТВУЮЩИЕ ФУНКЦИИ)
+' ПАРСИНГ ДОКУМЕНТОВ (УНИВЕРСАЛЬНОЕ ИЗВЛЕЧЕНИЕ ВСЕХ ПАР)
 ' =============================================
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Извлекает все пары "номер от дата" из текста комментария. Поддерживает множественные пары в одном комментарии.
+' @param Text [String] Текст комментария
+' @return [NumberDatePair()] Массив всех найденных пар номер+дата
+' =============================================
+Private Function ExtractAllNumberDatePairs(Text As String) As NumberDatePair()
+    Dim Pairs() As NumberDatePair
+    Dim PairCount As Long
+    Dim UpperText As String
+    Dim SearchPos As Long
+    Dim OtPos As Long
+    
+    UpperText = UCase(Text)
+    PairCount = 0
+    ReDim Pairs(0 To 9)  ' Максимум 10 пар
+    
+    SearchPos = 1
+    
+    Debug.Print "  === ИЗВЛЕЧЕНИЕ ВСЕХ ПАР НОМЕР+ДАТА ==="
+    
+    ' Ищем все вхождения "ОТ" (как " ОТ " и "ОТ ")
+    Do
+        OtPos = InStr(SearchPos, UpperText, " ОТ ")
+        If OtPos = 0 Then
+            OtPos = InStr(SearchPos, UpperText, "ОТ ")
+            If OtPos > 0 And OtPos = SearchPos Then
+                ' "ОТ" в начале строки или после пробела - валидно
+            ElseIf OtPos > 0 Then
+                ' "ОТ" найдено, но не в начале - возможно это часть слова
+                ' Проверяем, что перед "ОТ" есть пробел или начало строки
+                If OtPos > 1 And Mid(UpperText, OtPos - 1, 1) <> " " Then
+                    OtPos = 0
+                End If
+            End If
+        End If
+        
+        If OtPos = 0 Then Exit Do
+        
+        ' Извлекаем номер (до "ОТ")
+        Dim NumberBefore As String
+        NumberBefore = ExtractNumberBeforeOt(Text, OtPos)
+        
+        ' Извлекаем дату (после "ОТ")
+        Dim DateAfter As String
+        DateAfter = ExtractDateAfterOt(Text, OtPos)
+        
+        ' Если обе части найдены - добавляем пару
+        If NumberBefore <> "" And DateAfter <> "" Then
+            Pairs(PairCount).Number = NumberBefore
+            Pairs(PairCount).DateStr = DateAfter
+            Pairs(PairCount).OtPosition = OtPos
+            PairCount = PairCount + 1
+            
+            Debug.Print "  Пара " & PairCount & ": №='" & NumberBefore & "' дата='" & DateAfter & "'"
+            
+            If PairCount >= 10 Then Exit Do  ' Ограничение на количество пар
+        End If
+        
+        ' Продолжаем поиск после текущего "ОТ"
+        SearchPos = OtPos + 3
+        
+    Loop
+    
+    ReDim Preserve Pairs(0 To IIf(PairCount > 0, PairCount - 1, 0))
+    
+    Debug.Print "  Всего найдено пар: " & PairCount
+    ExtractAllNumberDatePairs = Pairs
+End Function
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Извлекает номер документа перед позицией "ОТ". Очищает от служебных слов и символов.
+' @param Text [String] Исходный текст
+' @param OtPos [Long] Позиция слова "ОТ" в тексте
+' @return [String] Извлеченный номер
+' =============================================
+Private Function ExtractNumberBeforeOt(Text As String, OtPos As Long) As String
+    Dim BeforeOt As String
+    Dim CleanNumber As String
+    Dim KnownPrefixes As Variant
+    Dim j As Long
+    Dim i As Long
+    Dim Char As String
+    Dim HasValidChar As Boolean
+    Dim StartPos As Long
+    Dim UpperText As String
+    
+    On Error GoTo ErrorHandler
+    
+    UpperText = UCase(Text)
+    
+    ' Ищем начало номера (идем назад от "ОТ" до пробела, запятой, точки с запятой)
+    StartPos = OtPos - 1
+    Do While StartPos > 0
+        Char = Mid(UpperText, StartPos, 1)
+        If Char = " " Or Char = "," Or Char = ";" Or Char = "." Then
+            Exit Do
+        End If
+        StartPos = StartPos - 1
+    Loop
+    If StartPos > 0 Then StartPos = StartPos + 1
+    
+    BeforeOt = Trim(Mid(Text, StartPos, OtPos - StartPos))
+    
+    ' Убираем известные префиксы
+    KnownPrefixes = Array("НАРЯД", "ВС НАРЯД", "ГСМ ЗАЯВКА", "БПЛА ТЕЛЕГРАММА", _
+                          "РАВ НАРЯД", "БТ НАРЯД", "ПС НАРЯД", "СС НАРЯД", _
+                          "ВС", "ГСМ", "РАВ", "БТ", "ПС", "СС", "БПЛА", _
+                          "АС АКТ ИЗЪЯТИЯ", "АКТ ОЦЕНКИ МЦ", "НАРЯД ВМУ ЮВО", _
+                          "ВЫПИСКА ИЗ ПРИКАЗА", "ДЕФЕКТАЦИОННАЯ ВЕДОМОСТЬ", _
+                          "АС", "АКТ ИЗЪЯТИЯ", "АКТ ОЦЕНКИ", "ВМУ", "ЮВО", _
+                          "ВЫПИСКА", "ПРИКАЗ", "ДЕФЕКТАЦИОННАЯ", "ВЕДОМОСТЬ", _
+                          "АКТ")
+    
+    CleanNumber = UCase(BeforeOt)
+    
+    ' Убираем известные префиксы (сначала длинные, потом короткие)
+    For j = 0 To UBound(KnownPrefixes)
+        If Left(CleanNumber, Len(KnownPrefixes(j))) = KnownPrefixes(j) Then
+            CleanNumber = Trim(Mid(CleanNumber, Len(KnownPrefixes(j)) + 1))
+            Exit For
+        End If
+    Next j
+    
+    ' Убираем символы "№", "#"
+    CleanNumber = Replace(CleanNumber, "№", "")
+    CleanNumber = Replace(CleanNumber, "#", "")
+    CleanNumber = Trim(CleanNumber)
+    
+    ' Убираем лишние пробелы
+    Do While InStr(CleanNumber, "  ") > 0
+        CleanNumber = Replace(CleanNumber, "  ", " ")
+    Loop
+    
+    ' Проверяем валидность (должен содержать хотя бы одну цифру или букву)
+    If CleanNumber <> "" Then
+        HasValidChar = False
+        For i = 1 To Len(CleanNumber)
+            Char = Mid(CleanNumber, i, 1)
+            If (Char >= "0" And Char <= "9") Or _
+               (Char >= "A" And Char <= "Z") Or _
+               (Char >= "А" And Char <= "Я") Or _
+               Char = "/" Or Char = "-" Then
+                HasValidChar = True
+                Exit For
+            End If
+        Next i
+        
+        If HasValidChar Then
+            ExtractNumberBeforeOt = CleanNumber
+            Exit Function
+        End If
+    End If
+    
+    ExtractNumberBeforeOt = ""
+    Exit Function
+    
+ErrorHandler:
+    ExtractNumberBeforeOt = ""
+End Function
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Извлекает дату после позиции "ОТ". Нормализует формат даты.
+' @param Text [String] Исходный текст
+' @param OtPos [Long] Позиция слова "ОТ" в тексте
+' @return [String] Извлеченная и нормализованная дата
+' =============================================
+Private Function ExtractDateAfterOt(Text As String, OtPos As Long) As String
+    Dim DateStart As Long
+    Dim DateStr As String
+    Dim i As Long
+    Dim Char As String
+    Dim UpperText As String
+    
+    On Error GoTo ErrorHandler
+    
+    UpperText = UCase(Text)
+    
+    ' Определяем начало даты (после "ОТ" или "ОТ ")
+    DateStart = OtPos + 2
+    If Mid(UpperText, OtPos, 4) = " ОТ " Then
+        DateStart = OtPos + 4
+    End If
+    
+    ' Пропускаем пробелы
+    Do While DateStart <= Len(Text) And Mid(Text, DateStart, 1) = " "
+        DateStart = DateStart + 1
+    Loop
+    
+    ' Извлекаем дату (цифры, точки)
+    For i = DateStart To Len(Text)
+        Char = Mid(Text, i, 1)
+        If (Char >= "0" And Char <= "9") Or Char = "." Then
+            DateStr = DateStr & Char
+        ElseIf DateStr <> "" And (Char = " " Or Char = "г" Or Char = "Г" Or Char = "," Or Char = ";" Or Char = ".") Then
+            Exit For
+        End If
+    Next i
+    
+    ' Нормализуем дату
+    If Len(DateStr) >= 8 And InStr(DateStr, ".") > 0 Then
+        ExtractDateAfterOt = NormalizeDateForSubstring(DateStr)
+    Else
+        ExtractDateAfterOt = ""
+    End If
+    
+    Exit Function
+    
+ErrorHandler:
+    ExtractDateAfterOt = ""
+End Function
 
 ' Парсинг наряда для 1-го прохода
 Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
-    Dim result As ParsedNaryad
+    Dim Result As ParsedNaryad
     
-    result.OriginalText = Text
-    result.IsValid = False
-    result.DocumentType = "НАРЯД"
+    Result.OriginalText = Text
+    Result.IsValid = False
+    Result.DocumentType = "НАРЯД"
     
     On Error GoTo SubstringParseError
     
@@ -786,38 +1052,38 @@ Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
     
     If InStr(1, UCase(Text), "НАРЯД") = 0 Then
         Debug.Print "? Слово 'наряд' не найдено"
-        result.MatchDetails = "Нет слова 'наряд'"
-        ParseNaryadForSubstring = result
+        Result.MatchDetails = "Нет слова 'наряд'"
+        ParseNaryadForSubstring = Result
         Exit Function
     End If
     
     Debug.Print "? Найдено слово 'наряд'"
     
-    result.DocumentNumber = ExtractSubstringNumber(Text, "НАРЯД")
-    Debug.Print "Номер: '" & result.DocumentNumber & "'"
+    Result.DocumentNumber = ExtractSubstringNumber(Text, "НАРЯД")
+    Debug.Print "Номер: '" & Result.DocumentNumber & "'"
     
-    result.DocumentDate = ExtractSubstringDate(Text)
-    Debug.Print "Дата: '" & result.DocumentDate & "'"
+    Result.DocumentDate = ExtractSubstringDate(Text)
+    Debug.Print "Дата: '" & Result.DocumentDate & "'"
     
-    If result.DocumentNumber <> "" And result.DocumentDate <> "" Then
-        result.IsValid = True
-        result.MatchDetails = "Подстроки: успешно"
+    If Result.DocumentNumber <> "" And Result.DocumentDate <> "" Then
+        Result.IsValid = True
+        Result.MatchDetails = "Подстроки: успешно"
         Debug.Print "? ПАРСИНГ НАРЯДА УСПЕШЕН"
     Else
-        result.MatchDetails = "Подстроки: нет номера или даты"
+        Result.MatchDetails = "Подстроки: нет номера или даты"
         Debug.Print "? ПАРСИНГ НАРЯДА НЕУСПЕШЕН"
     End If
     
     Debug.Print "========================="
     
-    ParseNaryadForSubstring = result
+    ParseNaryadForSubstring = Result
     Exit Function
     
 SubstringParseError:
     Debug.Print "? Ошибка парсинга наряда: " & Err.description
-    result.IsValid = False
-    result.MatchDetails = "Ошибка парсинга: " & Err.description
-    ParseNaryadForSubstring = result
+    Result.IsValid = False
+    Result.MatchDetails = "Ошибка парсинга: " & Err.description
+    ParseNaryadForSubstring = Result
 End Function
 
 ' Извлечение номера документа
@@ -945,12 +1211,12 @@ End Function
 
 ' Поиск по подстрокам (1-й проход)
 Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As Variant) As MatchResult
-    Dim result As MatchResult
+    Dim Result As MatchResult
     Dim i As Long
     Dim OperComment As String
     
-    result.FoundMatch = False
-    result.MatchScore = 0
+    Result.FoundMatch = False
+    Result.MatchScore = 0
     
     For i = 1 To UBound(OperArray, 1)
         OperComment = Trim(CStr(OperArray(i, 9)))
@@ -970,14 +1236,14 @@ Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As
             End If
             
             If HasNumber And HasDate Then
-                result.FoundMatch = True
-                result.MatchScore = 100
-                result.OperationRow = i + 1
-                result.OperationNumber = Trim(CStr(OperArray(i, 3)))
-                result.MatchDetails = "найден номер и дата | 1С: " & OperComment
+                Result.FoundMatch = True
+                Result.MatchScore = 100
+                Result.OperationRow = i + 1
+                Result.OperationNumber = Trim(CStr(OperArray(i, 3)))
+                Result.MatchDetails = "найден номер И дата | 1С: " & OperComment
                 
                 On Error Resume Next
-                result.OperationDate = CDate(OperArray(i, 2))
+                Result.OperationDate = CDate(OperArray(i, 2))
                 On Error GoTo 0
                 
                 Exit For
@@ -985,11 +1251,11 @@ Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As
         End If
     Next i
     
-    If Not result.FoundMatch Then
-        result.MatchDetails = "номер или дата не найдены"
+    If Not Result.FoundMatch Then
+        Result.MatchDetails = "номер или дата не найдены"
     End If
     
-    FindBySubstringEnhanced = result
+    FindBySubstringEnhanced = Result
 End Function
 
 ' Преобразование в короткий формат даты
@@ -1010,6 +1276,161 @@ Private Function ConvertToShortDate(FullDate As String) As String
     
 ConvertError:
     ConvertToShortDate = ""
+End Function
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Нормализует комментарий для более точного поиска: убирает лишние пробелы, приводит к верхнему регистру.
+' @param Comment [String] Исходный комментарий
+' @return [String] Нормализованный комментарий
+' =============================================
+Private Function NormalizeCommentForSearch(Comment As String) As String
+    Dim result As String
+    
+    result = Comment
+    ' Убираем лишние пробелы
+    Do While InStr(result, "  ") > 0
+        result = Replace(result, "  ", " ")
+    Loop
+    
+    ' Приводим к верхнему регистру для единообразия
+    result = UCase(result)
+    
+    NormalizeCommentForSearch = result
+End Function
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Проверяет наличие даты в комментарии операции с учетом разных форматов (с ведущими нулями и без, с коротким/полным годом).
+' @param OperComment [String] Комментарий операции 1С
+' @param TargetDate [String] Целевая дата в формате DD.MM.YYYY
+' @return [Boolean] True если дата найдена в любом формате
+' =============================================
+Private Function CheckDateInComment(OperComment As String, TargetDate As String) As Boolean
+    Dim HasDate As Boolean
+    Dim DateVariants() As String
+    Dim i As Long
+    
+    HasDate = False
+    
+    On Error GoTo ErrorHandler
+    
+    ' Создаем варианты даты для поиска
+    DateVariants = CreateDateVariants(TargetDate)
+    
+    ' Проверяем, что массив не пустой
+    If UBound(DateVariants) < 0 Then
+        ' Если не удалось создать варианты, пробуем простой поиск исходной даты
+        HasDate = (InStr(1, OperComment, TargetDate, vbTextCompare) > 0)
+        If Not HasDate Then
+            ' Пробуем короткий формат
+            Dim ShortDate As String
+            ShortDate = ConvertToShortDate(TargetDate)
+            If ShortDate <> "" Then
+                HasDate = (InStr(1, OperComment, ShortDate, vbTextCompare) > 0)
+            End If
+        End If
+        CheckDateInComment = HasDate
+        Exit Function
+    End If
+    
+    ' Проверяем каждый вариант
+    For i = 0 To UBound(DateVariants)
+        If DateVariants(i) <> "" Then
+            If InStr(1, OperComment, DateVariants(i), vbTextCompare) > 0 Then
+                HasDate = True
+                Debug.Print "        Дата найдена в формате: '" & DateVariants(i) & "'"
+                Exit For
+            End If
+        End If
+    Next i
+    
+    CheckDateInComment = HasDate
+    Exit Function
+    
+ErrorHandler:
+    ' В случае ошибки пробуем простой поиск
+    HasDate = (InStr(1, OperComment, TargetDate, vbTextCompare) > 0)
+    CheckDateInComment = HasDate
+End Function
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Создает массив вариантов формата даты для поиска: с ведущими нулями и без, с полным и коротким годом, с "г." и без.
+' @param FullDate [String] Исходная дата в формате DD.MM.YYYY
+' @return [String()] Массив вариантов формата даты
+' =============================================
+Private Function CreateDateVariants(FullDate As String) As String()
+    Dim Variants() As String
+    Dim DateParts() As String
+    Dim Day As String, Month As String, Year As String
+    Dim VariantCount As Long
+    
+    VariantCount = 0
+    ReDim Variants(0 To 7) ' Максимум 8 вариантов
+    
+    On Error GoTo ErrorHandler
+    
+    DateParts = Split(FullDate, ".")
+    
+    If UBound(DateParts) >= 2 Then
+        Day = DateParts(0)
+        Month = DateParts(1)
+        Year = DateParts(2)
+        
+        ' Вариант 1: Исходная дата (DD.MM.YYYY)
+        Variants(VariantCount) = FullDate
+        VariantCount = VariantCount + 1
+        
+        ' Вариант 2: Без ведущих нулей в дне (D.MM.YYYY)
+        If Left(Day, 1) = "0" Then
+            Variants(VariantCount) = CLng(Day) & "." & Month & "." & Year
+            VariantCount = VariantCount + 1
+        End If
+        
+        ' Вариант 3: Без ведущих нулей в месяце (DD.M.YYYY)
+        If Left(Month, 1) = "0" Then
+            Variants(VariantCount) = Day & "." & CLng(Month) & "." & Year
+            VariantCount = VariantCount + 1
+        End If
+        
+        ' Вариант 4: Без ведущих нулей в обоих (D.M.YYYY)
+        If Left(Day, 1) = "0" And Left(Month, 1) = "0" Then
+            Variants(VariantCount) = CLng(Day) & "." & CLng(Month) & "." & Year
+            VariantCount = VariantCount + 1
+        End If
+        
+        ' Вариант 5: Короткий год (DD.MM.YY)
+        If Len(Year) = 4 Then
+            Variants(VariantCount) = Day & "." & Month & "." & Right(Year, 2)
+            VariantCount = VariantCount + 1
+        End If
+        
+        ' Вариант 6: Без ведущих нулей + короткий год (D.M.YY)
+        If Left(Day, 1) = "0" And Left(Month, 1) = "0" And Len(Year) = 4 Then
+            Variants(VariantCount) = CLng(Day) & "." & CLng(Month) & "." & Right(Year, 2)
+            VariantCount = VariantCount + 1
+        End If
+        
+        ' Вариант 7: С "г." в конце (DD.MM.YYYY г.)
+        Variants(VariantCount) = FullDate & " г."
+        VariantCount = VariantCount + 1
+        
+        ' Вариант 8: Без ведущих нулей + "г." (D.M.YYYY г.)
+        If Left(Day, 1) = "0" And Left(Month, 1) = "0" Then
+            Variants(VariantCount) = CLng(Day) & "." & CLng(Month) & "." & Year & " г."
+            VariantCount = VariantCount + 1
+        End If
+    End If
+    
+    ReDim Preserve Variants(0 To IIf(VariantCount > 0, VariantCount - 1, 0))
+    CreateDateVariants = Variants
+    Exit Function
+    
+ErrorHandler:
+    ReDim Variants(0 To 0)
+    Variants(0) = FullDate
+    CreateDateVariants = Variants
 End Function
 
 ' =============================================
@@ -1211,26 +1632,29 @@ End Function
 Private Sub AddThreePassResultColumns(Ws As Worksheet)
     Dim LastCol As Long
     Dim i As Long
-    Dim alreadyExists As Boolean
+    Dim AlreadyExists As Boolean
     
-    ' Проверяем наличие основной колонки результата
     For i = 1 To 25
-        If Trim(CStr(Ws.Cells(1, i).value)) = "Статус сопоставления" Then
-            alreadyExists = True
+        If Trim(CStr(Ws.Cells(1, i).value)) = "Трехпроходный поиск" Then
+            AlreadyExists = True
             Exit For
         End If
     Next i
     
-    If Not alreadyExists Then
+    If Not AlreadyExists Then
         LastCol = Ws.Cells(1, Ws.Columns.Count).End(xlToLeft).Column
         
         With Ws
-            .Cells(1, LastCol + 1).value = "Статус сопоставления"
+            .Cells(1, LastCol + 1).value = "Трехпроходный поиск"
             .Cells(1, LastCol + 2).value = "Номер операции"
             .Cells(1, LastCol + 3).value = "Дата операции"
-            .Cells(1, LastCol + 4).value = "Комментарий 1С"
+            .Cells(1, LastCol + 4).value = "Процент"
+            .Cells(1, LastCol + 5).value = "Детали"
+            .Cells(1, LastCol + 6).value = "Комментарий 1С" ' НОВЫЙ СТОЛБЕЦ!
             
-            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 4)).Font.Bold = True
+            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 6)).Font.Bold = True
+            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 6)).Interior.Color = RGB(220, 220, 255)
+            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 6)).Borders.LineStyle = xlContinuous
         End With
     End If
 End Sub
@@ -1240,13 +1664,10 @@ End Sub
 Private Sub WriteThreePassResult(Ws As Worksheet, Row As Long, MatchResult As MatchResult)
     Dim ResultCol As Long
     Static CachedCol As Long
-    Dim Comment1C As String
-    Dim CommentStart As Long
     
     If CachedCol = 0 Then
-        For ResultCol = 1 To 200
-            If Trim(CStr(Ws.Cells(1, ResultCol).Value)) = "Статус сопоставления" Or _
-               Trim(CStr(Ws.Cells(1, ResultCol).Value)) = "Трехпроходный поиск" Then
+        For ResultCol = 10 To 30
+            If Trim(CStr(Ws.Cells(1, ResultCol).value)) = "Трехпроходный поиск" Then
                 CachedCol = ResultCol
                 Exit For
             End If
@@ -1255,25 +1676,59 @@ Private Sub WriteThreePassResult(Ws As Worksheet, Row As Long, MatchResult As Ma
     
     If CachedCol > 0 Then
         If MatchResult.FoundMatch Then
-            Ws.Cells(Row, CachedCol).value = "НАЙДЕНО"
+            ' Определяем, нужно ли добавить "ВЕРОЯТНО"
+            Dim ResultText As String
+            If MatchResult.MatchScore >= 80 Then
+                ResultText = "НАЙДЕНО"
+            ElseIf MatchResult.MatchScore >= 60 Then
+                ResultText = "ВЕРОЯТНО НАЙДЕНО"
+            Else
+                ResultText = "ВЕРОЯТНО"
+            End If
+            
+            Ws.Cells(Row, CachedCol).value = ResultText
             Ws.Cells(Row, CachedCol + 1).value = MatchResult.OperationNumber
             Ws.Cells(Row, CachedCol + 2).value = MatchResult.OperationDate
+            Ws.Cells(Row, CachedCol + 3).value = Format(MatchResult.MatchScore, "0") & "%"
+            Ws.Cells(Row, CachedCol + 4).value = MatchResult.MatchDetails
             
-            ' Извлекаем полный комментарий 1С из MatchDetails (если передан)
+            ' НОВОЕ: Извлекаем комментарий из 1С из MatchDetails
+            ' ИСПРАВЛЕННОЕ: Извлекаем полный комментарий из 1С
+            Dim Comment1C As String
+            Dim CommentStart As Long
             CommentStart = InStr(MatchResult.MatchDetails, "| 1С: ")
+
             If CommentStart > 0 Then
                 Comment1C = Mid(MatchResult.MatchDetails, CommentStart + 5)
                 Comment1C = Trim(Comment1C)
-                Call WriteFullComment(Ws, Row, CachedCol + 3, Comment1C)
-            Else
-                Ws.Cells(Row, CachedCol + 3).value = ""
+                Call WriteFullComment(Ws, Row, CachedCol + 5, Comment1C)
             End If
+
+
+            
+            ' ЦВЕТОВАЯ МАРКИРОВКА ПО ПРОХОДАМ И УВЕРЕННОСТИ
+            Select Case MatchResult.PassNumber
+                Case 1: ' 1-й проход - темно-зеленый
+                    Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(0, 200, 0)
+                Case 2: ' 2-й проход - зависит от уверенности
+                    If MatchResult.MatchScore >= 80 Then
+                        Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(150, 255, 150) ' Светло-зеленый
+                    Else
+                        Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(255, 255, 150) ' Желтый - требует проверки
+                    End If
+                Case 3: ' 3-й проход - голубой
+                    Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(150, 200, 255)
+            End Select
         Else
-            ' Не найдено: пишем статус и очищаем связанные колонки
             Ws.Cells(Row, CachedCol).value = "НЕ НАЙДЕНО"
-            Ws.Cells(Row, CachedCol + 1).value = ""
-            Ws.Cells(Row, CachedCol + 2).value = ""
-            Ws.Cells(Row, CachedCol + 3).value = ""
+            Ws.Cells(Row, CachedCol + 3).value = "0%"
+            Ws.Cells(Row, CachedCol + 4).value = MatchResult.MatchDetails
+            
+            If InStr(MatchResult.MatchDetails, "проход") > 0 Then
+                Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(255, 255, 150) ' Желтый - ожидание
+            Else
+                Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(255, 200, 200) ' Красный - не найдено
+            End If
         End If
     End If
 End Sub
@@ -1897,7 +2352,7 @@ Private Function IsAlreadyProcessed(Ws As Worksheet, Row As Long, ResultColumn A
     If ResultColumn > 0 Then
         ResultValue = Trim(UCase(CStr(Ws.Cells(Row, ResultColumn).value)))
         
-        If ResultValue = "НАЙДЕНО" Then
+        If ResultValue = "НАЙДЕНО" Or ResultValue = "ВЕРОЯТНО НАЙДЕНО" Then
             IsAlreadyProcessed = True
         End If
     End If
@@ -1906,17 +2361,11 @@ End Function
 ' Находит номер столбца с результатами поиска
 Private Function FindResultColumn(Ws As Worksheet) As Long
     Dim i As Long
-    Dim header As String
     
     FindResultColumn = 0
     
     For i = 1 To 30
-        header = Trim(CStr(Ws.Cells(1, i).value))
-        If UCase(header) = "СТАТУС СОПОСТАВЛЕНИЯ" Then
-            FindResultColumn = i
-            Exit For
-        End If
-        If UCase(header) = "ТРЕХПРОХОДНЫЙ ПОИСК" Then
+        If Trim(UCase(CStr(Ws.Cells(1, i).value))) = "ТРЕХПРОХОДНЫЙ ПОИСК" Then
             FindResultColumn = i
             Exit For
         End If
