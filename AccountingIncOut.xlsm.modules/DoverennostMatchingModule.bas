@@ -226,9 +226,18 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
     Dim ResultColumn As Long
     ResultColumn = FindResultColumn(WsDover)
     
+    ' Определяем колонку корреспондента в доверенностях
+    Dim CorrespondentColumn As Long
+    CorrespondentColumn = FindCorrespondentColumn(WsDover)
+    
     Debug.Print "ТРЕХПРОХОДНАЯ СИСТЕМА С ИСПРАВЛЕННЫМ REGEX: " & (LastRowDover - 1) & " доверенностей против " & FilteredCount & " операций"
 
     Debug.Print "Пропущено " & SkippedEmpty & " операций с пустым корреспондентом"
+    If CorrespondentColumn > 0 Then
+        Debug.Print "Колонка корреспондента в доверенностях: " & CorrespondentColumn
+    Else
+        Debug.Print "ВНИМАНИЕ: Колонка корреспондента не найдена, проверка корреспондента будет пропущена"
+    End If
     
     ' Массивы для хранения не найденных записей
     Dim Pass1NotFound() As Long, Pass1NotFoundData() As ParsedNaryad
@@ -261,28 +270,54 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
         
         If DoverComment <> "" Then
 
+            ' Извлекаем корреспондента доверенности
+            Dim DoverCorrespondent As String
+            DoverCorrespondent = ""
+            If CorrespondentColumn > 0 Then
+                DoverCorrespondent = Trim(CStr(WsDover.Cells(CurrentRow, CorrespondentColumn).value))
+            End If
             
-            ' === 1-Й ПРОХОД: ТОЧНЫЕ НАРЯДЫ ===
+            ' === 1-Й ПРОХОД: ТОЧНЫЕ НАРЯДЫ И ДРУГИЕ ДОКУМЕНТЫ ===
             ParsedDover = ParseNaryadForSubstring(DoverComment)
             
-            If ParsedDover.IsValid And UCase(ParsedDover.DocumentType) = "НАРЯД" Then
-                MatchResult = FindBySubstringEnhanced(ParsedDover, FilteredOperData)
-                MatchResult.PassNumber = 1
+            ' Проверяем, что распарсился один из допустимых типов документов для 1-го прохода
+            If ParsedDover.IsValid Then
+                Dim ValidForFirstPass As Boolean
+                Dim DocTypeUpper As String
+                DocTypeUpper = UCase(ParsedDover.DocumentType)
+                ValidForFirstPass = (DocTypeUpper = "НАРЯД" Or DocTypeUpper = "ЧТ" Or _
+                                     DocTypeUpper = "РАЗНАРЯДКА" Or DocTypeUpper = "ЗАЯВКА-НАРЯД" Or _
+                                     DocTypeUpper = "ЗАЯВКА НАРЯД")
                 
-                If MatchResult.FoundMatch Then
-                    Pass1Found = Pass1Found + 1
-                    MatchResult.MatchDetails = "1-й проход: " & MatchResult.MatchDetails
+                If ValidForFirstPass Then
+                    MatchResult = FindBySubstringEnhanced(ParsedDover, FilteredOperData, DoverCorrespondent)
+                    MatchResult.PassNumber = 1
+                    
+                    If MatchResult.FoundMatch Then
+                        Pass1Found = Pass1Found + 1
+                        MatchResult.MatchDetails = "1-й проход: " & MatchResult.MatchDetails
+                    Else
+                        ' Сохраняем для 2-го прохода
+                        Pass1Count = Pass1Count + 1
+                        ReDim Preserve Pass1NotFound(Pass1Count - 1)
+                        ReDim Preserve Pass1NotFoundData(Pass1Count - 1)
+                        Pass1NotFound(Pass1Count - 1) = CurrentRow
+                        Pass1NotFoundData(Pass1Count - 1) = ParsedDover
+                        MatchResult.MatchDetails = "Ждет 2-й проход"
+                    End If
                 Else
-                    ' Сохраняем для 2-го прохода
-                    Pass1Count = Pass1Count + 1
-                    ReDim Preserve Pass1NotFound(Pass1Count - 1)
-                    ReDim Preserve Pass1NotFoundData(Pass1Count - 1)
-                    Pass1NotFound(Pass1Count - 1) = CurrentRow
-                    Pass1NotFoundData(Pass1Count - 1) = ParsedDover
-                    MatchResult.MatchDetails = "Ждет 2-й проход (исправленный REGEX)"
+                    ' Другие типы документов (аттестат, телеграмма) - сохраняем для 3-го прохода
+                    Pass2Count = Pass2Count + 1
+                    ReDim Preserve Pass2NotFound(Pass2Count - 1)
+                    ReDim Preserve Pass2NotFoundData(Pass2Count - 1)
+                    Pass2NotFound(Pass2Count - 1) = CurrentRow
+                    Pass2NotFoundData(Pass2Count - 1) = ParsedDover
+                    
+                    MatchResult = CreateEmptyMatchResult("Ждет 3-й проход")
+                    MatchResult.PassNumber = 0
                 End If
             Else
-                ' Если не наряд или не распарсился - сохраняем для 3-го прохода
+                ' Если не распарсился - сохраняем для 3-го прохода
                 Pass2Count = Pass2Count + 1
                 ReDim Preserve Pass2NotFound(Pass2Count - 1)
                 ReDim Preserve Pass2NotFoundData(Pass2Count - 1)
@@ -309,7 +344,7 @@ NextIteration:
     ' === 2-Й ПРОХОД: ИСПРАВЛЕННЫЙ АДАПТИВНЫЙ REGEX ===
     If Pass1Count > 0 Then
         Debug.Print "=== 2-Й ПРОХОД: ИСПРАВЛЕННЫЙ АДАПТИВНЫЙ REGEX ==="
-        Pass2Found = ProcessSecondPassWithSupplierService(WsDover, FilteredOperData, Pass1NotFound, Pass1NotFoundData, Pass1Count, Pass2NotFound, Pass2NotFoundData, Pass2Count)
+        Pass2Found = ProcessSecondPassWithSupplierService(WsDover, FilteredOperData, Pass1NotFound, Pass1NotFoundData, Pass1Count, Pass2NotFound, Pass2NotFoundData, Pass2Count, CorrespondentColumn)
     End If
     
     ' === 3-Й ПРОХОД: УНИВЕРСАЛЬНЫЕ ДОКУМЕНТЫ ===
@@ -1037,29 +1072,47 @@ ErrorHandler:
     ExtractDateAfterOt = ""
 End Function
 
-' Парсинг наряда для 1-го прохода
+' Парсинг наряда для 1-го прохода (расширенный список ключевых слов)
 Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
     Dim Result As ParsedNaryad
+    Dim UpperText As String
+    Dim DocumentTypes As Variant
+    Dim i As Long
+    Dim FoundType As String
     
     Result.OriginalText = Text
     Result.IsValid = False
-    Result.DocumentType = "НАРЯД"
+    Result.DocumentType = ""
     
     On Error GoTo SubstringParseError
     
-    Debug.Print "=== ПАРСИНГ НАРЯДА ДЛЯ ПОДСТРОК ==="
+    Debug.Print "=== ПАРСИНГ ДОКУМЕНТА ДЛЯ ПОДСТРОК ==="
     Debug.Print "Текст: " & Text
     
-    If InStr(1, UCase(Text), "НАРЯД") = 0 Then
-        Debug.Print "? Слово 'наряд' не найдено"
-        Result.MatchDetails = "Нет слова 'наряд'"
+    UpperText = UCase(Text)
+    
+    ' Расширенный список ключевых слов для поиска
+    DocumentTypes = Array("НАРЯД", "ЧТ", "АТТЕСТАТ", "РАЗНАРЯДКА", "ЗАЯВКА-НАРЯД", "ЗАЯВКА НАРЯД", "ТЕЛЕГРАММА")
+    
+    ' Ищем любое из ключевых слов
+    For i = 0 To UBound(DocumentTypes)
+        If InStr(1, UpperText, CStr(DocumentTypes(i))) > 0 Then
+            FoundType = CStr(DocumentTypes(i))
+            Debug.Print "? Найдено слово '" & FoundType & "'"
+            Exit For
+        End If
+    Next i
+    
+    If FoundType = "" Then
+        Debug.Print "? Ключевые слова не найдены"
+        Result.MatchDetails = "Нет ключевых слов (наряд, ЧТ, аттестат, разнарядка, заявка-наряд, заявка наряд, телеграмма)"
         ParseNaryadForSubstring = Result
         Exit Function
     End If
     
-    Debug.Print "? Найдено слово 'наряд'"
+    Result.DocumentType = FoundType
     
-    Result.DocumentNumber = ExtractSubstringNumber(Text, "НАРЯД")
+    Result.DocumentNumber = ExtractSubstringNumber(Text, FoundType)
     Debug.Print "Номер: '" & Result.DocumentNumber & "'"
     
     Result.DocumentDate = ExtractSubstringDate(Text)
@@ -1068,10 +1121,10 @@ Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
     If Result.DocumentNumber <> "" And Result.DocumentDate <> "" Then
         Result.IsValid = True
         Result.MatchDetails = "Подстроки: успешно"
-        Debug.Print "? ПАРСИНГ НАРЯДА УСПЕШЕН"
+        Debug.Print "? ПАРСИНГ УСПЕШЕН"
     Else
         Result.MatchDetails = "Подстроки: нет номера или даты"
-        Debug.Print "? ПАРСИНГ НАРЯДА НЕУСПЕШЕН"
+        Debug.Print "? ПАРСИНГ НЕУСПЕШЕН"
     End If
     
     Debug.Print "========================="
@@ -1080,7 +1133,7 @@ Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
     Exit Function
     
 SubstringParseError:
-    Debug.Print "? Ошибка парсинга наряда: " & Err.description
+    Debug.Print "? Ошибка парсинга: " & Err.description
     Result.IsValid = False
     Result.MatchDetails = "Ошибка парсинга: " & Err.description
     ParseNaryadForSubstring = Result
@@ -1206,24 +1259,98 @@ NormalizeError:
 End Function
 
 ' =============================================
+' ФУНКЦИИ РАБОТЫ С КОРРЕСПОНДЕНТАМИ
+' =============================================
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Находит колонку корреспондента в таблице доверенностей по различным вариантам заголовков
+' @param Ws [Worksheet] Лист с таблицей доверенностей
+' @return [Long] Номер колонки корреспондента (0 если не найдена)
+' =============================================
+Private Function FindCorrespondentColumn(Ws As Worksheet) As Long
+    Dim i As Long
+    Dim HeaderNames As Variant
+    Dim HeaderValue As String
+    
+    HeaderNames = Array("КОРРЕСПОНДЕНТ", "ОТ КОГО ПОСТУПИЛ", "АДРЕСАТ", "ПОСТАВЩИК")
+    
+    FindCorrespondentColumn = 0
+    
+    For i = 1 To 20
+        HeaderValue = Trim(UCase(CStr(Ws.Cells(1, i).value)))
+        Dim j As Long
+        For j = 0 To UBound(HeaderNames)
+            If HeaderValue = CStr(HeaderNames(j)) Then
+                FindCorrespondentColumn = i
+                Debug.Print "Найдена колонка корреспондента: " & i & " (" & HeaderNames(j) & ")"
+                Exit Function
+            End If
+        Next j
+    Next i
+    
+    Debug.Print "Колонка корреспондента не найдена"
+End Function
+
+' =============================================
+' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' @description Сравнивает корреспондентов на совпадение (точное и частичное)
+' @param DoverCorrespondent [String] Корреспондент из доверенности
+' @param OperCorrespondent [String] Корреспондент из операции 1С
+' @return [Boolean] True если корреспонденты совпадают
+' =============================================
+Private Function CompareCorrespondents(DoverCorrespondent As String, OperCorrespondent As String) As Boolean
+    Dim CleanDover As String, CleanOper As String
+    
+    CleanDover = CleanCorrespondentName(DoverCorrespondent)
+    CleanOper = CleanCorrespondentName(OperCorrespondent)
+    
+    ' Точное совпадение
+    If UCase(Trim(CleanDover)) = UCase(Trim(CleanOper)) Then
+        CompareCorrespondents = True
+        Debug.Print "        Корреспонденты совпадают точно: '" & CleanDover & "' = '" & CleanOper & "'"
+        Exit Function
+    End If
+    
+    ' Частичное совпадение (одна строка содержит другую)
+    If Len(CleanDover) > 0 And Len(CleanOper) > 0 Then
+        If InStr(1, UCase(CleanOper), UCase(CleanDover), vbTextCompare) > 0 Or _
+           InStr(1, UCase(CleanDover), UCase(CleanOper), vbTextCompare) > 0 Then
+            CompareCorrespondents = True
+            Debug.Print "        Корреспонденты совпадают частично: '" & CleanDover & "' ~ '" & CleanOper & "'"
+            Exit Function
+        End If
+    End If
+    
+    Debug.Print "        Корреспонденты не совпадают: '" & CleanDover & "' != '" & CleanOper & "'"
+    CompareCorrespondents = False
+End Function
+
+' =============================================
 ' ФУНКЦИИ ПОИСКА (СУЩЕСТВУЮЩИЕ)
 ' =============================================
 
-' Поиск по подстрокам (1-й проход)
-Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As Variant) As MatchResult
+' Поиск по подстрокам (1-й проход) - с проверкой корреспондента
+Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As Variant, DoverCorrespondent As String) As MatchResult
     Dim Result As MatchResult
     Dim i As Long
     Dim OperComment As String
+    Dim OperCorrespondent As String
+    Dim HasNumber As Boolean, HasDate As Boolean, HasCorrespondent As Boolean
+    Dim BestPartialMatch As MatchResult
+    Dim FoundPartialMatch As Boolean
     
     Result.FoundMatch = False
     Result.MatchScore = 0
+    BestPartialMatch.FoundMatch = False
+    BestPartialMatch.MatchScore = 0
+    FoundPartialMatch = False
     
     For i = 1 To UBound(OperArray, 1)
         OperComment = Trim(CStr(OperArray(i, 9)))
+        OperCorrespondent = Trim(CStr(OperArray(i, 6)))
         
         If OperComment <> "" Then
-            Dim HasNumber As Boolean, HasDate As Boolean
-            
             HasNumber = (InStr(1, OperComment, DoverData.DocumentNumber, vbTextCompare) > 0)
             HasDate = (InStr(1, OperComment, DoverData.DocumentDate, vbTextCompare) > 0)
             
@@ -1235,24 +1362,51 @@ Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As
                 End If
             End If
             
-            If HasNumber And HasDate Then
+            ' ПРОВЕРКА КОРРЕСПОНДЕНТА: 100% попадание только если Поставщик = Корреспонденту
+            HasCorrespondent = False
+            If DoverCorrespondent <> "" And OperCorrespondent <> "" Then
+                HasCorrespondent = CompareCorrespondents(DoverCorrespondent, OperCorrespondent)
+            End If
+            
+            ' 100% попадание: номер И дата И корреспондент совпадают
+            If HasNumber And HasDate And HasCorrespondent Then
                 Result.FoundMatch = True
                 Result.MatchScore = 100
                 Result.OperationRow = i + 1
                 Result.OperationNumber = Trim(CStr(OperArray(i, 3)))
-                Result.MatchDetails = "найден номер И дата | 1С: " & OperComment
+                Result.MatchDetails = "найден номер, дата и корреспондент | 1С: " & OperComment
                 
                 On Error Resume Next
                 Result.OperationDate = CDate(OperArray(i, 2))
                 On Error GoTo 0
                 
                 Exit For
+            ElseIf HasNumber And HasDate Then
+                ' Найдены номер и дата, но корреспондент не совпадает - сохраняем как частичное совпадение
+                If Not FoundPartialMatch Then
+                    BestPartialMatch.FoundMatch = True
+                    BestPartialMatch.MatchScore = 50
+                    BestPartialMatch.OperationRow = i + 1
+                    BestPartialMatch.OperationNumber = Trim(CStr(OperArray(i, 3)))
+                    BestPartialMatch.MatchDetails = "найден номер и дата, но корреспондент не совпадает | 1С: " & OperComment
+                    
+                    On Error Resume Next
+                    BestPartialMatch.OperationDate = CDate(OperArray(i, 2))
+                    On Error GoTo 0
+                    
+                    FoundPartialMatch = True
+                End If
             End If
         End If
     Next i
     
+    ' Если не нашли полное совпадение, но нашли частичное - возвращаем его
+    If Not Result.FoundMatch And FoundPartialMatch Then
+        Result = BestPartialMatch
+    End If
+    
     If Not Result.FoundMatch Then
-        Result.MatchDetails = "номер или дата не найдены"
+        Result.MatchDetails = "номер, дата или корреспондент не найдены"
     End If
     
     FindBySubstringEnhanced = Result
@@ -1648,13 +1802,19 @@ Private Sub AddThreePassResultColumns(Ws As Worksheet)
             .Cells(1, LastCol + 1).value = "Трехпроходный поиск"
             .Cells(1, LastCol + 2).value = "Номер операции"
             .Cells(1, LastCol + 3).value = "Дата операции"
-            .Cells(1, LastCol + 4).value = "Процент"
-            .Cells(1, LastCol + 5).value = "Детали"
-            .Cells(1, LastCol + 6).value = "Комментарий 1С" ' НОВЫЙ СТОЛБЕЦ!
+            .Cells(1, LastCol + 4).value = "Детали"
+            .Cells(1, LastCol + 5).value = "Комментарий 1С"
             
-            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 6)).Font.Bold = True
-            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 6)).Interior.Color = RGB(220, 220, 255)
-            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 6)).Borders.LineStyle = xlContinuous
+            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 5)).Font.Bold = True
+            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 5)).Interior.Color = RGB(220, 220, 255)
+            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 5)).Borders.LineStyle = xlContinuous
+            ' Выравнивание по содержимому для добавленных столбцов
+            .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 5)).HorizontalAlignment = xlGeneral
+            .Columns(LastCol + 1).AutoFit
+            .Columns(LastCol + 2).AutoFit
+            .Columns(LastCol + 3).AutoFit
+            .Columns(LastCol + 4).AutoFit
+            .Columns(LastCol + 5).AutoFit
         End With
     End If
 End Sub
@@ -1676,58 +1836,84 @@ Private Sub WriteThreePassResult(Ws As Worksheet, Row As Long, MatchResult As Ma
     
     If CachedCol > 0 Then
         If MatchResult.FoundMatch Then
-            ' Определяем, нужно ли добавить "ВЕРОЯТНО"
+            ' Определяем статус: НАЙДЕНО (100%) или ТРЕБУЕТ ПРОВЕРКИ (частичное совпадение)
             Dim ResultText As String
-            If MatchResult.MatchScore >= 80 Then
+            If MatchResult.MatchScore = 100 Then
                 ResultText = "НАЙДЕНО"
-            ElseIf MatchResult.MatchScore >= 60 Then
-                ResultText = "ВЕРОЯТНО НАЙДЕНО"
             Else
-                ResultText = "ВЕРОЯТНО"
+                ResultText = "ТРЕБУЕТ ПРОВЕРКИ"
             End If
             
             Ws.Cells(Row, CachedCol).value = ResultText
             Ws.Cells(Row, CachedCol + 1).value = MatchResult.OperationNumber
             Ws.Cells(Row, CachedCol + 2).value = MatchResult.OperationDate
-            Ws.Cells(Row, CachedCol + 3).value = Format(MatchResult.MatchScore, "0") & "%"
-            Ws.Cells(Row, CachedCol + 4).value = MatchResult.MatchDetails
             
-            ' НОВОЕ: Извлекаем комментарий из 1С из MatchDetails
-            ' ИСПРАВЛЕННОЕ: Извлекаем полный комментарий из 1С
+            ' Извлекаем комментарий из 1С и убираем его из деталей
             Dim Comment1C As String
+            Dim DetailsWithoutComment As String
             Dim CommentStart As Long
             CommentStart = InStr(MatchResult.MatchDetails, "| 1С: ")
 
             If CommentStart > 0 Then
+                ' Извлекаем комментарий
                 Comment1C = Mid(MatchResult.MatchDetails, CommentStart + 5)
                 Comment1C = Trim(Comment1C)
-                Call WriteFullComment(Ws, Row, CachedCol + 5, Comment1C)
+                ' Убираем комментарий из деталей
+                DetailsWithoutComment = Trim(Left(MatchResult.MatchDetails, CommentStart - 1))
+            Else
+                DetailsWithoutComment = MatchResult.MatchDetails
             End If
-
-
             
-            ' ЦВЕТОВАЯ МАРКИРОВКА ПО ПРОХОДАМ И УВЕРЕННОСТИ
+            Ws.Cells(Row, CachedCol + 3).value = DetailsWithoutComment
+            
+            If Comment1C <> "" Then
+                Call WriteFullComment(Ws, Row, CachedCol + 4, Comment1C)
+            End If
+            
+            ' ЦВЕТОВАЯ МАРКИРОВКА ПО ПРОХОДАМ
             Select Case MatchResult.PassNumber
-                Case 1: ' 1-й проход - темно-зеленый
-                    Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(0, 200, 0)
-                Case 2: ' 2-й проход - зависит от уверенности
-                    If MatchResult.MatchScore >= 80 Then
-                        Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(150, 255, 150) ' Светло-зеленый
+                Case 1: ' 1-й проход - темно-зеленый (НАЙДЕНО) или желтый (ТРЕБУЕТ ПРОВЕРКИ)
+                    If MatchResult.MatchScore = 100 Then
+                        Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 4)).Interior.Color = RGB(0, 200, 0)
                     Else
-                        Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(255, 255, 150) ' Желтый - требует проверки
+                        Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 4)).Interior.Color = RGB(255, 255, 150)
+                    End If
+                Case 2: ' 2-й проход - светло-зеленый или желтый
+                    If MatchResult.MatchScore = 100 Then
+                        Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 4)).Interior.Color = RGB(150, 255, 150)
+                    Else
+                        Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 4)).Interior.Color = RGB(255, 255, 150)
                     End If
                 Case 3: ' 3-й проход - голубой
-                    Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(150, 200, 255)
+                    Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 4)).Interior.Color = RGB(150, 200, 255)
             End Select
+            
+            ' Выравнивание по содержимому для записанных данных
+            Ws.Cells(Row, CachedCol).HorizontalAlignment = xlGeneral
+            Ws.Cells(Row, CachedCol + 1).HorizontalAlignment = xlGeneral
+            Ws.Cells(Row, CachedCol + 2).HorizontalAlignment = xlGeneral
+            Ws.Cells(Row, CachedCol + 3).HorizontalAlignment = xlGeneral
         Else
+            ' Убираем комментарий из деталей и для не найденных
+            Dim DetailsWithoutCommentNotFound As String
+            Dim CommentStartNotFound As Long
+            CommentStartNotFound = InStr(MatchResult.MatchDetails, "| 1С: ")
+            
+            If CommentStartNotFound > 0 Then
+                DetailsWithoutCommentNotFound = Trim(Left(MatchResult.MatchDetails, CommentStartNotFound - 1))
+            Else
+                DetailsWithoutCommentNotFound = MatchResult.MatchDetails
+            End If
+            
             Ws.Cells(Row, CachedCol).value = "НЕ НАЙДЕНО"
-            Ws.Cells(Row, CachedCol + 3).value = "0%"
-            Ws.Cells(Row, CachedCol + 4).value = MatchResult.MatchDetails
+            Ws.Cells(Row, CachedCol + 3).value = DetailsWithoutCommentNotFound
+            Ws.Cells(Row, CachedCol).HorizontalAlignment = xlGeneral
+            Ws.Cells(Row, CachedCol + 3).HorizontalAlignment = xlGeneral
             
             If InStr(MatchResult.MatchDetails, "проход") > 0 Then
-                Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(255, 255, 150) ' Желтый - ожидание
+                Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 4)).Interior.Color = RGB(255, 255, 150) ' Желтый - ожидание
             Else
-                Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 5)).Interior.Color = RGB(255, 200, 200) ' Красный - не найдено
+                Ws.Range(Ws.Cells(Row, CachedCol), Ws.Cells(Row, CachedCol + 4)).Interior.Color = RGB(255, 200, 200) ' Красный - не найдено
             End If
         End If
     End If
@@ -2352,7 +2538,8 @@ Private Function IsAlreadyProcessed(Ws As Worksheet, Row As Long, ResultColumn A
     If ResultColumn > 0 Then
         ResultValue = Trim(UCase(CStr(Ws.Cells(Row, ResultColumn).value)))
         
-        If ResultValue = "НАЙДЕНО" Or ResultValue = "ВЕРОЯТНО НАЙДЕНО" Then
+        ' Пропускаем только те, которые уже найдены (не требуют повторной проверки)
+        If ResultValue = "НАЙДЕНО" Then
             IsAlreadyProcessed = True
         End If
     End If
@@ -2378,20 +2565,29 @@ End Function
 ' =============================================
 
 ' НОВАЯ ФУНКЦИЯ: 2-й проход по номеру, поставщику и службе
-Private Function ProcessSecondPassWithSupplierService(WsDover As Worksheet, OperData As Variant, NotFoundRows() As Long, NotFoundData() As ParsedNaryad, NotFoundCount As Long, ByRef Pass2NotFound() As Long, ByRef Pass2NotFoundData() As ParsedNaryad, ByRef Pass2Count As Long) As Long
+Private Function ProcessSecondPassWithSupplierService(WsDover As Worksheet, OperData As Variant, NotFoundRows() As Long, NotFoundData() As ParsedNaryad, NotFoundCount As Long, ByRef Pass2NotFound() As Long, ByRef Pass2NotFoundData() As ParsedNaryad, ByRef Pass2Count As Long, CorrespondentColumn As Long) As Long
     Dim i As Long
     Dim SecondPassFound As Long
     Dim MatchResult As MatchResult
+    Dim DoverSupplier As String
+    Dim CurrentRow As Long
     
     SecondPassFound = 0
     
     Debug.Print "=== 2-Й ПРОХОД: ПОИСК ПО НОМЕРУ + ПОСТАВЩИКУ + СЛУЖБЕ ==="
     
     For i = 0 To NotFoundCount - 1
+        CurrentRow = NotFoundRows(i)
         Debug.Print "2-й проход для: " & NotFoundData(i).DocumentNumber
         
+        ' Получаем Поставщика из доверенности
+        DoverSupplier = ""
+        If CorrespondentColumn > 0 Then
+            DoverSupplier = Trim(CStr(WsDover.Cells(CurrentRow, CorrespondentColumn).value))
+        End If
+        
         ' ИСПОЛЬЗУЕМ НОВЫЙ ПОИСК ПО ПОСТАВЩИКУ И СЛУЖБЕ!
-        MatchResult = FindBySupplierAndService(NotFoundData(i), OperData)
+        MatchResult = FindBySupplierAndService(NotFoundData(i), OperData, DoverSupplier)
         MatchResult.PassNumber = 2
         
         If MatchResult.FoundMatch Then
@@ -2417,7 +2613,7 @@ Private Function ProcessSecondPassWithSupplierService(WsDover As Worksheet, Oper
 End Function
 
 ' ОСНОВНАЯ ФУНКЦИЯ: Поиск по поставщику и службе
-Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As Variant) As MatchResult
+Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As Variant, DoverSupplier As String) As MatchResult
     Dim result As MatchResult
     Dim i As Long
     Dim OperComment As String, OperSupplier As String
@@ -2429,7 +2625,7 @@ Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As
     ' Извлекаем службу из комментария доверенности
     DoverService = ExtractServiceFromComment(DoverData.OriginalText)
     
-    Debug.Print ">>> ПОИСК ПО ПОСТАВЩИКУ+СЛУЖБЕ ДЛЯ: № '" & DoverData.DocumentNumber & "' служба: '" & DoverService & "'"
+    Debug.Print ">>> ПОИСК ПО ПОСТАВЩИКУ+СЛУЖБЕ ДЛЯ: № '" & DoverData.DocumentNumber & "' поставщик: '" & DoverSupplier & "' служба: '" & DoverService & "'"
     
     ' Проверяем каждую операцию
     For i = 1 To UBound(OperData, 1)
@@ -2437,12 +2633,12 @@ Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As
         OperSupplier = Trim(CStr(OperData(i, 6)))
         
         If OperComment <> "" And OperSupplier <> "" Then
-            Debug.Print "    Проверяем операцию " & (i + 1) & ": " & Left(OperComment, 50) & "... Поставщик: " & OperSupplier
+            Debug.Print "    Проверяем операцию " & (i + 1) & ": " & Left(OperComment, 50) & "... Корреспондент: " & OperSupplier
             
             ' КЛЮЧЕВАЯ ФУНКЦИЯ: Анализ совпадения номера, поставщика и службы
             Dim MatchScore As Double
             Dim MatchDetails As String
-            MatchScore = AnalyzeSupplierServiceMatch(OperComment, OperSupplier, DoverData.DocumentNumber, DoverService, MatchDetails)
+            MatchScore = AnalyzeSupplierServiceMatch(OperComment, OperSupplier, DoverData.DocumentNumber, DoverSupplier, DoverService, MatchDetails)
             
             ' Если найдено хорошее совпадение
             If MatchScore >= 60 Then ' Порог для второго прохода
@@ -2472,7 +2668,7 @@ Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As
 End Function
 
 ' НОВАЯ ФУНКЦИЯ: Анализ совпадения номера, поставщика и службы
-Private Function AnalyzeSupplierServiceMatch(OperComment As String, OperSupplier As String, DoverNumber As String, DoverService As String, ByRef MatchDetails As String) As Double
+Private Function AnalyzeSupplierServiceMatch(OperComment As String, OperSupplier As String, DoverNumber As String, DoverSupplier As String, DoverService As String, ByRef MatchDetails As String) As Double
     Dim TotalScore As Double
     Dim NumberScore As Double, SupplierScore As Double, ServiceScore As Double
     
@@ -2483,8 +2679,8 @@ Private Function AnalyzeSupplierServiceMatch(OperComment As String, OperSupplier
     NumberScore = CheckNumberInComment(OperComment, DoverNumber)
     TotalScore = TotalScore + NumberScore
     
-    ' КРИТЕРИЙ 2: Совпадение поставщика (0-40 баллов) - ОСНОВНОЙ КРИТЕРИЙ!
-    SupplierScore = CheckSupplierMatch(OperSupplier, DoverService)
+    ' КРИТЕРИЙ 2: Совпадение поставщика доверенности с корреспондентом операции (0-40 баллов) - ОСНОВНОЙ КРИТЕРИЙ!
+    SupplierScore = CheckSupplierMatch(OperSupplier, DoverSupplier)
     TotalScore = TotalScore + SupplierScore
     
     ' КРИТЕРИЙ 3: Совпадение службы в комментарии (0-20 баллов) - БОНУС!
@@ -2557,24 +2753,28 @@ Private Function CheckNumberInComment(OperComment As String, DoverNumber As Stri
     CheckNumberInComment = Score
 End Function
 
-' НОВАЯ ФУНКЦИЯ: Проверка совпадения поставщика
-Private Function CheckSupplierMatch(OperSupplier As String, DoverService As String) As Double
+' НОВАЯ ФУНКЦИЯ: Проверка совпадения поставщика доверенности с корреспондентом операции
+Private Function CheckSupplierMatch(OperSupplier As String, DoverSupplier As String) As Double
     Dim Score As Double
-    Dim CleanOperSupplier As String
     
     Score = 0
-    CleanOperSupplier = CleanSupplierName(OperSupplier)
     
-    Debug.Print "        Поставщик операции: '" & CleanOperSupplier & "'"
+    If DoverSupplier = "" Or OperSupplier = "" Then
+        Debug.Print "        Поставщик или корреспондент пустые: +0"
+        CheckSupplierMatch = 0
+        Exit Function
+    End If
     
-    ' Пока упрощенная логика - можно расширить
-    ' Основная логика сопоставления поставщика будет зависеть от
-    ' конкретных данных в ваших файлах
+    Debug.Print "        Поставщик доверенности: '" & DoverSupplier & "'"
+    Debug.Print "        Корреспондент операции: '" & OperSupplier & "'"
     
-    ' Временно даем базовую оценку
-    If Len(CleanOperSupplier) >= 3 Then
-        Score = 30 ' Базовая оценка за непустого поставщика
-        Debug.Print "        Поставщик присутствует: +30"
+    ' Сравниваем через CompareCorrespondents (как в 1-м проходе)
+    ' Функция CompareCorrespondents сама выполняет очистку через CleanCorrespondentName
+    If CompareCorrespondents(DoverSupplier, OperSupplier) Then
+        Score = 40 ' Полное совпадение поставщика с корреспондентом
+        Debug.Print "        Поставщик совпадает с корреспондентом: +40"
+    Else
+        Debug.Print "        Поставщик не совпадает с корреспондентом: +0"
     End If
     
     CheckSupplierMatch = Score
