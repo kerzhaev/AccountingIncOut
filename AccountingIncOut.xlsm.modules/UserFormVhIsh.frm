@@ -18,6 +18,7 @@ Attribute VB_Exposed = False
 
 
 
+
 '==============================================
 ' МОДУЛЬ УПРАВЛЕНИЯ ФОРМОЙ "ВходящиеИсходящие" - UserFormVhIsh
 ' Назначение: Полнофункциональная форма для добавления, редактирования и поиска записей
@@ -1371,7 +1372,7 @@ Private Sub ResizeAndCenterForm()
         ' Форма помещается на экран - используем исходные размеры
         formWidth = originalWidth
         formHeight = originalHeight
-        scaleFactor = 1.0
+        scaleFactor = 1#
     Else
         ' Форма не помещается - вычисляем коэффициент масштабирования
         Dim scaleX As Double

@@ -173,8 +173,8 @@ ProcessError:
     If Not WbMaster Is Nothing Then WbMaster.Close False
     Application.StatusBar = False
     
-    Debug.Print "Ошибка мастер-сопоставления: " & Err.Description
-    MsgBox "Ошибка: " & Err.Description, vbCritical
+    Debug.Print "Ошибка мастер-сопоставления: " & Err.description
+    MsgBox "Ошибка: " & Err.description, vbCritical
 End Sub
 
 ' =============================================
@@ -451,8 +451,8 @@ Private Sub MergePeriodDoverennostiIntoMaster(WsMaster As Worksheet, WsPeriod As
     Exit Sub
     
 ErrorHandler:
-    Debug.Print "Ошибка слияния мастер-файла: " & Err.Description
-    Err.Raise Err.Number, , "Ошибка слияния мастер-файла: " & Err.Description
+    Debug.Print "Ошибка слияния мастер-файла: " & Err.description
+    Err.Raise Err.Number, , "Ошибка слияния мастер-файла: " & Err.description
 End Sub
 
 ' =============================================
@@ -1074,15 +1074,15 @@ End Function
 
 ' Парсинг наряда для 1-го прохода (расширенный список ключевых слов)
 Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
-    Dim Result As ParsedNaryad
+    Dim result As ParsedNaryad
     Dim UpperText As String
     Dim DocumentTypes As Variant
     Dim i As Long
     Dim FoundType As String
     
-    Result.OriginalText = Text
-    Result.IsValid = False
-    Result.DocumentType = ""
+    result.OriginalText = Text
+    result.IsValid = False
+    result.DocumentType = ""
     
     On Error GoTo SubstringParseError
     
@@ -1105,38 +1105,38 @@ Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
     
     If FoundType = "" Then
         Debug.Print "? Ключевые слова не найдены"
-        Result.MatchDetails = "Нет ключевых слов (наряд, ЧТ, аттестат, разнарядка, заявка-наряд, заявка наряд, телеграмма)"
-        ParseNaryadForSubstring = Result
+        result.MatchDetails = "Нет ключевых слов (наряд, ЧТ, аттестат, разнарядка, заявка-наряд, заявка наряд, телеграмма)"
+        ParseNaryadForSubstring = result
         Exit Function
     End If
     
-    Result.DocumentType = FoundType
+    result.DocumentType = FoundType
     
-    Result.DocumentNumber = ExtractSubstringNumber(Text, FoundType)
-    Debug.Print "Номер: '" & Result.DocumentNumber & "'"
+    result.DocumentNumber = ExtractSubstringNumber(Text, FoundType)
+    Debug.Print "Номер: '" & result.DocumentNumber & "'"
     
-    Result.DocumentDate = ExtractSubstringDate(Text)
-    Debug.Print "Дата: '" & Result.DocumentDate & "'"
+    result.DocumentDate = ExtractSubstringDate(Text)
+    Debug.Print "Дата: '" & result.DocumentDate & "'"
     
-    If Result.DocumentNumber <> "" And Result.DocumentDate <> "" Then
-        Result.IsValid = True
-        Result.MatchDetails = "Подстроки: успешно"
+    If result.DocumentNumber <> "" And result.DocumentDate <> "" Then
+        result.IsValid = True
+        result.MatchDetails = "Подстроки: успешно"
         Debug.Print "? ПАРСИНГ УСПЕШЕН"
     Else
-        Result.MatchDetails = "Подстроки: нет номера или даты"
+        result.MatchDetails = "Подстроки: нет номера или даты"
         Debug.Print "? ПАРСИНГ НЕУСПЕШЕН"
     End If
     
     Debug.Print "========================="
     
-    ParseNaryadForSubstring = Result
+    ParseNaryadForSubstring = result
     Exit Function
     
 SubstringParseError:
     Debug.Print "? Ошибка парсинга: " & Err.description
-    Result.IsValid = False
-    Result.MatchDetails = "Ошибка парсинга: " & Err.description
-    ParseNaryadForSubstring = Result
+    result.IsValid = False
+    result.MatchDetails = "Ошибка парсинга: " & Err.description
+    ParseNaryadForSubstring = result
 End Function
 
 ' Извлечение номера документа
@@ -1332,7 +1332,7 @@ End Function
 
 ' Поиск по подстрокам (1-й проход) - с проверкой корреспондента
 Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As Variant, DoverCorrespondent As String) As MatchResult
-    Dim Result As MatchResult
+    Dim result As MatchResult
     Dim i As Long
     Dim OperComment As String
     Dim OperCorrespondent As String
@@ -1340,8 +1340,8 @@ Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As
     Dim BestPartialMatch As MatchResult
     Dim FoundPartialMatch As Boolean
     
-    Result.FoundMatch = False
-    Result.MatchScore = 0
+    result.FoundMatch = False
+    result.MatchScore = 0
     BestPartialMatch.FoundMatch = False
     BestPartialMatch.MatchScore = 0
     FoundPartialMatch = False
@@ -1370,14 +1370,14 @@ Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As
             
             ' 100% попадание: номер И дата И корреспондент совпадают
             If HasNumber And HasDate And HasCorrespondent Then
-                Result.FoundMatch = True
-                Result.MatchScore = 100
-                Result.OperationRow = i + 1
-                Result.OperationNumber = Trim(CStr(OperArray(i, 3)))
-                Result.MatchDetails = "найден номер, дата и корреспондент | 1С: " & OperComment
+                result.FoundMatch = True
+                result.MatchScore = 100
+                result.OperationRow = i + 1
+                result.OperationNumber = Trim(CStr(OperArray(i, 3)))
+                result.MatchDetails = "найден номер, дата и корреспондент | 1С: " & OperComment
                 
                 On Error Resume Next
-                Result.OperationDate = CDate(OperArray(i, 2))
+                result.OperationDate = CDate(OperArray(i, 2))
                 On Error GoTo 0
                 
                 Exit For
@@ -1401,15 +1401,15 @@ Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As
     Next i
     
     ' Если не нашли полное совпадение, но нашли частичное - возвращаем его
-    If Not Result.FoundMatch And FoundPartialMatch Then
-        Result = BestPartialMatch
+    If Not result.FoundMatch And FoundPartialMatch Then
+        result = BestPartialMatch
     End If
     
-    If Not Result.FoundMatch Then
-        Result.MatchDetails = "номер, дата или корреспондент не найдены"
+    If Not result.FoundMatch Then
+        result.MatchDetails = "номер, дата или корреспондент не найдены"
     End If
     
-    FindBySubstringEnhanced = Result
+    FindBySubstringEnhanced = result
 End Function
 
 ' Преобразование в короткий формат даты

@@ -19,6 +19,7 @@ Attribute VB_Exposed = False
 
 
 
+
 ' Код формы UserFormProgress
 Private Sub btnCancel_Click()
     Call ProgressManager.CancelOperation
