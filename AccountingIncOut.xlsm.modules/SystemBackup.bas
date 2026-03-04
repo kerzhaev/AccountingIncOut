@@ -1,16 +1,16 @@
 Attribute VB_Name = "SystemBackup"
 '==============================================
-' МОДУЛЬ РЕЗЕРВНОГО КОПИРОВАНИЯ - SystemBackup
-' Назначение: Управление резервными копиями системы
-' Состояние: ЭТАП 1 - БАЗОВАЯ ИНФРАСТРУКТУРА
-' Версия: 1.0.0
-' Дата: 23.08.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' SYSTEM BACKUP MODULE - SystemBackup
+' Purpose: Managing system backups
+' State: STAGE 1 - BASIC INFRASTRUCTURE
+' Version: 1.0.0
+' Date: 23.08.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
 
-' Создание резервной копии
+' Create a backup
 Public Function CreateBackup(operationName As String) As Boolean
     Dim BackupPath As String
     Dim backupFileName As String
@@ -20,42 +20,42 @@ Public Function CreateBackup(operationName As String) As Boolean
     
     CreateBackup = False
     
-    ' Проверяем, включено ли резервное копирование
+    ' Check if backup is enabled
     If Not SystemSettings.GetSetting("BackupEnabled", True) Then
-        CreateBackup = True ' Если отключено, считаем успешным
+        CreateBackup = True ' If disabled, consider it successful
         Exit Function
     End If
     
-    ' Получаем путь для резервных копий
+    ' Get backup path
     BackupPath = SystemSettings.GetSetting("BackupPath", ThisWorkbook.Path & "\Backup\")
     
-    ' Создаем папку, если не существует
+    ' Create folder if it doesn't exist
     If dir(BackupPath, vbDirectory) = "" Then
         MkDir BackupPath
     End If
     
-    ' Формируем имя файла резервной копии
-    backupFileName = "УчетВхИсх_" & operationName & "_" & Format(Now(), "YYYYMMDD_HHMMSS") & ".xlsm"
+    ' Format backup file name
+    backupFileName = "IncOut_" & operationName & "_" & Format(Now(), "YYYYMMDD_HHMMSS") & ".xlsm"
     fullBackupPath = BackupPath & backupFileName
     
-    ' Сохраняем копию
+    ' Save copy
     ThisWorkbook.SaveCopyAs fullBackupPath
     
-    ' Очищаем старые резервные копии
+    ' Clean old backups
     Call CleanOldBackups(BackupPath)
     
     CreateBackup = True
     
-    Call SystemLogger.LogOperation("Backup", "Создана резервная копия: " & backupFileName, "SUCCESS", 0)
+    Call SystemLogger.LogOperation("Backup", "Created backup: " & backupFileName, "SUCCESS", 0)
     
     Exit Function
     
 BackupError:
-    Call SystemLogger.LogOperation("Backup", "Ошибка создания копии: " & Err.description, "ERROR", 0)
+    Call SystemLogger.LogOperation("Backup", "Backup creation error: " & Err.description, "ERROR", 0)
     CreateBackup = False
 End Function
 
-' Очистка старых резервных копий
+' Clean old backups
 Private Sub CleanOldBackups(BackupPath As String)
     Dim maxBackups As Long
     Dim FileName As String
@@ -67,8 +67,8 @@ Private Sub CleanOldBackups(BackupPath As String)
     
     maxBackups = SystemSettings.GetSetting("MaxBackupCount", 10)
     
-    ' Получаем список файлов резервных копий
-    FileName = dir(BackupPath & "УчетВхИсх_*.xlsm")
+    ' Get list of backup files
+    FileName = dir(BackupPath & "IncOut_*.xlsm")
     ReDim backupFiles(0)
     fileCount = 0
     
@@ -79,26 +79,26 @@ Private Sub CleanOldBackups(BackupPath As String)
         FileName = dir
     Loop
     
-    ' Если файлов больше максимума, удаляем старые
+    ' If files exceed maximum, delete oldest
     If fileCount > maxBackups Then
-        ' Сортируем файлы по имени (дате)
+        ' Sort files by name (date)
         Call QuickSort(backupFiles, 0, fileCount - 1)
         
-        ' Удаляем старые файлы
+        ' Delete oldest files
         For i = 0 To fileCount - maxBackups - 1
             Kill BackupPath & backupFiles(i)
         Next i
         
-        Call SystemLogger.LogOperation("Backup", "Удалено старых копий: " & (fileCount - maxBackups), "INFO", 0)
+        Call SystemLogger.LogOperation("Backup", "Deleted old copies: " & (fileCount - maxBackups), "INFO", 0)
     End If
     
     Exit Sub
     
 CleanError:
-    Call SystemLogger.LogOperation("Backup", "Ошибка очистки старых копий: " & Err.description, "WARNING", 0)
+    Call SystemLogger.LogOperation("Backup", "Error cleaning old copies: " & Err.description, "WARNING", 0)
 End Sub
 
-' Быстрая сортировка массива строк
+' Quick sort for string array
 Private Sub QuickSort(arr() As String, low As Long, high As Long)
     If low < high Then
         Dim pivotIndex As Long
@@ -132,7 +132,7 @@ Private Function Partition(arr() As String, low As Long, high As Long) As Long
     Partition = i + 1
 End Function
 
-' Показ диалога управления резервными копиями
+' Show backup manager dialog
 Public Sub ShowBackupDialog()
     Dim BackupPath As String
     Dim backupList As String
@@ -143,9 +143,9 @@ Public Sub ShowBackupDialog()
     
     BackupPath = SystemSettings.GetSetting("BackupPath", ThisWorkbook.Path & "\Backup\")
     
-    ' Получаем список резервных копий
-    FileName = dir(BackupPath & "УчетВхИсх_*.xlsm")
-    backupList = "СПИСОК РЕЗЕРВНЫХ КОПИЙ:" & vbCrLf & vbCrLf
+    ' Get backup list
+    FileName = dir(BackupPath & "IncOut_*.xlsm")
+    backupList = "LIST OF BACKUPS:" & vbCrLf & vbCrLf
     fileCount = 0
     
     Do While FileName <> ""
@@ -155,18 +155,17 @@ Public Sub ShowBackupDialog()
     Loop
     
     If fileCount = 0 Then
-        backupList = backupList & "Резервные копии не найдены."
+        backupList = backupList & "No backups found."
     Else
-        backupList = backupList & vbCrLf & "Всего копий: " & fileCount & vbCrLf & _
-                     "Путь: " & BackupPath
+        backupList = backupList & vbCrLf & "Total backups: " & fileCount & vbCrLf & _
+                     "Path: " & BackupPath
     End If
     
-    MsgBox backupList, vbInformation, "Менеджер резервных копий"
+    MsgBox backupList, vbInformation, "Backup Manager"
     
     Exit Sub
     
 ShowError:
-    MsgBox "Ошибка просмотра резервных копий: " & Err.description, vbExclamation, "Ошибка"
+    MsgBox "Error viewing backups: " & Err.description, vbExclamation, "Error"
 End Sub
-
 

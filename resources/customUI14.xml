@@ -1,98 +1,89 @@
 <customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui">
   <ribbon>
     <tabs>
-      <tab id="tabUchetVhIsh" label="УчётВхИсх" insertAfterMso="TabData">
+      <tab id="tabUchetVhIsh" label="IncOut" insertAfterMso="TabData">
         
-        <!-- Группа: Обработка данных -->
-        <group id="grpProcessing" label="Обработка данных">
+        <group id="grpProcessing" label="Data Processing">
           <button id="btnMassProcess" 
-                  label="📊 Массовая обработка" 
+                  label="📊 Mass Processing" 
                   size="large" 
                   onAction="RibbonCallbacks.btnMassProcess_Click"
-                  screentip="Массовая обработка записей"
-                  supertip="Автоматическое сопоставление всех записей ВхИсх с проводками 1С"/>
+                  screentip="Mass processing of records"
+                  supertip="Automatic matching of all IncOut records with 1C postings"/>
           
           <separator id="sep1"/>
           
           <button id="btnMatchDoverennosti" 
-                  label="🔗 Сопоставить доверенности" 
+                  label="🔗 Match Doverennosti" 
                   size="large" 
                   onAction="RibbonCallbacks.btnMatchDoverennosti_Click"
-                  screentip="Сопоставление доверенностей"
-                  supertip="Поиск соответствий между доверенностями и операциями"/>
+                  screentip="Doverennosti Matching"
+                  supertip="Search for matches between doverennosti and operations"/>
         </group>
         
-        <!-- Группа: Анализ и отчеты -->
-        <group id="grpAnalysis" label="Анализ и отчеты">
+        <group id="grpAnalysis" label="Analysis and Reports">
           <button id="btnStatistics" 
-                  label="📈 Статистика" 
+                  label="📈 Statistics" 
                   size="normal" 
                   onAction="RibbonCallbacks.btnStatistics_Click"
-                  screentip="Статистика интеграции"
-                  supertip="Отчет по результатам сопоставления с 1С"/>
+                  screentip="Integration Statistics"
+                  supertip="Report on 1C matching results"/>
           
           <button id="btnAnalyzeOperations" 
-                  label="🔍 Анализ операций" 
+                  label="🔍 Analyze Operations" 
                   size="normal" 
                   onAction="RibbonCallbacks.btnAnalyzeOperations_Click"
-                  screentip="Анализ операций"
-                  supertip="Детальный анализ операций и документооборота"/>
+                  screentip="Operations Analysis"
+                  supertip="Detailed analysis of operations and workflow"/>
           
           <button id="btnShowLog" 
-                  label="📋 Журнал" 
+                  label="📋 Log" 
                   size="normal" 
                   onAction="RibbonCallbacks.btnShowLog_Click"
-                  screentip="Журнал операций"
-                  supertip="Просмотр журнала всех выполненных операций"/>
+                  screentip="Operation Log"
+                  supertip="View the log of all executed operations"/>
                   
-                  <!-- НОВАЯ КНОПКА -->
-              <separator id="sep3"/>
-              
-              <button id="btnGenerateWordLetters" 
-                      label="📝 Письма по доверенностям" 
-                      size="large" 
-                      onAction="RibbonCallbacks.btnGenerateWordLetters_Click"
-                      screentip="Формирование писем"
-                      supertip="Создание Word-документов с письмами по несопоставленным доверенностям"/>
-                                    
+          <separator id="sep3"/>
+          
+          <button id="btnGenerateWordLetters" 
+                  label="📝 Doverennosti Letters" 
+                  size="large" 
+                  onAction="RibbonCallbacks.btnGenerateWordLetters_Click"
+                  screentip="Generate Letters"
+                  supertip="Create Word documents with letters for unmatched doverennosti"/>
                   
         </group>
-            
-            
-
-            
         
-        <!-- Группа: Управление -->
-        <group id="grpManagement" label="Управление">
+        <group id="grpManagement" label="Management">
           <button id="btnSettings" 
-                  label="⚙️ Настройки" 
+                  label="⚙️ Settings" 
                   size="normal" 
                   onAction="RibbonCallbacks.btnSettings_Click"
-                  screentip="Настройки системы"
-                  supertip="Конфигурация параметров системы"/>
+                  screentip="System Settings"
+                  supertip="Configuration of system parameters"/>
           
           <button id="btnClearMarks" 
-                  label="🗑️ Очистить отметки" 
+                  label="🗑️ Clear Marks" 
                   size="normal" 
                   onAction="RibbonCallbacks.btnClearMarks_Click"
-                  screentip="Очистить отметки"
-                  supertip="Очистить все отметки об исполнении"/>
+                  screentip="Clear Marks"
+                  supertip="Clear all execution marks"/>
           
           <separator id="sep2"/>
           
           <button id="btnBackupManager" 
-                  label="💾 Резервные копии" 
+                  label="💾 Backups" 
                   size="normal" 
                   onAction="RibbonCallbacks.btnBackupManager_Click"
-                  screentip="Менеджер копий"
-                  supertip="Управление резервными копиями"/>
+                  screentip="Backup Manager"
+                  supertip="Manage backup copies"/>
           
           <button id="btnHelp" 
-                  label="❓ Справка" 
+                  label="❓ Help" 
                   size="normal" 
                   onAction="RibbonCallbacks.btnHelp_Click"
-                  screentip="Справка"
-                  supertip="Справка по использованию системы"/>
+                  screentip="Help"
+                  supertip="System usage help"/>
         </group>
         
       </tab>

@@ -1,11 +1,11 @@
 Attribute VB_Name = "NavigationModule"
 '==============================================
-' МОДУЛЬ НАВИГАЦИИ ПО ЗАПИСЯМ NavigationModule
-' Назначение: Функции для перемещения между записями таблицы
-' Состояние: ИСПРАВЛЕНЫ ДУБЛИРУЮЩИЕ ФУНКЦИИ И ОБЪЯВЛЕНИЯ ПЕРЕМЕННЫХ
-' Версия: 1.6.1
-' Дата: 10.08.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' RECORD NAVIGATION MODULE - NavigationModule
+' Purpose: Functions for navigating between table records
+' State: DUPLICATE FUNCTIONS AND VARIABLE DECLARATIONS FIXED
+' Version: 1.6.1
+' Date: 10.08.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
@@ -16,10 +16,10 @@ Public Sub NavigateToRecord(RowNumber As Long)
     
     On Error GoTo NavigationError
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
-    ' Проверка границ
+    ' Bounds check
     If tblData.ListRows.Count = 0 Then
         Call DataManager.ClearForm
         Exit Sub
@@ -28,10 +28,10 @@ Public Sub NavigateToRecord(RowNumber As Long)
     If RowNumber < 1 Then RowNumber = 1
     If RowNumber > tblData.ListRows.Count Then RowNumber = tblData.ListRows.Count
     
-    ' Проверка несохранённых изменений
+    ' Check for unsaved changes
     If DataManager.HasUnsavedChanges() And DataManager.CurrentRecordRow <> RowNumber And DataManager.CurrentRecordRow > 0 Then
         Dim response As VbMsgBoxResult
-        response = MsgBox("Сохранить изменения в текущей записи перед переходом?", vbYesNo + vbQuestion, "Несохранённые изменения")
+        response = MsgBox("Save changes to the current record before navigating?", vbYesNo + vbQuestion, "Unsaved Changes")
         If response = vbYes Then
             Call DataManager.SaveCurrentRecord
         End If
@@ -40,7 +40,7 @@ Public Sub NavigateToRecord(RowNumber As Long)
     DataManager.CurrentRecordRow = RowNumber
     DataManager.IsNewRecord = False
     
-    ' Вызываем процедуру из формы
+    ' Call procedure from form
     Call UserFormVhIsh.LoadRecordToForm(RowNumber)
     Call UpdateNavigationButtons
     Call UpdateStatusBar
@@ -50,7 +50,7 @@ Public Sub NavigateToRecord(RowNumber As Long)
     Exit Sub
     
 NavigationError:
-    MsgBox "Ошибка навигации: " & Err.description, vbCritical, "Ошибка"
+    MsgBox "Navigation error: " & Err.description, vbCritical, "Error"
 End Sub
 
 Public Sub NavigateToPrevious()
@@ -71,8 +71,8 @@ Public Sub NavigateToLast()
     
     On Error GoTo LastError
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     Call NavigateToRecord(tblData.ListRows.Count)
     
@@ -83,17 +83,17 @@ LastError:
 End Sub
 
 Public Sub NavigateToRecordByNumber(recordNumber As Long)
-    ' Навигация к записи по номеру П/П
+    ' Navigate to record by Sequence Number (Seq No)
     Dim wsData As Worksheet
     Dim tblData As ListObject
     Dim i As Long
     
     On Error GoTo FindError
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
-    ' Поиск записи с указанным номером П/П
+    ' Find record with specified Seq No
     For i = 1 To tblData.ListRows.Count
         If CLng(tblData.DataBodyRange.Cells(i, 1).value) = recordNumber Then
             Call NavigateToRecord(i)
@@ -101,12 +101,12 @@ Public Sub NavigateToRecordByNumber(recordNumber As Long)
         End If
     Next i
     
-    MsgBox "Запись с номером П/П " & recordNumber & " не найдена!", vbExclamation, "Поиск записи"
+    MsgBox "Record with Seq No " & recordNumber & " not found!", vbExclamation, "Record Search"
     
     Exit Sub
     
 FindError:
-    MsgBox "Ошибка поиска записи: " & Err.description, vbExclamation, "Ошибка"
+    MsgBox "Error searching for record: " & Err.description, vbExclamation, "Error"
 End Sub
 
 Private Sub UpdateNavigationButtons()
@@ -115,8 +115,8 @@ Private Sub UpdateNavigationButtons()
     
     On Error GoTo NavigationError
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     With UserFormVhIsh
         .btnFirst.Enabled = (DataManager.CurrentRecordRow > 1)
@@ -124,24 +124,24 @@ Private Sub UpdateNavigationButtons()
         .btnNext.Enabled = (DataManager.CurrentRecordRow < tblData.ListRows.Count)
         .btnLast.Enabled = (DataManager.CurrentRecordRow < tblData.ListRows.Count)
         
-        ' Обновляем статус-бар с информацией о навигации
+        ' Update status bar with navigation info
         If tblData.ListRows.Count > 0 Then
             Dim navInfo As String
-            navInfo = "Навигация: "
+            navInfo = "Navigation: "
             
             If DataManager.CurrentRecordRow > 1 Then
-                navInfo = navInfo & "Пред.(" & (DataManager.CurrentRecordRow - 1) & ") "
+                navInfo = navInfo & "Prev.(" & (DataManager.CurrentRecordRow - 1) & ") "
             End If
             
-            navInfo = navInfo & "Тек.(" & DataManager.CurrentRecordRow & ") "
+            navInfo = navInfo & "Curr.(" & DataManager.CurrentRecordRow & ") "
             
             If DataManager.CurrentRecordRow < tblData.ListRows.Count Then
-                navInfo = navInfo & "След.(" & (DataManager.CurrentRecordRow + 1) & ") "
+                navInfo = navInfo & "Next(" & (DataManager.CurrentRecordRow + 1) & ") "
             End If
             
-            navInfo = navInfo & "Посл.(" & tblData.ListRows.Count & ")"
+            navInfo = navInfo & "Last(" & tblData.ListRows.Count & ")"
             
-            ' Временно показываем информацию в статус-баре
+            ' Temporarily show info in status bar
             .lblStatusBar.Caption = navInfo
         End If
     End With
@@ -149,7 +149,7 @@ Private Sub UpdateNavigationButtons()
     Exit Sub
     
 NavigationError:
-    ' При ошибке деактивируем все кнопки навигации
+    ' Disable all navigation buttons on error
     With UserFormVhIsh
         .btnFirst.Enabled = False
         .btnPrevious.Enabled = False
@@ -165,17 +165,17 @@ Public Sub UpdateStatusBar()
     
     On Error GoTo StatusError
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     If DataManager.IsNewRecord Then
-        statusText = "Новая запись"
+        statusText = "New record"
     ElseIf tblData.ListRows.Count = 0 Then
-        statusText = "Нет записей в таблице"
+        statusText = "No records in table"
     Else
-        statusText = "Запись " & DataManager.CurrentRecordRow & " из " & tblData.ListRows.Count
+        statusText = "Record " & DataManager.CurrentRecordRow & " of " & tblData.ListRows.Count
         
-        ' Добавляем информацию о служебных данных текущей записи
+        ' Add business data info of current record
         If DataManager.CurrentRecordRow > 0 And DataManager.CurrentRecordRow <= tblData.ListRows.Count Then
             Dim serviceName As String
             Dim docNumber As String
@@ -183,13 +183,13 @@ Public Sub UpdateStatusBar()
             docNumber = CStr(tblData.DataBodyRange.Cells(DataManager.CurrentRecordRow, 5).value)
             
             If Trim(serviceName) <> "" And Trim(docNumber) <> "" Then
-                statusText = statusText & " | " & serviceName & " | Док.№" & docNumber
+                statusText = statusText & " | " & serviceName & " | Doc.No." & docNumber
             End If
         End If
     End If
     
     If DataManager.FormDataChanged Then
-        statusText = statusText & " (изменено)"
+        statusText = statusText & " (changed)"
     End If
     
     UserFormVhIsh.lblStatusBar.Caption = statusText
@@ -197,11 +197,11 @@ Public Sub UpdateStatusBar()
     Exit Sub
     
 StatusError:
-    UserFormVhIsh.lblStatusBar.Caption = "Ошибка обновления статуса"
+    UserFormVhIsh.lblStatusBar.Caption = "Status update error"
 End Sub
 
 Public Function GetCurrentRecordInfo() As String
-    ' Возвращает информацию о текущей записи
+    ' Returns info about current record
     Dim wsData As Worksheet
     Dim tblData As ListObject
     Dim recordInfo As String
@@ -209,20 +209,20 @@ Public Function GetCurrentRecordInfo() As String
     On Error GoTo InfoError
     
     If DataManager.IsNewRecord Then
-        GetCurrentRecordInfo = "Новая запись"
+        GetCurrentRecordInfo = "New record"
         Exit Function
     End If
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     If DataManager.CurrentRecordRow > 0 And DataManager.CurrentRecordRow <= tblData.ListRows.Count Then
-        recordInfo = "Запись №" & DataManager.CurrentRecordRow & ": " & _
+        recordInfo = "Record No." & DataManager.CurrentRecordRow & ": " & _
                      CStr(tblData.DataBodyRange.Cells(DataManager.CurrentRecordRow, 2).value) & " - " & _
-                     CStr(tblData.DataBodyRange.Cells(DataManager.CurrentRecordRow, 4).value) & " №" & _
+                     CStr(tblData.DataBodyRange.Cells(DataManager.CurrentRecordRow, 4).value) & " No." & _
                      CStr(tblData.DataBodyRange.Cells(DataManager.CurrentRecordRow, 5).value)
     Else
-        recordInfo = "Некорректная запись"
+        recordInfo = "Invalid record"
     End If
     
     GetCurrentRecordInfo = recordInfo
@@ -230,25 +230,25 @@ Public Function GetCurrentRecordInfo() As String
     Exit Function
     
 InfoError:
-    GetCurrentRecordInfo = "Ошибка получения информации о записи"
+    GetCurrentRecordInfo = "Error getting record information"
 End Function
 
 Public Sub RefreshNavigation()
-    ' Обновление навигации после изменений в таблице
+    ' Update navigation after table changes
     Call UpdateNavigationButtons
     Call UpdateStatusBar
     
-    ' Проверяем, что текущая запись все еще существует
+    ' Check that current record still exists
     Dim wsData As Worksheet
     Dim tblData As ListObject
     
     On Error GoTo RefreshError
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     If DataManager.CurrentRecordRow > tblData.ListRows.Count Then
-        ' Если текущая запись была удалена, переходим к последней
+        ' If current record was deleted, go to last
         If tblData.ListRows.Count > 0 Then
             Call NavigateToRecord(tblData.ListRows.Count)
         Else
@@ -262,17 +262,17 @@ RefreshError:
     Call DataManager.ClearForm
 End Sub
 
-' Функция FormatDateCell перенесена в CommonUtilities.bas
+' Function FormatDateCell moved to CommonUtilities.bas
 
 Public Function CanNavigate() As Boolean
-    ' Проверка возможности навигации
+    ' Check if navigation is possible
     Dim wsData As Worksheet
     Dim tblData As ListObject
     
     On Error GoTo CannotNavigate
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     CanNavigate = (tblData.ListRows.Count > 0)
     
@@ -283,62 +283,61 @@ CannotNavigate:
 End Function
 
 Public Sub ShowNavigationSummary()
-    ' Показывает сводку по навигации
+    ' Shows navigation summary
     Dim wsData As Worksheet
     Dim tblData As ListObject
     Dim summaryText As String
     
     On Error GoTo SummaryError
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
-    summaryText = "Сводка по записям:" & vbCrLf & _
-                  "Всего записей: " & tblData.ListRows.Count & vbCrLf
+    summaryText = "Records Summary:" & vbCrLf & _
+                  "Total records: " & tblData.ListRows.Count & vbCrLf
     
     If tblData.ListRows.Count > 0 Then
         summaryText = summaryText & _
-                      "Текущая запись: " & DataManager.CurrentRecordRow & vbCrLf & _
-                      "Первая запись: 1" & vbCrLf & _
-                      "Последняя запись: " & tblData.ListRows.Count & vbCrLf
+                      "Current record: " & DataManager.CurrentRecordRow & vbCrLf & _
+                      "First record: 1" & vbCrLf & _
+                      "Last record: " & tblData.ListRows.Count & vbCrLf
         
         If DataManager.IsNewRecord Then
-            summaryText = summaryText & "Статус: Новая запись"
+            summaryText = summaryText & "Status: New record"
         Else
-            summaryText = summaryText & "Статус: Существующая запись"
+            summaryText = summaryText & "Status: Existing record"
             If DataManager.FormDataChanged Then
-                summaryText = summaryText & " (изменена)"
+                summaryText = summaryText & " (changed)"
             End If
         End If
     Else
-        summaryText = summaryText & "Статус: Таблица пустая"
+        summaryText = summaryText & "Status: Table is empty"
     End If
     
-    MsgBox summaryText, vbInformation, "Сводка навигации"
+    MsgBox summaryText, vbInformation, "Navigation Summary"
     
     Exit Sub
     
 SummaryError:
-    MsgBox "Ошибка получения сводки навигации", vbExclamation, "Ошибка"
+    MsgBox "Error getting navigation summary", vbExclamation, "Error"
 End Sub
 
 Public Sub ShowNavigationHelp()
-    ' Показывает справку по навигации
+    ' Shows navigation help
     Dim helpText As String
     
-    helpText = "Справка по навигации:" & vbCrLf & vbCrLf & _
-               "|< Первая - переход к первой записи" & vbCrLf & _
-               "< Пред. - переход к предыдущей записи" & vbCrLf & _
-               "След. > - переход к следующей записи" & vbCrLf & _
-               "Послед. >| - переход к последней записи" & vbCrLf & vbCrLf & _
-               "Горячие клавиши:" & vbCrLf & _
-               "Ctrl+S - сохранить запись" & vbCrLf & _
-               "Ctrl+N - новая запись" & vbCrLf & _
-               "Ctrl+F - поиск" & vbCrLf & _
-               "F3 - следующий результат поиска" & vbCrLf & _
-               "Esc - отмена изменений"
+    helpText = "Navigation Help:" & vbCrLf & vbCrLf & _
+               "|< First - jump to first record" & vbCrLf & _
+               "< Prev. - jump to previous record" & vbCrLf & _
+               "Next > - jump to next record" & vbCrLf & _
+               "Last >| - jump to last record" & vbCrLf & vbCrLf & _
+               "Hotkeys:" & vbCrLf & _
+               "Ctrl+S - save record" & vbCrLf & _
+               "Ctrl+N - new record" & vbCrLf & _
+               "Ctrl+F - search" & vbCrLf & _
+               "F3 - next search result" & vbCrLf & _
+               "Esc - cancel changes"
     
-    MsgBox helpText, vbInformation, "Справка по навигации"
+    MsgBox helpText, vbInformation, "Navigation Help"
 End Sub
-
 

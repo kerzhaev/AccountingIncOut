@@ -8,10 +8,10 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 '==============================================
-' МОДУЛЬ КНИГИ - ThisWorkbook
-' Назначение: Обработка событий книги
-' Состояние: УПРОЩЁН - ручное управление модулями
-' Версия: 2.0.0
+' WORKBOOK MODULE - ThisWorkbook
+' Purpose: Handling workbook events
+' State: SIMPLIFIED - manual module management
+' Version: 2.0.0
 '==============================================
 
 Option Explicit
@@ -19,18 +19,18 @@ Option Explicit
 Private Sub Workbook_Open()
     On Error Resume Next
     
-    ' Автоматически активируем систему при открытии книги
-    ' (работает только если модули уже загружены)
+    ' Automatically activate system on workbook open
+    ' (works only if modules are already loaded)
     Call AutoStart.InitializeSystem
     
-    ' НОВОЕ: Инициализация инфраструктуры этапа 1
+    ' NEW: Stage 1 infrastructure initialization
     Call SystemSettings.InitializeSettings
     Call SystemLogger.InitializeLog
     
-    ' Логируем старт системы
-    Call SystemLogger.LogOperation("SystemStart", "Система УчётВхИсх запущена", "SUCCESS", 0)
+    ' Log system start
+    Call SystemLogger.LogOperation("SystemStart", "IncOut system started", "SUCCESS", 0)
     
-    ' Открытие формы немодально
+    ' Open form modelessly
     Load UserFormVhIsh
     UserFormVhIsh.Show vbModeless
     
@@ -40,8 +40,8 @@ End Sub
 Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, ByRef Cancel As Boolean)
     On Error Resume Next
     
-    ' Экспортируем модули в папку при сохранении
-    ' Раскомментируйте следующую строку, если хотите автоматический экспорт:
+    ' Export modules to folder on save
+    ' Uncomment the following line if you want automatic export:
     ' Call ExportModules(ThisWorkbook.Name & ".modules")
     
     On Error GoTo 0
@@ -50,10 +50,10 @@ End Sub
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
     On Error Resume Next
     
-    ' Деактивируем систему при закрытии книги
+    ' Deactivate system on workbook close
     Call AutoStart.ShutdownSystem
     
-    ' УДАЛЕНИЕ МОДУЛЕЙ ОТКЛЮЧЕНО - делайте вручную если нужно
+    ' MODULE REMOVAL DISABLED - do it manually if needed
     ' Call RemoveModules(ShowMsgBox:=True)
     
     On Error GoTo 0
@@ -62,8 +62,8 @@ End Sub
 Private Sub Workbook_SheetActivate(ByVal Sh As Object)
     On Error Resume Next
     
-    If Sh.Name = "ВхИсх" Then
-        Application.StatusBar = "Лист с таблицей активен. Выберите ячейку и нажмите Ctrl+E для редактирования."
+    If Sh.Name = "IncOut" Then
+        Application.StatusBar = "Table sheet is active. Select a cell and press Ctrl+E to edit."
     End If
     
     On Error GoTo 0
@@ -72,7 +72,7 @@ End Sub
 Private Sub Workbook_SheetSelectionChange(ByVal Sh As Object, ByVal Target As Range)
     On Error Resume Next
     
-    If Sh.Name = "ВхИсх" Then
+    If Sh.Name = "IncOut" Then
         Call UpdateStatusForSelection(Target)
     End If
     
@@ -86,8 +86,8 @@ Private Sub UpdateStatusForSelection(Target As Range)
     Dim tblData As ListObject
     Dim intersectRange As Range
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     Set intersectRange = Intersect(Target, tblData.DataBodyRange)
     
@@ -101,10 +101,10 @@ Private Sub UpdateStatusForSelection(Target As Range)
         Dim displayName As String
         fieldName = TableEventHandler.GetFieldNameByColumn(columnNumber)
         displayName = TableEventHandler.GetFieldDisplayName(fieldName)
-        Application.StatusBar = "Строка " & RowNumber & ", столбец " & columnNumber & _
-                               " | Ctrl+E для редактирования | " & displayName
+        Application.StatusBar = "Row " & RowNumber & ", Col " & columnNumber & _
+                               " | Ctrl+E to edit | " & displayName
     Else
-        Application.StatusBar = "Система интерактивных форм активна. Выберите ячейку таблицы."
+        Application.StatusBar = "Interactive forms system is active. Select a table cell."
     End If
     
     On Error GoTo 0

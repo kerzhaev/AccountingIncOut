@@ -1,12 +1,11 @@
 Attribute VB_Name = "ProgressManager"
-' ИСПРАВЛЕННЫЙ модуль ProgressManager
 '==============================================
-' МОДУЛЬ УПРАВЛЕНИЯ ПРОГРЕССОМ - ProgressManager
-' Назначение: Отображение прогресса длительных операций
-' Состояние: ИСПРАВЛЕНО - переименован UpdateStatusBar
-' Версия: 1.0.1
-' Дата: 23.08.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' PROGRESS MANAGEMENT MODULE - ProgressManager
+' Purpose: Displaying progress of long operations
+' State: FIXED - renamed UpdateStatusBar
+' Version: 1.0.1
+' Date: 23.08.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
@@ -15,12 +14,12 @@ Private ProgressForm As UserFormProgress
 Private operationCancelled As Boolean
 Private StartTime As Double
 
-' Показать прогресс-бар
+' Show progress bar
 Public Sub ShowProgress(operationTitle As String, Optional allowCancel As Boolean = True)
     Set ProgressForm = New UserFormProgress
     
     With ProgressForm
-        .Caption = "Выполнение операции"
+        .Caption = "Executing operation"
         .lblOperation.Caption = operationTitle
         .ProgressBar.value = 0
         .btnCancel.Visible = allowCancel
@@ -30,11 +29,11 @@ Public Sub ShowProgress(operationTitle As String, Optional allowCancel As Boolea
     operationCancelled = False
     StartTime = Timer
     
-    ' Обновляем статус Excel
+    ' Update Excel status bar
     Application.StatusBar = operationTitle & " - 0%"
 End Sub
 
-' Обновить прогресс
+' Update progress
 Public Sub UpdateProgress(CurrentValue As Long, MaxValue As Long, Optional statusText As String = "")
     Dim percentage As Double
     
@@ -44,24 +43,24 @@ Public Sub UpdateProgress(CurrentValue As Long, MaxValue As Long, Optional statu
     
     With ProgressForm
         .ProgressBar.value = percentage
-        .lblStatus.Caption = "Выполнено: " & CurrentValue & " из " & MaxValue & " (" & Format(percentage, "0.0") & "%)"
+        .lblStatus.Caption = "Completed: " & CurrentValue & " of " & MaxValue & " (" & Format(percentage, "0.0") & "%)"
         
         If statusText <> "" Then
             .lblDetails.Caption = statusText
         End If
         
-        ' Обновляем время выполнения
-        .lblTime.Caption = "Время: " & Format(Timer - StartTime, "0.0") & " сек."
+        ' Update execution time
+        .lblTime.Caption = "Time: " & Format(Timer - StartTime, "0.0") & " sec."
     End With
     
-    ' Обновляем статус Excel
+    ' Update Excel status bar
     Application.StatusBar = ProgressForm.lblOperation.Caption & " - " & Format(percentage, "0.0") & "%"
     
-    ' Обрабатываем события Windows
+    ' Process Windows events
     DoEvents
 End Sub
 
-' Скрыть прогресс-бар
+' Hide progress bar
 Public Sub HideProgress()
     If Not ProgressForm Is Nothing Then
         Unload ProgressForm
@@ -71,19 +70,19 @@ Public Sub HideProgress()
     Application.StatusBar = False
 End Sub
 
-' Проверка отмены операции
+' Check operation cancellation
 Public Function IsOperationCancelled() As Boolean
     IsOperationCancelled = operationCancelled
 End Function
 
-' Отмена операции (вызывается из формы)
+' Cancel operation (called from form)
 Public Sub CancelOperation()
     operationCancelled = True
     Call HideProgress
-    Application.StatusBar = "Операция отменена пользователем"
+    Application.StatusBar = "Operation cancelled by user"
 End Sub
 
-' ИСПРАВЛЕНО: Переименованная функция быстрого обновления статус-бара
+' FIXED: Renamed function for quick status bar update
 Public Sub UpdateProgressStatusBar(Message As String, Optional percentage As Double = -1)
     If percentage >= 0 Then
         Application.StatusBar = Message & " - " & Format(percentage, "0.0") & "%"
@@ -91,4 +90,3 @@ Public Sub UpdateProgressStatusBar(Message As String, Optional percentage As Dou
         Application.StatusBar = Message
     End If
 End Sub
-

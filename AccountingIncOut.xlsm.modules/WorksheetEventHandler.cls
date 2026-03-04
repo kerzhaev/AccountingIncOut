@@ -8,31 +8,31 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 '==============================================
-' КЛАСС ОБРАБОТКИ СОБЫТИЙ ЛИСТА - Class Module WorksheetEventHandler
-' Назначение: Класс для обработки событий листа с таблицей
-' Тип: Class Module
-' Состояние: УДАЛЕНЫ ВСЕ ДУБЛИРУЮЩИЕ ФУНКЦИИ - ТОЛЬКО УНИКАЛЬНЫЙ КОД
-' Версия: 1.3.0
-' Дата: 10.08.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' WORKSHEET EVENT HANDLER CLASS - Class Module WorksheetEventHandler
+' Purpose: Class for handling worksheet events with a table
+' Type: Class Module
+' State: ALL DUPLICATE FUNCTIONS REMOVED - ONLY UNIQUE CODE KEPT
+' Version: 1.3.0
+' Date: 10.08.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
 
-' Объявление переменной с событиями (только в классе!)
+' Declaration of variable with events (only in class!)
 Private WithEvents wsData As Worksheet
 Attribute wsData.VB_VarHelpID = -1
 Private tblVhIsh As ListObject
 
-' Свойство для установки листа
+' Property to set worksheet
 Public Property Set Worksheet(Ws As Worksheet)
     Set wsData = Ws
     On Error Resume Next
-    Set tblVhIsh = Ws.ListObjects("ВходящиеИсходящие")
+    Set tblVhIsh = Ws.ListObjects("TableIncOut")
     On Error GoTo 0
 End Property
 
-' Обработчик события изменения выделения
+' Selection change event handler
 Private Sub wsData_SelectionChange(ByVal Target As Range)
     Dim intersectRange As Range
     Dim RowNumber As Long
@@ -41,74 +41,74 @@ Private Sub wsData_SelectionChange(ByVal Target As Range)
     
     On Error GoTo EventError
     
-    ' Проверяем, что tblVhIsh инициализирован
+    ' Check if tblVhIsh is initialized
     If tblVhIsh Is Nothing Then Exit Sub
     
-    ' Проверяем, что DataBodyRange существует
+    ' Check if DataBodyRange exists
     If tblVhIsh.DataBodyRange Is Nothing Then
-        Application.StatusBar = "Таблица пуста. Добавьте данные для работы с системой."
+        Application.StatusBar = "Table is empty. Add data to work with the system."
         Exit Sub
     End If
     
-    ' Проверяем, что щелчок произошел в области таблицы (исключая заголовки)
+    ' Check if click occurred in table data area (excluding headers)
     Set intersectRange = Intersect(Target, tblVhIsh.DataBodyRange)
     
     If Not intersectRange Is Nothing And Target.Cells.Count = 1 Then
-        ' Получаем номер строки в таблице
+        ' Get row number in table
         RowNumber = intersectRange.Row - tblVhIsh.DataBodyRange.Row + 1
         
-        ' Получаем номер столбца в таблице
+        ' Get column number in table
         columnNumber = intersectRange.Column - tblVhIsh.DataBodyRange.Column + 1
         
-        ' ИСПРАВЛЕНО: Используем функцию из TableEventHandler
+        ' FIXED: Use function from TableEventHandler
         fieldToActivate = TableEventHandler.GetFieldNameByColumn(columnNumber)
         
-        ' Показываем информацию в статус-баре
-        Application.StatusBar = "Строка " & RowNumber & ", столбец " & columnNumber & _
-                               " | Ctrl+E для редактирования | " & _
+        ' Show info in status bar
+        Application.StatusBar = "Row " & RowNumber & ", Col " & columnNumber & _
+                               " | Ctrl+E to edit | " & _
                                TableEventHandler.GetFieldDisplayName(fieldToActivate)
     Else
-        ' Сбрасываем если вышли из таблицы
-        Application.StatusBar = "Система интерактивных форм активна. Выберите ячейку таблицы."
+        ' Reset if clicked outside table
+        Application.StatusBar = "Interactive forms system is active. Select a table cell."
     End If
     
     Exit Sub
     
 EventError:
-    ' Игнорируем ошибки обработки события
-    Debug.Print "Ошибка в WorksheetEventHandler.wsData_SelectionChange: " & Err.description
+    ' Ignore event handling errors
+    Debug.Print "Error in WorksheetEventHandler.wsData_SelectionChange: " & Err.description
 End Sub
 
-' ИСПРАВЛЕНО: Публичный метод для открытия формы через TableEventHandler
+' FIXED: Public method to open form via TableEventHandler
 Public Sub OpenFormForSelection()
     On Error GoTo OpenError
     
     If wsData Is Nothing Or tblVhIsh Is Nothing Then Exit Sub
     
-    ' Проверяем, что DataBodyRange существует
+    ' Check if DataBodyRange exists
     If tblVhIsh.DataBodyRange Is Nothing Then
-        MsgBox "Таблица пуста! Добавьте данные для работы с формой.", vbExclamation, "Пустая таблица"
+        MsgBox "Table is empty! Add data to work with the form.", vbExclamation, "Empty Table"
         Exit Sub
     End If
     
-    ' ИСПРАВЛЕНО: Используем метод из TableEventHandler вместо дублирования
+    ' FIXED: Use method from TableEventHandler instead of duplicating
     Call TableEventHandler.OpenFormForCurrentSelection
     
     Exit Sub
     
 OpenError:
-    MsgBox "Ошибка открытия формы: " & Err.description, vbExclamation, "Ошибка"
+    MsgBox "Error opening form: " & Err.description, vbExclamation, "Error"
 End Sub
 
-' Публичный метод для получения информации о классе
+' Public method to get class info
 Public Function GetClassInfo() As String
     GetClassInfo = "WorksheetEventHandler | " & _
-                  "Лист: " & IIf(wsData Is Nothing, "НЕ УСТАНОВЛЕН", wsData.Name) & " | " & _
-                  "Таблица: " & IIf(tblVhIsh Is Nothing, "НЕ НАЙДЕНА", tblVhIsh.Name) & " | " & _
-                  "Строк: " & IIf(tblVhIsh Is Nothing Or tblVhIsh.DataBodyRange Is Nothing, 0, tblVhIsh.ListRows.Count)
+                  "Sheet: " & IIf(wsData Is Nothing, "NOT SET", wsData.Name) & " | " & _
+                  "Table: " & IIf(tblVhIsh Is Nothing, "NOT FOUND", tblVhIsh.Name) & " | " & _
+                  "Rows: " & IIf(tblVhIsh Is Nothing Or tblVhIsh.DataBodyRange Is Nothing, 0, tblVhIsh.ListRows.Count)
 End Function
 
-' Метод для безопасной очистки объектов
+' Method for safe object cleanup
 Public Sub Cleanup()
     On Error Resume Next
     Set wsData = Nothing
@@ -116,24 +116,23 @@ Public Sub Cleanup()
     On Error GoTo 0
 End Sub
 
-' Публичный метод для программного вызова события SelectionChange
+' Public method to programmatically trigger SelectionChange event
 Public Sub TriggerSelectionChange(Target As Range)
     Call wsData_SelectionChange(Target)
 End Sub
 
-' Метод проверки активности класса
+' Method to check class activity
 Public Function IsActive() As Boolean
     IsActive = (Not wsData Is Nothing) And (Not tblVhIsh Is Nothing)
 End Function
 
-' Метод получения текущего листа
+' Method to get current worksheet
 Public Property Get CurrentWorksheet() As Worksheet
     Set CurrentWorksheet = wsData
 End Property
 
-' Метод получения текущей таблицы
+' Method to get current table
 Public Property Get CurrentTable() As ListObject
     Set CurrentTable = tblVhIsh
 End Property
-
 

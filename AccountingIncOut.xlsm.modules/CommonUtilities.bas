@@ -1,21 +1,21 @@
 Attribute VB_Name = "CommonUtilities"
 '==============================================
-' МОДУЛЬ ОБЩИХ УТИЛИТАРНЫХ ФУНКЦИЙ - CommonUtilities
-' Назначение: Централизованное хранение общих утилитарных функций
-' Состояние: СОЗДАН В РЕЗУЛЬТАТЕ РЕФАКТОРИНГА
-' Версия: 1.0.0
-' Дата: 10.01.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' COMMON UTILITY FUNCTIONS MODULE - CommonUtilities
+' Purpose: Centralized storage of common utility functions
+' State: CREATED AS A RESULT OF REFACTORING
+' Version: 1.0.0
+' Date: 10.01.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
 
 ' =============================================
-' БЕЗОПАСНОЕ ПОЛУЧЕНИЕ ЛИСТА
+' SAFE WORKSHEET RETRIEVAL
 ' =============================================
-' @description Получает лист по имени с обработкой ошибок
-' @param   sheetName [String] Имя листа
-' @return  [Worksheet] Объект листа или Nothing если не найден
+' @description Gets worksheet by name with error handling
+' @param   sheetName [String] Worksheet name
+' @return  [Worksheet] Worksheet object or Nothing if not found
 ' =============================================
 Public Function GetWorksheetSafe(sheetName As String) As Worksheet
     Dim Ws As Worksheet
@@ -28,12 +28,12 @@ Public Function GetWorksheetSafe(sheetName As String) As Worksheet
 End Function
 
 ' =============================================
-' БЕЗОПАСНОЕ ПОЛУЧЕНИЕ ТАБЛИЦЫ
+' SAFE TABLE RETRIEVAL
 ' =============================================
-' @description Получает таблицу (ListObject) по имени с обработкой ошибок
-' @param   Ws [Worksheet] Лист, на котором находится таблица
-' @param   tableName [String] Имя таблицы
-' @return  [ListObject] Объект таблицы или Nothing если не найдена
+' @description Gets table (ListObject) by name with error handling
+' @param   Ws [Worksheet] Worksheet containing the table
+' @param   tableName [String] Table name
+' @return  [ListObject] Table object or Nothing if not found
 ' =============================================
 Public Function GetListObjectSafe(Ws As Worksheet, tableName As String) As ListObject
     Dim tbl As ListObject
@@ -48,24 +48,24 @@ Public Function GetListObjectSafe(Ws As Worksheet, tableName As String) As ListO
 End Function
 
 ' =============================================
-' ВАЛИДАЦИЯ ФОРМАТА ДАТЫ
+' DATE FORMAT VALIDATION
 ' =============================================
-' @description Проверяет корректность формата даты ДД.ММ.ГГ
-' @param   DateText [String] Текст даты в формате ДД.ММ.ГГ
-' @return  [Boolean] True если формат корректен и дата не в будущем
+' @description Checks correctness of date format DD.MM.YY
+' @param   DateText [String] Date text in DD.MM.YY format
+' @return  [Boolean] True if format is correct and date is not in the future
 ' =============================================
 Public Function IsValidDateFormat(DateText As String) As Boolean
     On Error GoTo DateError
     
-    ' Проверка формата ДД.ММ.ГГ
+    ' Check DD.MM.YY format
     If Len(DateText) = 8 And Mid(DateText, 3, 1) = "." And Mid(DateText, 6, 1) = "." Then
         Dim TestDate As Date
-        ' Преобразуем ГГ в полный год (20ГГ)
+        ' Convert YY to full year (20YY)
         Dim fullDateText As String
         fullDateText = Left(DateText, 6) & "20" & Right(DateText, 2)
         TestDate = CDate(fullDateText)
         
-        ' Проверка, что дата не в будущем
+        ' Check that date is not in the future
         If TestDate > Date Then
             IsValidDateFormat = False
         Else
@@ -82,11 +82,11 @@ DateError:
 End Function
 
 ' =============================================
-' ФОРМАТИРОВАНИЕ ДАТЫ ИЗ ЯЧЕЙКИ
+' FORMAT DATE FROM CELL
 ' =============================================
-' @description Форматирует дату из ячейки в строку ДД.ММ.ГГ
-' @param   cell [Range] Ячейка с датой
-' @return  [String] Отформатированная дата или пустая строка
+' @description Formats date from cell to DD.MM.YY string
+' @param   cell [Range] Cell with date
+' @return  [String] Formatted date or empty string
 ' =============================================
 Public Function FormatDateCell(cell As Range) As String
     On Error GoTo FormatError
@@ -104,15 +104,15 @@ FormatError:
 End Function
 
 ' =============================================
-' ЗАПИСЬ ДАТЫ В ЯЧЕЙКУ
+' WRITE DATE TO CELL
 ' =============================================
-' @description Записывает дату в формате ДД.ММ.ГГ в ячейку
-' @param   cell [Range] Ячейка для записи
-' @param   DateText [String] Текст даты в формате ДД.ММ.ГГ
+' @description Writes date in DD.MM.YY format to cell
+' @param   cell [Range] Cell to write to
+' @param   DateText [String] Date text in DD.MM.YY format
 ' =============================================
 Public Sub WriteDateToCell(cell As Range, DateText As String)
     If Trim(DateText) <> "" And IsValidDateFormat(DateText) Then
-        ' Преобразуем ГГ в полный год для записи
+        ' Convert YY to full year for writing
         Dim fullDateText As String
         fullDateText = Left(DateText, 6) & "20" & Right(DateText, 2)
         cell.value = CDate(fullDateText)
@@ -120,4 +120,3 @@ Public Sub WriteDateToCell(cell As Range, DateText As String)
         cell.value = ""
     End If
 End Sub
-

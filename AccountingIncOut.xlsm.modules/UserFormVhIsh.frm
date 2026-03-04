@@ -13,131 +13,122 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
-
-
-
-
-
-
 '==============================================
-' МОДУЛЬ УПРАВЛЕНИЯ ФОРМОЙ "ВходящиеИсходящие" - UserFormVhIsh
-' Назначение: Полнофункциональная форма для добавления, редактирования и поиска записей
-' Состояние: ИСПРАВЛЕНА ОШИБКА "Expected array" В ФУНКЦИИ IsNaryadOnlyMode
-' Версия: 3.2.1
-' Дата: 09.08.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' FORM MANAGEMENT MODULE "IncOut" - UserFormVhIsh
+' Purpose: Fully functional form for adding, editing, and searching records
+' State: FIXED "Expected array" ERROR IN IsNaryadOnlyMode FUNCTION
+' Version: 3.2.1
+' Date: 09.08.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
 
-' API объявления для работы с разрешением экрана
+' API declarations for working with screen resolution
 #If VBA7 Then
     Private Declare PtrSafe Function GetSystemMetrics Lib "user32" (ByVal nIndex As Long) As Long
 #Else
     Private Declare Function GetSystemMetrics Lib "user32" (ByVal nIndex As Long) As Long
 #End If
 
-' Константы для GetSystemMetrics
+' Constants for GetSystemMetrics
 Private Const SM_CXSCREEN As Long = 0
 Private Const SM_CYSCREEN As Long = 1
 
-' Глобальные переменные модуля формы
+' Global variables for the form module
 Private CurrentRecordRow As Long
 Private IsNewRecord As Boolean
 Private FormDataChanged As Boolean
 
-' Кнопка очистки всех отметок об исполнении
+' Button to clear all execution marks
 Private Sub btnClearMarks_Click()
     Call ProvodkaIntegrationModule.ClearAllProvodkaMarks
     
-    ' Обновляем текущую запись в форме
+    ' Update current record in form
     If DataManager.CurrentRecordRow > 0 Then
         Call Me.LoadRecordToForm(DataManager.CurrentRecordRow)
     End If
 End Sub
 
-
 Private Sub btnFindProvodka_Click()
-    ' Кнопка поиска проводки для текущей записи
+    ' Button to search posting for current record
     Call ProvodkaIntegrationModule.FindProvodkaForCurrentRecord
 End Sub
 
-' Кнопка массовой проверки всех записей с выгрузкой 1С
+' Button for mass check of all records with 1C export
 Private Sub btnMassCheck_Click()
     Dim response As VbMsgBoxResult
     Dim StartTime As Double
     
     On Error GoTo MassCheckError
     
-    ' Предупреждение пользователя
-    response = MsgBox("?? МАССОВАЯ ПРОВЕРКА ЗАПИСЕЙ" & vbCrLf & vbCrLf & _
-                     "Будет выполнена проверка ВСЕХ записей в таблице" & vbCrLf & _
-                     "ВходящиеИсходящие на соответствие с выгрузкой 1С." & vbCrLf & vbCrLf & _
-                     "Это может занять некоторое время." & vbCrLf & _
-                     "Продолжить?", _
-                     vbYesNo + vbQuestion, "Подтверждение массовой проверки")
+    ' User warning
+    response = MsgBox("[INFO] MASS RECORD CHECK" & vbCrLf & vbCrLf & _
+                     "This will check ALL records in the TableIncOut table" & vbCrLf & _
+                     "against the 1C export." & vbCrLf & vbCrLf & _
+                     "This may take some time." & vbCrLf & _
+                     "Continue?", _
+                     vbYesNo + vbQuestion, "Mass Check Confirmation")
     
     If response = vbNo Then Exit Sub
     
-    ' Обновляем статус в форме
-    Me.lblStatusBar.Caption = "Выполняется массовая проверка..."
+    ' Update status in form
+    Me.lblStatusBar.Caption = "Performing mass check..."
     Me.btnMassCheck.Enabled = False
     
     StartTime = Timer
     
-    ' Запускаем массовую обработку
+    ' Start mass processing
     Call ProvodkaIntegrationModule.MassProcessWithFileSelection
     
-    ' Восстанавливаем интерфейс
+    ' Restore UI
     Me.btnMassCheck.Enabled = True
     
-    ' Если текущая запись открыта, обновляем её отображение
+    ' If current record is open, update its display
     If DataManager.CurrentRecordRow > 0 Then
         Call Me.LoadRecordToForm(DataManager.CurrentRecordRow)
     End If
     
-    ' Обновляем статус
-    Me.lblStatusBar.Caption = "Массовая проверка завершена за " & _
-                             Format(Timer - StartTime, "0.0") & " сек."
+    ' Update status
+    Me.lblStatusBar.Caption = "Mass check completed in " & _
+                             Format(Timer - StartTime, "0.0") & " sec."
     
     Exit Sub
     
 MassCheckError:
     Me.btnMassCheck.Enabled = True
-    Me.lblStatusBar.Caption = "Ошибка массовой проверки: " & Err.description
-    MsgBox "Ошибка при выполнении массовой проверки:" & vbCrLf & Err.description, vbCritical, "Ошибка"
+    Me.lblStatusBar.Caption = "Mass check error: " & Err.description
+    MsgBox "Error performing mass check:" & vbCrLf & Err.description, vbCritical, "Error"
 End Sub
 
-
-' Кнопка показа статистики сопоставления
+' Button to show matching statistics
 Private Sub btnShowStats_Click()
     Call ProvodkaIntegrationModule.ShowMatchingStatistics
 End Sub
-
 
 Private Sub CommandButton1_Click()
 
 End Sub
 
 ' ===============================================
-' СОБЫТИЯ ФОРМЫ
+' FORM EVENTS
 ' ===============================================
 
 Private Sub UserForm_Initialize()
-    ' Масштабирование и центрирование формы ДО инициализации остальных элементов
+    ' Resize and center form BEFORE initializing other elements
     Call ResizeAndCenterForm
     
     Call InitializeForm
     Call LoadSettings
     Call NavigationModule.UpdateStatusBar
-'    Me.KeyPreview = True
+'   Me.KeyPreview = True
 End Sub
 
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
     If HasUnsavedChanges() Then
         Dim response As VbMsgBoxResult
-        response = MsgBox("У вас есть несохранённые изменения. Сохранить перед закрытием?", _
-                         vbYesNoCancel + vbQuestion, "Несохранённые изменения")
+        response = MsgBox("You have unsaved changes. Save before closing?", _
+                         vbYesNoCancel + vbQuestion, "Unsaved Changes")
         
         Select Case response
             Case vbYes
@@ -151,128 +142,126 @@ Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
     
     Call SaveSettings
     
-    ' Возвращаем фокус к таблице
+    ' Return focus to table
     Dim wsData As Worksheet
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
     wsData.Activate
-    Application.StatusBar = "Форма закрыта. Система интерактивных таблиц активна."
+    Application.StatusBar = "Form closed. Interactive table system active."
 End Sub
 
 Private Sub UserForm_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
-    ' Горячие клавиши
-    If Shift = 2 Then ' Ctrl нажат
+    ' Hotkeys
+    If Shift = 2 Then ' Ctrl pressed
         Select Case KeyCode
-            Case vbKeyS ' Ctrl+S = Сохранить
+            Case vbKeyS ' Ctrl+S = Save
                 Call SaveCurrentRecord
-            Case vbKeyN ' Ctrl+N = Новая запись
+            Case vbKeyN ' Ctrl+N = New record
                 Call DataManager.ClearForm
-            Case vbKeyF ' Ctrl+F = Фокус на поиск
+            Case vbKeyF ' Ctrl+F = Focus on search
                 Me.txtSearch.SetFocus
         End Select
-    ElseIf KeyCode = vbKeyF3 Then ' F3 = Следующий результат поиска
+    ElseIf KeyCode = vbKeyF3 Then ' F3 = Next search result
         If Me.lstSearchResults.Visible And Me.lstSearchResults.ListCount > 0 Then
             With Me.lstSearchResults
-                If .listIndex < .ListCount - 1 Then
-                    .listIndex = .listIndex + 1
+                If .ListIndex < .ListCount - 1 Then
+                    .ListIndex = .ListIndex + 1
                 Else
-                    .listIndex = 0
+                    .ListIndex = 0
                 End If
             End With
         End If
     End If
     
-' Проверка нажатия клавиши Escape (код 27)
+    ' Check Escape key press (code 27)
     If KeyCode = vbKeyEscape Then
-        ' Закрытие формы
+        ' Close form
         Me.Hide
-        ' Или для полной выгрузки используйте: Unload Me
+        ' Or for full unload use: Unload Me
     End If
-    
-    
 End Sub
 
 Private Sub InitializeForm()
-    ' Инициализация переменных
+    ' Initialize variables
     CurrentRecordRow = 0
     IsNewRecord = True
     FormDataChanged = False
     
-    ' Инициализация элементов формы
+    ' Initialize form elements
     Call LoadComboBoxData
     Call SetupNewComboBoxes
     Call DataManager.ClearForm
     
-    ' Настройка элементов поиска
+    ' Setup search elements
     Me.txtSearch.Text = ""
     Me.lstSearchResults.Clear
     Me.lstSearchResults.Visible = False
     
-    ' Настройка фиксированного размера для lstSearchResults
+    ' Setup fixed size for lstSearchResults
     Call SetupSearchResultsList
     
-    ' Делаем поле номера П/П недоступным для редактирования
+    ' Make sequence number field uneditable
     Me.txtNomerPP.Enabled = False
-    Me.txtNomerPP.BackColor = RGB(240, 240, 240) ' Серый цвет для недоступного поля
+    Me.txtNomerPP.BackColor = RGB(240, 240, 240) ' Gray color for disabled field
     Me.txtNomerPP.Locked = True
     
-    ' Настройка поля наряда
+    ' Setup order field
     Call SetupNaryadField
     
-    ' Настройка строки состояния
-    Me.lblStatusBar.Caption = "Готов к работе"
+    ' Setup status bar
+    Me.lblStatusBar.Caption = "Ready to work"
     
-    ' Деактивация кнопки удаления
+    ' Deactivate delete button
     Me.btnDelete.Enabled = False
     
-    ' Улучшения интерфейса
+    ' UI improvements
     Call SetupFormAppearance
     
-    ' Настройка поиска
+    ' Setup search
     Me.txtSearch.Width = 300
     Me.txtSearch.Height = 24
     
-    ' Подсказка для поиска
-    Me.lblStatusBar.Caption = "Готов к работе. Горячие клавиши: Ctrl+S (сохранить), Ctrl+N (новая), Ctrl+F (поиск)"
+    ' Search tooltip
+    Me.lblStatusBar.Caption = "Ready to work. Hotkeys: Ctrl+S (save), Ctrl+N (new), Ctrl+F (search)"
 End Sub
 
-' Настройка поля наряда (теперь необязательное)
+' Setup order field (now optional)
 Private Sub SetupNaryadField()
     With Me.txtNaryadInfo
-        .MaxLength = 100 ' Ограничение длины
-        .BackColor = RGB(255, 255, 255) ' Белый цвет - необязательное поле
+        .MaxLength = 100 ' Length limit
+        .BackColor = RGB(255, 255, 255) ' White color - optional field
         .Text = ""
     End With
 End Sub
 
-' Настройка новых ComboBox'ов
+' Setup new ComboBoxes
 Private Sub SetupNewComboBoxes()
-    ' Настройка cmbVidDocumenta (Вх./Исх.)
+    ' Setup cmbVidDocumenta (Inc./Out.)
     With Me.cmbVidDocumenta
         .Clear
         .Style = fmStyleDropDownCombo
         .MatchRequired = False
-        .AddItem "Вх."
-        .AddItem "Исх."
-        .listIndex = -1
+        .AddItem "Inc."
+        .AddItem "Out."
+        .ListIndex = -1
     End With
     
-    ' Настройка cmbStatusPodtverjdenie
+    ' Setup cmbStatusPodtverjdenie
     With Me.cmbStatusPodtverjdenie
         .Clear
         .Style = fmStyleDropDownList
         .MatchRequired = False
         .AddItem ""
-        .AddItem "Подтверждено"
-        .AddItem "Отпр.Исх."
-        .listIndex = 0
+        .AddItem "Confirmed"
+        .AddItem "Sent Out."
+        .ListIndex = 0
     End With
 End Sub
 
-' Настройка списка результатов поиска
+' Setup search results list
 Private Sub SetupSearchResultsList()
     With Me.lstSearchResults
         .ColumnCount = 1
-        .columnWidths = "550"
+        .ColumnWidths = "550"
         .Font.Name = "Segoe UI"
         .Font.Size = 9
         .Width = 420
@@ -285,39 +274,39 @@ End Sub
 Private Sub LoadComboBoxData()
     Dim wsSettings As Worksheet
     
-    ' Проверка существования листа "Настройки"
+    ' Check if "Dictionaries" sheet exists
     On Error GoTo SettingsError
-    Set wsSettings = ThisWorkbook.Worksheets("Настройки")
+    Set wsSettings = ThisWorkbook.Worksheets("Dictionaries")
     On Error GoTo 0
     
-    ' Загрузка служб
-    Call LoadComboData(Me.cmbSlujba, wsSettings, "A:A", "Службы")
+    ' Load services
+    Call LoadComboData(Me.cmbSlujba, wsSettings, "A:A", "Services")
     
-    ' Загрузка видов документов в cmbVidDoc (4-й столбец)
-    Call LoadComboData(Me.cmbVidDoc, wsSettings, "C:C", "Виды документов")
+    ' Load document types to cmbVidDoc (4th column)
+    Call LoadComboData(Me.cmbVidDoc, wsSettings, "C:C", "Document Types")
     
-    ' Загрузка исполнителей
-    Call LoadComboData(Me.cmbIspolnitel, wsSettings, "E:E", "Исполнители")
+    ' Load executors
+    Call LoadComboData(Me.cmbIspolnitel, wsSettings, "E:E", "Executors")
     
-    ' Загрузка данных для автодополнения cmbOtKogoPostupil
+    ' Load data for cmbOtKogoPostupil autocomplete
     Call LoadAutoCompleteData
     
-    ' Загрузка данных для автодополнения txtNaryadInfo
+    ' Load data for txtNaryadInfo autocomplete
     Call LoadNaryadAutoCompleteData
     
     Exit Sub
     
 SettingsError:
-    MsgBox "Лист 'Настройки' не найден. Создайте лист для справочников.", vbExclamation, "Ошибка"
+    MsgBox "Sheet 'Dictionaries' not found. Create a sheet for dictionaries.", vbExclamation, "Error"
 End Sub
 
-' Загрузка данных для автодополнения поля наряда
+' Load data for order field autocomplete
 Private Sub LoadNaryadAutoCompleteData()
-    ' В будущем можно добавить автодополнение для нарядов
-    ' из отдельной таблицы или из уже введенных данных
+    ' In the future, autocomplete for orders can be added
+    ' from a separate table or already entered data
 End Sub
 
-' Загрузка данных для автодополнения
+' Load data for autocomplete
 Private Sub LoadAutoCompleteData()
     Dim wsData As Worksheet
     Dim tblData As ListObject
@@ -330,11 +319,11 @@ Private Sub LoadAutoCompleteData()
     
     CurrentValue = CStr(Me.cmbOtKogoPostupil.value)
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     Set uniqueValues = New Collection
     
-    ' Собираем уникальные значения из 9-го столбца
+    ' Collect unique values from the 9th column
     If tblData.ListRows.Count > 0 Then
         For i = 1 To tblData.ListRows.Count
             cellValue = Trim(CStr(tblData.DataBodyRange.Cells(i, 9).value))
@@ -346,7 +335,7 @@ Private Sub LoadAutoCompleteData()
         Next i
     End If
     
-    ' Настройка автодополнения для cmbOtKogoPostupil
+    ' Setup autocomplete for cmbOtKogoPostupil
     With Me.cmbOtKogoPostupil
         .Clear
         .Style = fmStyleDropDownCombo
@@ -360,7 +349,7 @@ Private Sub LoadAutoCompleteData()
         If Trim(CurrentValue) <> "" Then
             .value = CurrentValue
         Else
-            .listIndex = -1
+            .ListIndex = -1
         End If
     End With
     
@@ -384,12 +373,12 @@ Private Sub LoadComboData(ComboBox As ComboBox, Ws As Worksheet, columnRange As 
         .Clear
     End With
     
-    ' Найти строку с заголовком
+    ' Find row with header
     Set cell = Ws.Range(columnRange).Find(headerText, LookIn:=xlValues, LookAt:=xlWhole)
     If Not cell Is Nothing Then
         StartRow = cell.Row + 1
         
-        ' Загрузить данные, пропуская пустые ячейки
+        ' Load data, skipping empty cells
         Set cell = Ws.Cells(StartRow, cell.Column)
         Do While cell.value <> "" And cell.Row <= Ws.UsedRange.Rows.Count + Ws.UsedRange.Row
             ComboBox.AddItem cell.value
@@ -397,16 +386,16 @@ Private Sub LoadComboData(ComboBox As ComboBox, Ws As Worksheet, columnRange As 
         Loop
     End If
     
-    ComboBox.listIndex = -1
+    ComboBox.ListIndex = -1
     
     Exit Sub
     
 LoadError:
-    ' Просто пропускаем ошибки загрузки данных
+    ' Simply skip data loading errors
 End Sub
 
 ' ===============================================
-' ОБРАБОТЧИКИ КНОПОК НАВИГАЦИИ
+' NAVIGATION BUTTON HANDLERS
 ' ===============================================
 
 Private Sub btnFirst_Click()
@@ -426,7 +415,7 @@ Private Sub btnLast_Click()
 End Sub
 
 ' ===============================================
-' ОБРАБОТЧИКИ ОСНОВНЫХ КНОПОК
+' MAIN BUTTON HANDLERS
 ' ===============================================
 
 Private Sub btnSave_Click()
@@ -444,8 +433,8 @@ End Sub
 Private Sub btnNew_Click()
     If HasUnsavedChanges() Then
         Dim response As VbMsgBoxResult
-        response = MsgBox("У вас есть несохранённые изменения. Сохранить перед созданием новой записи?", _
-                         vbYesNoCancel + vbQuestion, "Несохранённые изменения")
+        response = MsgBox("You have unsaved changes. Save before creating a new record?", _
+                         vbYesNoCancel + vbQuestion, "Unsaved Changes")
         
         Select Case response
             Case vbYes
@@ -456,15 +445,15 @@ Private Sub btnNew_Click()
     End If
     
     Call DataManager.ClearForm
-    Me.lblStatusBar.Caption = "Создание новой записи"
+    Me.lblStatusBar.Caption = "Creating new record"
 End Sub
 
 Private Sub btnDelete_Click()
-    MsgBox "Функция удаления временно отключена", vbInformation, "Информация"
+    MsgBox "Delete function temporarily disabled", vbInformation, "Information"
 End Sub
 
 ' ===============================================
-' ПОИСК В РЕАЛЬНОМ ВРЕМЕНИ
+' REAL-TIME SEARCH
 ' ===============================================
 
 Private Sub txtSearch_Change()
@@ -480,7 +469,7 @@ Private Sub txtSearch_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shif
         Call ClearSearch
     ElseIf KeyCode = vbKeyReturn Then
         If Me.lstSearchResults.Visible And Me.lstSearchResults.ListCount > 0 Then
-            Me.lstSearchResults.listIndex = 0
+            Me.lstSearchResults.ListIndex = 0
             Call SelectSearchResult
         End If
     ElseIf KeyCode = vbKeyDown Then
@@ -516,12 +505,12 @@ Private Sub lstSearchResults_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
 End Sub
 
 ' ===============================================
-' ОБРАБОТЧИКИ ИЗМЕНЕНИЯ ПОЛЕЙ
+' FIELD CHANGE HANDLERS
 ' ===============================================
 
 Private Sub cmbVidDocumenta_Change()
     Call MarkFormAsChanged
-    Call UpdateFieldAppearanceBasedOnNaryad ' Обновляем подсветку полей
+    Call UpdateFieldAppearanceBasedOnNaryad ' Update field highlights
 End Sub
 
 Private Sub txtNomerDoc_Change()
@@ -592,149 +581,145 @@ Private Sub cmbIspolnitel_Change()
     Call MarkFormAsChanged
 End Sub
 
-' Изменение поля наряда с обновлением подсветки
+' Change order field with highlight update
 Private Sub txtNaryadInfo_Change()
     Call MarkFormAsChanged
-    Call UpdateFieldAppearanceBasedOnNaryad ' Обновляем подсветку полей при изменении наряда
+    Call UpdateFieldAppearanceBasedOnNaryad ' Update highlights when order changes
 End Sub
 
-' Обновление внешнего вида полей в зависимости от режима наряда
+' Update field appearance based on order mode
 Private Sub UpdateFieldAppearanceBasedOnNaryad()
     On Error Resume Next
     Dim isNaryadOnly As Boolean
     Dim requiredColor As Long
     Dim optionalColor As Long
     
-    requiredColor = RGB(255, 255, 224) ' Светло-желтый для обязательных
-    optionalColor = RGB(255, 255, 255) ' Белый для необязательных
+    requiredColor = RGB(255, 255, 224) ' Light yellow for required
+    optionalColor = RGB(255, 255, 255) ' White for optional
     
-    ' ВАЖНО: получаем результат функции в ДРУГУЮ переменную
+    ' IMPORTANT: get function result into ANOTHER variable
     isNaryadOnly = IsNaryadOnlyMode()
     
     If isNaryadOnly Then
-        ' Режим "только наряд" - делаем основные поля необязательными
+        ' "Order only" mode - make main fields optional
         Me.cmbVidDoc.BackColor = optionalColor
         Me.txtNomerDoc.BackColor = optionalColor
         Me.txtSummaDoc.BackColor = optionalColor
         Me.txtVhFRP.BackColor = optionalColor
         Me.txtDataVhFRP.BackColor = optionalColor
         
-        Me.lblStatusBar.Caption = "РЕЖИМ НАРЯДА: Основные поля документа необязательны"
+        Me.lblStatusBar.Caption = "ORDER MODE: Main document fields are optional"
     Else
-        ' Обычный режим - основные поля обязательны
+        ' Normal mode - main fields are required
         Me.cmbVidDoc.BackColor = requiredColor
         Me.txtNomerDoc.BackColor = requiredColor
         Me.txtSummaDoc.BackColor = requiredColor
         Me.txtVhFRP.BackColor = requiredColor
         Me.txtDataVhFRP.BackColor = requiredColor
         
-        If Me.lblStatusBar.Caption = "РЕЖИМ НАРЯДА: Основные поля документа необязательны" Then
-            Me.lblStatusBar.Caption = "Обычный режим: все обязательные поля должны быть заполнены"
+        If Me.lblStatusBar.Caption = "ORDER MODE: Main document fields are optional" Then
+            Me.lblStatusBar.Caption = "Normal mode: all required fields must be filled"
         End If
-End If
-
+    End If
 End Sub
 
-' КРИТИЧЕСКИ ИСПРАВЛЕННАЯ ФУНКЦИЯ: Проверка режима "только наряд"
+' CRITICALLY FIXED FUNCTION: Check "order only" mode
 Private Function IsNaryadOnlyMode() As Boolean
-    ' Режим "только наряд" активен если:
-    ' 1. Заполнено поле наряда
-    ' 2. Заполнена служба
-    ' 3. НЕ заполнены основные поля: тип документа, номер, сумма, ВхФРП, дата ВхФРП
+    ' "Order only" mode is active if:
+    ' 1. Order field is filled
+    ' 2. Service is filled
+    ' 3. Main fields are NOT filled: doc type, number, amount, IncFRP, date IncFRP
     
     On Error GoTo ModeError
     
     Dim naryadText As String
-Dim slujbaText As String
-Dim vidDocText As String
-Dim nomerDocText As String
-Dim summaDocText As String
-Dim vhFrpText As String
-Dim dataVhFrpText As String
+    Dim slujbaText As String
+    Dim vidDocText As String
+    Dim nomerDocText As String
+    Dim summaDocText As String
+    Dim vhFrpText As String
+    Dim dataVhFrpText As String
 
-' Безопасное чтение значений элементов формы в локальные переменные
-naryadText = ""
-If Not Me.txtNaryadInfo Is Nothing Then naryadText = Trim(CStr(Me.txtNaryadInfo.Text))
+    ' Safe read of form element values into local variables
+    naryadText = ""
+    If Not Me.txtNaryadInfo Is Nothing Then naryadText = Trim(CStr(Me.txtNaryadInfo.Text))
 
-slujbaText = ""
-If Not Me.cmbSlujba Is Nothing Then slujbaText = Trim(CStr(Me.cmbSlujba.Text))
+    slujbaText = ""
+    If Not Me.cmbSlujba Is Nothing Then slujbaText = Trim(CStr(Me.cmbSlujba.Text))
 
-vidDocText = ""
-If Not Me.cmbVidDoc Is Nothing Then vidDocText = Trim(CStr(Me.cmbVidDoc.Text))
+    vidDocText = ""
+    If Not Me.cmbVidDoc Is Nothing Then vidDocText = Trim(CStr(Me.cmbVidDoc.Text))
 
-nomerDocText = ""
-If Not Me.txtNomerDoc Is Nothing Then nomerDocText = Trim(CStr(Me.txtNomerDoc.Text))
+    nomerDocText = ""
+    If Not Me.txtNomerDoc Is Nothing Then nomerDocText = Trim(CStr(Me.txtNomerDoc.Text))
 
-summaDocText = ""
-If Not Me.txtSummaDoc Is Nothing Then summaDocText = Trim(CStr(Me.txtSummaDoc.Text))
+    summaDocText = ""
+    If Not Me.txtSummaDoc Is Nothing Then summaDocText = Trim(CStr(Me.txtSummaDoc.Text))
 
-vhFrpText = ""
-If Not Me.txtVhFRP Is Nothing Then vhFrpText = Trim(CStr(Me.txtVhFRP.Text))
+    vhFrpText = ""
+    If Not Me.txtVhFRP Is Nothing Then vhFrpText = Trim(CStr(Me.txtVhFRP.Text))
 
-dataVhFrpText = ""
-If Not Me.txtDataVhFRP Is Nothing Then dataVhFrpText = Trim(CStr(Me.txtDataVhFRP.Text))
+    dataVhFrpText = ""
+    If Not Me.txtDataVhFRP Is Nothing Then dataVhFrpText = Trim(CStr(Me.txtDataVhFRP.Text))
 
-' 1) Наряд должен быть заполнен
-If naryadText = "" Then
-    IsNaryadOnlyMode = False
+    ' 1) Order must be filled
+    If naryadText = "" Then
+        IsNaryadOnlyMode = False
+        Exit Function
+    End If
+
+    ' 2) Service must be filled
+    If slujbaText = "" Then
+        IsNaryadOnlyMode = False
+        Exit Function
+    End If
+
+    ' 3) Main fields must be empty
+    If vidDocText <> "" Then
+        IsNaryadOnlyMode = False
+        Exit Function
+    End If
+
+    If nomerDocText <> "" Then
+        IsNaryadOnlyMode = False
+        Exit Function
+    End If
+
+    If summaDocText <> "" Then
+        IsNaryadOnlyMode = False
+        Exit Function
+    End If
+
+    If vhFrpText <> "" Then
+        IsNaryadOnlyMode = False
+        Exit Function
+    End If
+
+    If dataVhFrpText <> "" Then
+        IsNaryadOnlyMode = False
+        Exit Function
+    End If
+
+    ' All conditions met - "order only" mode is active
+    IsNaryadOnlyMode = True
     Exit Function
-End If
-
-' 2) Служба должна быть заполнена
-If slujbaText = "" Then
-    IsNaryadOnlyMode = False
-    Exit Function
-End If
-
-' 3) Основные поля должны быть пустыми
-If vidDocText <> "" Then
-    IsNaryadOnlyMode = False
-    Exit Function
-End If
-
-If nomerDocText <> "" Then
-    IsNaryadOnlyMode = False
-    Exit Function
-End If
-
-If summaDocText <> "" Then
-    IsNaryadOnlyMode = False
-    Exit Function
-End If
-
-If vhFrpText <> "" Then
-    IsNaryadOnlyMode = False
-    Exit Function
-End If
-
-If dataVhFrpText <> "" Then
-    IsNaryadOnlyMode = False
-    Exit Function
-End If
-
-' Все условия выполнены — режим "только наряд" активен
-IsNaryadOnlyMode = True
-Exit Function
 
 ModeError:
-' При любой ошибке возвращаем False
-IsNaryadOnlyMode = False
-
+    ' Return False on any error
+    IsNaryadOnlyMode = False
 End Function
 
-
-
 ' ===============================================
-' ВАЛИДАЦИЯ ПОЛЕЙ ПРИ ВЫХОДЕ
+' FIELD VALIDATION ON EXIT
 ' ===============================================
 
 Private Sub txtSummaDoc_Exit(ByVal Cancel As MSForms.ReturnBoolean)
     If Len(Me.txtSummaDoc.Text) > 0 And Not IsNumeric(Me.txtSummaDoc.Text) Then
-        MsgBox "Сумма должна быть числом!", vbExclamation, "Проверка данных"
+        MsgBox "Amount must be a number!", vbExclamation, "Data Validation"
         Cancel = True
         Me.txtSummaDoc.BackColor = RGB(255, 200, 200)
     Else
-        ' Восстанавливаем правильный цвет в зависимости от режима
+        ' Restore correct color based on mode
         Call UpdateFieldAppearanceBasedOnNaryad
     End If
 End Sub
@@ -759,20 +744,20 @@ Private Sub txtDataIshKonvert_Exit(ByVal Cancel As MSForms.ReturnBoolean)
     Call ValidateAndFormatDate(Me.txtDataIshKonvert, Cancel)
 End Sub
 
-' Проверка поля наряда при выходе
+' Validate order field on exit
 Private Sub txtNaryadInfo_Exit(ByVal Cancel As MSForms.ReturnBoolean)
-    ' Валидация формата наряда (необязательное поле)
+    ' Order format validation (optional field)
     If Len(Trim(Me.txtNaryadInfo.Text)) > 0 Then
-        Me.txtNaryadInfo.BackColor = RGB(255, 255, 255) ' Белый цвет для необязательного поля
+        Me.txtNaryadInfo.BackColor = RGB(255, 255, 255) ' White color for optional field
     End If
     
-    ' Обновляем подсветку других полей при выходе из поля наряда
+    ' Update other fields highlight when exiting order field
     Call UpdateFieldAppearanceBasedOnNaryad
 End Sub
 
 Private Sub ValidateAndFormatDate(dateField As MSForms.TextBox, Cancel As MSForms.ReturnBoolean)
     If Len(dateField.Text) > 0 Then
-        ' Автоматическое добавление точек при вводе даты
+        ' Automatically add dots when entering date
         Dim DateText As String
         DateText = Replace(dateField.Text, ".", "")
         
@@ -780,20 +765,20 @@ Private Sub ValidateAndFormatDate(dateField As MSForms.TextBox, Cancel As MSForm
             dateField.Text = Left(DateText, 2) & "." & Mid(DateText, 3, 2) & "." & Right(DateText, 2)
         End If
         
-        ' Валидация формата
+        ' Format validation
         If Not CommonUtilities.IsValidDateFormat(dateField.Text) Then
-            MsgBox "Введите дату в формате ДД.ММ.ГГ", vbExclamation, "Проверка данных"
+            MsgBox "Enter date in DD.MM.YY format", vbExclamation, "Data Validation"
             Cancel = True
             dateField.BackColor = RGB(255, 200, 200)
         Else
-            ' Восстанавливаем правильный цвет в зависимости от режима
+            ' Restore correct color based on mode
             Call UpdateFieldAppearanceBasedOnNaryad
         End If
     End If
 End Sub
 
 ' ===============================================
-' ФУНКЦИИ УПРАВЛЕНИЯ ДАННЫМИ
+' DATA MANAGEMENT FUNCTIONS
 ' ===============================================
 
 Private Sub SaveCurrentRecord()
@@ -802,20 +787,20 @@ Private Sub SaveCurrentRecord()
     Dim newRow As ListRow
     Dim targetRowIndex As Long
     
-    ' Условная проверка обязательных полей
+    ' Conditional required fields check
     If Not ValidateRequiredFieldsConditional() Then
         Exit Sub
     End If
     
-    ' Валидация дат
+    ' Date validation
     If Not DataManager.ValidateDates() Then
         Exit Sub
     End If
     
     On Error GoTo ErrorHandler
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     If IsNewRecord Then
         Set newRow = tblData.ListRows.Add
@@ -823,24 +808,24 @@ Private Sub SaveCurrentRecord()
         CurrentRecordRow = targetRowIndex
         
         Me.txtNomerPP.Text = CStr(targetRowIndex)
-        Me.lblStatusBar.Caption = "Создание новой записи №" & targetRowIndex
+        Me.lblStatusBar.Caption = "Creating new record No." & targetRowIndex
     Else
         If CurrentRecordRow < 1 Or CurrentRecordRow > tblData.ListRows.Count Then
-            MsgBox "Ошибка: неверный номер записи для обновления!", vbCritical, "Ошибка сохранения"
+            MsgBox "Error: invalid record number to update!", vbCritical, "Save Error"
             Exit Sub
         End If
         
         targetRowIndex = CurrentRecordRow
-        Me.lblStatusBar.Caption = "Обновление существующей записи №" & targetRowIndex
+        Me.lblStatusBar.Caption = "Updating existing record No." & targetRowIndex
     End If
     
-    ' Сохранение данных в указанную строку таблицы
+    ' Save data to specified table row
     Call WriteFormDataToTable(tblData, targetRowIndex)
     
-    ' Обновление статуса
+    ' Update status
     IsNewRecord = False
     FormDataChanged = False
-    Me.lblStatusBar.Caption = "Запись №" & targetRowIndex & " сохранена успешно"
+    Me.lblStatusBar.Caption = "Record No." & targetRowIndex & " saved successfully"
     
     If targetRowIndex = tblData.ListRows.Count Then
         Call LoadAutoCompleteData
@@ -849,91 +834,89 @@ Private Sub SaveCurrentRecord()
     Exit Sub
     
 ErrorHandler:
-    MsgBox "Ошибка при сохранении данных: " & Err.description, vbCritical, "Ошибка сохранения"
-    Me.lblStatusBar.Caption = "Ошибка сохранения данных"
+    MsgBox "Error saving data: " & Err.description, vbCritical, "Save Error"
+    Me.lblStatusBar.Caption = "Data save error"
 End Sub
 
-' Условная валидация обязательных полей
+' Conditional required fields validation
 Private Function ValidateRequiredFieldsConditional() As Boolean
     ValidateRequiredFieldsConditional = True
     
-    ' Служба всегда обязательна
+    ' Service is always required
     If Trim(CStr(Me.cmbSlujba.value)) = "" Then
-        MsgBox "Поле 'Служба' обязательно для заполнения!", vbExclamation, "Проверка данных"
+        MsgBox "Field 'Service' is required!", vbExclamation, "Data Validation"
         Me.cmbSlujba.SetFocus
         ValidateRequiredFieldsConditional = False
         Exit Function
     End If
     
-    ' Проверяем режим "только наряд"
+    ' Check "order only" mode
     If IsNaryadOnlyMode() Then
-        ' В режиме "только наряд" основные поля необязательны
-        ' Но должен быть заполнен хотя бы наряд
+        ' In "order only" mode, main fields are optional
+        ' But at least the order must be filled
         If Trim(Me.txtNaryadInfo.Text) = "" Then
-            MsgBox "В режиме наряда должно быть заполнено поле 'Информация о наряде'!", vbExclamation, "Проверка данных"
+            MsgBox "In order mode, 'Order Info' field must be filled!", vbExclamation, "Data Validation"
             Me.txtNaryadInfo.SetFocus
             ValidateRequiredFieldsConditional = False
             Exit Function
         End If
         
-        ' Успешная валидация для режима "только наряд"
+        ' Successful validation for "order only" mode
         Exit Function
     End If
     
-    ' Обычный режим - проверяем все обязательные поля
+    ' Normal mode - check all required fields
     If Trim(CStr(Me.cmbVidDoc.value)) = "" Then
-        MsgBox "Поле 'Тип документа' обязательно для заполнения!", vbExclamation, "Проверка данных"
+        MsgBox "Field 'Document Type' is required!", vbExclamation, "Data Validation"
         Me.cmbVidDoc.SetFocus
         ValidateRequiredFieldsConditional = False
         Exit Function
     End If
     
     If Trim(CStr(Me.cmbVidDocumenta.value)) = "" Then
-        MsgBox "Поле 'Вид документа (Вх./Исх.)' обязательно для заполнения!", vbExclamation, "Проверка данных"
+        MsgBox "Field 'Document Group (Inc./Out.)' is required!", vbExclamation, "Data Validation"
         Me.cmbVidDocumenta.SetFocus
         ValidateRequiredFieldsConditional = False
         Exit Function
     End If
     
     If Trim(Me.txtNomerDoc.Text) = "" Then
-        MsgBox "Поле 'Номер документа' обязательно для заполнения!", vbExclamation, "Проверка данных"
+        MsgBox "Field 'Document Number' is required!", vbExclamation, "Data Validation"
         Me.txtNomerDoc.SetFocus
         ValidateRequiredFieldsConditional = False
         Exit Function
     End If
     
     If Trim(Me.txtSummaDoc.Text) = "" Then
-        MsgBox "Поле 'Сумма документа' обязательно для заполнения!", vbExclamation, "Проверка данных"
+        MsgBox "Field 'Document Amount' is required!", vbExclamation, "Data Validation"
         Me.txtSummaDoc.SetFocus
         ValidateRequiredFieldsConditional = False
         Exit Function
     End If
     
     If Not IsNumeric(Me.txtSummaDoc.Text) Then
-        MsgBox "Поле 'Сумма документа' должно содержать числовое значение!", vbExclamation, "Проверка данных"
+        MsgBox "Field 'Document Amount' must contain a numeric value!", vbExclamation, "Data Validation"
         Me.txtSummaDoc.SetFocus
         ValidateRequiredFieldsConditional = False
         Exit Function
     End If
     
     If Trim(Me.txtVhFRP.Text) = "" Then
-        MsgBox "Поле 'Вх.ФРП/Исх.ФРП' обязательно для заполнения!", vbExclamation, "Проверка данных"
+        MsgBox "Field 'Inc.FRP/Out.FRP' is required!", vbExclamation, "Data Validation"
         Me.txtVhFRP.SetFocus
         ValidateRequiredFieldsConditional = False
         Exit Function
     End If
     
     If Trim(Me.txtDataVhFRP.Text) = "" Then
-        MsgBox "Поле 'Дата Вх.ФРП/Исх.ФРП' обязательно для заполнения!", vbExclamation, "Проверка данных"
+        MsgBox "Field 'Date Inc.FRP/Out.FRP' is required!", vbExclamation, "Data Validation"
         Me.txtDataVhFRP.SetFocus
         ValidateRequiredFieldsConditional = False
         Exit Function
     End If
 End Function
 
-' Функции ValidateDates и IsValidDateFormat перенесены в DataManager.bas и CommonUtilities.bas
-
-' Запись данных формы в таблицу
+' Write form data to table
 Private Sub WriteFormDataToTable(tbl As ListObject, RowIndex As Long)
     On Error GoTo WriteError
     
@@ -967,13 +950,11 @@ Private Sub WriteFormDataToTable(tbl As ListObject, RowIndex As Long)
     Exit Sub
     
 WriteError:
-    MsgBox "Ошибка записи данных в таблицу: " & Err.description, vbCritical, "Ошибка"
+    MsgBox "Error writing data to table: " & Err.description, vbCritical, "Error"
 End Sub
 
-' Функция WriteDateToCell перенесена в CommonUtilities.bas
-
 ' ===============================================
-' ЗАГРУЗКА ЗАПИСИ ИЗ ТАБЛИЦЫ В ФОРМУ
+' LOAD RECORD FROM TABLE TO FORM
 ' ===============================================
 
 Private Sub UpdateProvodkaIndicator()
@@ -981,14 +962,12 @@ Private Sub UpdateProvodkaIndicator()
     otmetka = Trim(Me.txtOtmetkaIspolnenie.Text)
     
     If otmetka <> "" Then
-        Me.txtOtmetkaIspolnenie.BackColor = RGB(200, 255, 200) ' Светло-зеленый
-        Me.lblStatusBar.Caption = Me.lblStatusBar.Caption & " | + Проводка: " & otmetka
+        Me.txtOtmetkaIspolnenie.BackColor = RGB(200, 255, 200) ' Light green
+        Me.lblStatusBar.Caption = Me.lblStatusBar.Caption & " | + Posting: " & otmetka
     Else
-        Me.txtOtmetkaIspolnenie.BackColor = RGB(255, 255, 255) ' Белый
+        Me.txtOtmetkaIspolnenie.BackColor = RGB(255, 255, 255) ' White
     End If
 End Sub
-
-
 
 Public Sub LoadRecordToForm(RowIndex As Long)
     Dim wsData As Worksheet
@@ -996,8 +975,8 @@ Public Sub LoadRecordToForm(RowIndex As Long)
     
     On Error GoTo LoadError
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     If RowIndex < 1 Or RowIndex > tblData.ListRows.Count Then
         Exit Sub
@@ -1034,20 +1013,18 @@ Public Sub LoadRecordToForm(RowIndex As Long)
     
     FormDataChanged = False
     
-    ' Обновляем подсветку полей после загрузки записи
+    ' Update fields highlight after loading record
     Call UpdateFieldAppearanceBasedOnNaryad
     
     Exit Sub
     
 LoadError:
-    MsgBox "Ошибка загрузки записи: " & Err.description, vbExclamation, "Ошибка"
+    MsgBox "Error loading record: " & Err.description, vbExclamation, "Error"
     Call DataManager.ClearForm
 End Sub
 
-' Функция FormatDateCell перенесена в CommonUtilities.bas
-
 ' ===============================================
-' ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+' HELPER FUNCTIONS
 ' ===============================================
 
 Private Function HasUnsavedChanges() As Boolean
@@ -1062,13 +1039,10 @@ Private Sub CancelChanges()
     End If
     
     FormDataChanged = False
-    Me.lblStatusBar.Caption = "Изменения отменены"
+    Me.lblStatusBar.Caption = "Changes cancelled"
 End Sub
 
-' Функция ClearForm перенесена в DataManager.bas
-' Используйте DataManager.ClearForm() для очистки формы
-
-' Методы для работы с формой из таблицы
+' Methods for working with form from table
 Public Sub ShowFromTable(RowNumber As Long, fieldName As String)
     Call Me.LoadRecordToForm(RowNumber)
     
@@ -1080,7 +1054,7 @@ Public Sub ShowFromTable(RowNumber As Long, fieldName As String)
     
     Application.OnTime Now + TimeValue("00:00:01"), "'SetFieldFocus """ & fieldName & """'"
     
-    Me.lblStatusBar.Caption = "Открыто из таблицы | Запись №" & RowNumber & " | Поле: " & TableEventHandler.GetFieldDisplayName(fieldName)
+    Me.lblStatusBar.Caption = "Opened from table | Record No." & RowNumber & " | Field: " & TableEventHandler.GetFieldDisplayName(fieldName)
 End Sub
 
 Public Sub SetFieldFocus(fieldName As String)
@@ -1093,8 +1067,8 @@ Private Sub UpdateNavigationButtons()
     
     On Error GoTo NavigationError
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     Me.btnFirst.Enabled = (CurrentRecordRow > 1)
     Me.btnPrevious.Enabled = (CurrentRecordRow > 1)
@@ -1110,16 +1084,13 @@ NavigationError:
     Me.btnLast.Enabled = False
 End Sub
 
-' Функция UpdateStatusBar перенесена в NavigationModule.bas
-' Используйте NavigationModule.UpdateStatusBar() для обновления статус-бара
-
 Private Sub MarkFormAsChanged()
     FormDataChanged = True
     Call NavigationModule.UpdateStatusBar
 End Sub
 
 ' ===============================================
-' ФУНКЦИИ НАСТРОЕК
+' SETTINGS FUNCTIONS
 ' ===============================================
 
 Private Sub SaveSettings()
@@ -1146,7 +1117,7 @@ Private Sub SaveSettings()
     Exit Sub
     
 SaveError:
-    ' Игнорируем ошибки сохранения настроек
+    ' Ignore settings save errors
 End Sub
 
 Private Sub LoadSettings()
@@ -1161,8 +1132,8 @@ Private Sub LoadSettings()
             CurrentRecordRow = .Cells(1, 2).value
         End If
         
-        ' НЕ загружаем сохранённые позиции - форма всегда центрируется автоматически
-        ' Размеры и позиция устанавливаются в ResizeAndCenterForm
+        ' DO NOT load saved positions - form is always centered automatically
+        ' Dimensions and position are set in ResizeAndCenterForm
     End With
     
     If CurrentRecordRow > 0 Then
@@ -1184,19 +1155,19 @@ Private Function GetSettingsWorksheet() As Worksheet
     
     On Error GoTo CreateSheet
     
-    Set Ws = ThisWorkbook.Worksheets("Настройки_Системы")
+    Set Ws = ThisWorkbook.Worksheets("SystemSettings")
     Set GetSettingsWorksheet = Ws
     Exit Function
     
 CreateSheet:
     Set Ws = ThisWorkbook.Worksheets.Add
-    Ws.Name = "Настройки_Системы"
+    Ws.Name = "SystemSettings"
     Ws.Visible = xlSheetHidden
     Set GetSettingsWorksheet = Ws
 End Function
 
 ' ===============================================
-' ФУНКЦИИ ОФОРМЛЕНИЯ ИНТЕРФЕЙСА
+' UI APPEARANCE FUNCTIONS
 ' ===============================================
 
 Private Sub SetupFormAppearance()
@@ -1206,24 +1177,24 @@ Private Sub SetupFormAppearance()
     Call SetupStatusBar
 End Sub
 
-' Настройка подсветки с учетом режима наряда
+' Setup highlight based on order mode
 Private Sub SetupRequiredFieldsHighlight()
     Dim requiredColor As Long
     requiredColor = RGB(255, 255, 224)
     
     With Me
-        ' Поля, которые всегда обязательны
+        ' Fields that are always required
         .cmbSlujba.BackColor = requiredColor
         .cmbVidDocumenta.BackColor = requiredColor
         
-        ' Поле наряда всегда необязательное (белый цвет)
+        ' Order field is always optional (white)
         .txtNaryadInfo.BackColor = RGB(255, 255, 255)
         
-        ' Поле номера П/П недоступно
+        ' Seq no field is disabled
         .txtNomerPP.BackColor = RGB(240, 240, 240)
     End With
     
-    ' Условно обязательные поля - обновляем в зависимости от режима
+    ' Conditionally required fields - update based on mode
     Call UpdateFieldAppearanceBasedOnNaryad
 End Sub
 
@@ -1247,10 +1218,10 @@ End Sub
 
 Private Sub SetupNavigationButtons()
     With Me
-        .btnFirst.Caption = "|< Первая"
-        .btnPrevious.Caption = "< Пред."
-        .btnNext.Caption = "След. >"
-        .btnLast.Caption = "Послед. >|"
+        .btnFirst.Caption = "|< First"
+        .btnPrevious.Caption = "< Prev"
+        .btnNext.Caption = "Next >"
+        .btnLast.Caption = "Last >|"
         
         .btnFirst.Width = 70
         .btnPrevious.Width = 70
@@ -1262,28 +1233,22 @@ End Sub
 Private Sub SetupStatusBar()
     With Me.lblStatusBar
         .BackColor = RGB(245, 245, 245)
-        .borderStyle = fmBorderStyleSingle
+        .BorderStyle = fmBorderStyleSingle
         .Font.Size = 9
         .Font.Name = "Segoe UI"
     End With
 End Sub
 
 ' ===============================================
-' ФУНКЦИИ РАБОТЫ С РАЗРЕШЕНИЕМ ЭКРАНА И МАСШТАБИРОВАНИЕМ
+' SCREEN RESOLUTION AND SCALING FUNCTIONS
 ' ===============================================
 
-' =============================================
-' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
-' @description Получает разрешение основного экрана в пикселях
-' @return [String] Строка вида "ширинаxвысота"
-' =============================================
 Private Function GetScreenResolution() As String
     On Error GoTo ErrorHandler
     
     Dim screenWidth As Long
     Dim screenHeight As Long
     
-    ' Получаем разрешение основного экрана
     screenWidth = GetSystemMetrics(SM_CXSCREEN)
     screenHeight = GetSystemMetrics(SM_CYSCREEN)
     
@@ -1292,15 +1257,9 @@ Private Function GetScreenResolution() As String
     Exit Function
     
 ErrorHandler:
-    ' В случае ошибки возвращаем стандартное разрешение
     GetScreenResolution = "1920x1080"
 End Function
 
-' =============================================
-' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
-' @description Получает ширину экрана в пикселях
-' @return [Long] Ширина экрана
-' =============================================
 Private Function GetScreenWidth() As Long
     On Error GoTo ErrorHandler
     
@@ -1308,14 +1267,9 @@ Private Function GetScreenWidth() As Long
     Exit Function
     
 ErrorHandler:
-    GetScreenWidth = 1920 ' Значение по умолчанию
+    GetScreenWidth = 1920 ' Default
 End Function
 
-' =============================================
-' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
-' @description Получает высоту экрана в пикселях
-' @return [Long] Высота экрана
-' =============================================
 Private Function GetScreenHeight() As Long
     On Error GoTo ErrorHandler
     
@@ -1323,13 +1277,9 @@ Private Function GetScreenHeight() As Long
     Exit Function
     
 ErrorHandler:
-    GetScreenHeight = 1080 ' Значение по умолчанию
+    GetScreenHeight = 1080 ' Default
 End Function
 
-' =============================================
-' @author Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
-' @description Масштабирует форму под разрешение экрана и центрирует её
-' =============================================
 Private Sub ResizeAndCenterForm()
     On Error GoTo ErrorHandler
     
@@ -1346,52 +1296,38 @@ Private Sub ResizeAndCenterForm()
     Dim usableScreenWidth As Single
     Dim usableScreenHeight As Single
     
-    ' Получаем текущие (исходные) размеры формы из свойств
-    ' Эти размеры уже установлены из файла .frm и гарантируют видимость всех элементов
     originalWidth = Me.Width
     originalHeight = Me.Height
     
-    ' Получаем разрешение экрана
     screenWidth = GetScreenWidth()
     screenHeight = GetScreenHeight()
     
-    ' Переводим пиксели экрана в точки (96 DPI = 72 точки на дюйм)
     Dim screenWidthPoints As Double
     Dim screenHeightPoints As Double
     screenWidthPoints = screenWidth * (72 / 96)
     screenHeightPoints = screenHeight * (72 / 96)
     
-    ' Используем рабочую область экрана (90% от размера экрана, чтобы оставить место для панели задач)
-    ' Но ограничиваем максимальный размер, чтобы форма не была слишком большой
     usableScreenWidth = screenWidthPoints * 0.9
     usableScreenHeight = screenHeightPoints * 0.9
     
-    ' Если исходная форма помещается на экран, используем её размеры без изменений
-    ' Иначе масштабируем только при необходимости
     If originalWidth <= usableScreenWidth And originalHeight <= usableScreenHeight Then
-        ' Форма помещается на экран - используем исходные размеры
         formWidth = originalWidth
         formHeight = originalHeight
         scaleFactor = 1#
     Else
-        ' Форма не помещается - вычисляем коэффициент масштабирования
         Dim scaleX As Double
         Dim scaleY As Double
         scaleX = usableScreenWidth / originalWidth
         scaleY = usableScreenHeight / originalHeight
         
-        ' Используем минимальный коэффициент для сохранения пропорций
         scaleFactor = Application.WorksheetFunction.Min(scaleX, scaleY)
         
-        ' Минимальный масштаб - 0.75 (75%), чтобы все элементы оставались видимыми
         minScaleFactor = 0.75
         If scaleFactor < minScaleFactor Then scaleFactor = minScaleFactor
         
-        ' Вычисляем новые размеры формы
         formWidth = originalWidth * scaleFactor
         formHeight = originalHeight * scaleFactor
         
-        ' Дополнительная проверка: убеждаемся, что форма помещается
         If formWidth > usableScreenWidth Then
             formWidth = usableScreenWidth
             scaleFactor = formWidth / originalWidth
@@ -1404,29 +1340,23 @@ Private Sub ResizeAndCenterForm()
         End If
     End If
     
-    ' Устанавливаем размеры формы
     Me.Width = formWidth
     Me.Height = formHeight
     
-    ' Центрируем форму на основном экране
     newLeft = (screenWidthPoints - formWidth) / 2
     newTop = (screenHeightPoints - formHeight) / 2
     
-    ' Убеждаемся, что форма не выходит за границы экрана
     If newLeft < 0 Then newLeft = 0
     If newTop < 0 Then newTop = 0
     If newLeft + formWidth > screenWidthPoints Then newLeft = screenWidthPoints - formWidth
     If newTop + formHeight > screenHeightPoints Then newTop = screenHeightPoints - formHeight
     
-    ' Устанавливаем позицию формы
     Me.Left = newLeft
     Me.Top = newTop
     
     Exit Sub
     
 ErrorHandler:
-    ' В случае ошибки оставляем исходные размеры и центрируем через StartUpPosition
     Me.StartUpPosition = 1 ' CenterOwner
 End Sub
-
 

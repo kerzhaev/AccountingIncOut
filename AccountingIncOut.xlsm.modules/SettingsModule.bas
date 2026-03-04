@@ -1,11 +1,11 @@
 Attribute VB_Name = "SettingsModule"
 '==============================================
-' МОДУЛЬ УПРАВЛЕНИЯ НАСТРОЙКАМИ СИСТЕМЫ SettingsModule
-' Назначение: Сохранение и загрузка настроек пользователя
-' Состояние: ИСПРАВЛЕНЫ ОБРАЩЕНИЯ К ГЛОБАЛЬНЫМ ПЕРЕМЕННЫМ
-' Версия: 1.1.0
-' Дата: 10.08.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' SYSTEM SETTINGS MANAGEMENT MODULE - SettingsModule
+' Purpose: Saving and loading user settings
+' State: FIXED REFERENCES TO GLOBAL VARIABLES
+' Version: 1.1.0
+' Date: 10.08.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
@@ -13,7 +13,7 @@ Option Explicit
 Public Sub SaveSettings()
     Dim wsSettings As Worksheet
     
-    ' Создание или получение скрытого листа настроек
+    ' Create or get hidden settings sheet
     Set wsSettings = GetSettingsWorksheet()
     
     With wsSettings
@@ -52,7 +52,7 @@ Public Sub LoadSettings()
         End If
     End With
     
-    ' Загрузка последней записи
+    ' Load last record
     If DataManager.CurrentRecordRow > 0 Then
         Call NavigationModule.NavigateToRecord(DataManager.CurrentRecordRow)
     Else
@@ -72,14 +72,13 @@ Private Function GetSettingsWorksheet() As Worksheet
     
     On Error GoTo CreateSheet
     
-    Set Ws = ThisWorkbook.Worksheets("Настройки_Системы")
+    Set Ws = ThisWorkbook.Worksheets("System_Settings")
     Set GetSettingsWorksheet = Ws
     Exit Function
     
 CreateSheet:
     Set Ws = ThisWorkbook.Worksheets.Add
-    Ws.Name = "Настройки_Системы"
+    Ws.Name = "System_Settings"
     Ws.Visible = xlSheetHidden
     Set GetSettingsWorksheet = Ws
 End Function
-

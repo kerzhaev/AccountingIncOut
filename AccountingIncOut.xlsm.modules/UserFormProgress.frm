@@ -13,23 +13,20 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+'==============================================
+' FORM CODE - UserFormProgress
+'==============================================
 
+Option Explicit
 
-
-
-
-
-
-' Код формы UserFormProgress
 Private Sub btnCancel_Click()
     Call ProgressManager.CancelOperation
 End Sub
 
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
-    ' Предотвращаем закрытие формы крестиком
+    ' Prevent closing the form with the X button
     If CloseMode = vbFormControlMenu Then
         Cancel = True
         Call ProgressManager.CancelOperation
     End If
 End Sub
-

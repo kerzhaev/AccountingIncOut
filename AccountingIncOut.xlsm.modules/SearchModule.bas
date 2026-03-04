@@ -1,16 +1,16 @@
 Attribute VB_Name = "SearchModule"
 '==============================================
-' МОДУЛЬ ПОИСКА ПО ТАБЛИЦЕ SearchModule
-' Назначение: Реализация мгновенного поиска по всем столбцам таблицы
-' Состояние: ДОБАВЛЕНО АВТОМАТИЧЕСКОЕ РАСШИРЕНИЕ ШИРИНЫ ПОЛЯ ПО СОДЕРЖИМОМУ
-' Версия: 1.7.2
-' Дата: 09.08.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' TABLE SEARCH MODULE - SearchModule
+' Purpose: Implementation of instant search across all table columns
+' State: ADDED AUTOMATIC WIDTH RESIZING BASED ON CONTENT
+' Version: 1.7.2
+' Date: 09.08.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
 
-' Глобальные переменные для сохранения состояния поиска
+' Global variables to save search state
 Private LastSearchText As String
 Private SearchResultsVisible As Boolean
 
@@ -24,15 +24,15 @@ Public Sub PerformSearch()
     
     SearchText = Trim(UCase(UserFormVhIsh.txtSearch.Text))
     
-    ' Сохраняем текст поиска для возможности восстановления
+    ' Save search text for possible restoration
     LastSearchText = SearchText
     
-    ' Очистка результатов если поиск пустой
+    ' Clear results if search is empty
     If Len(SearchText) = 0 Then
         With UserFormVhIsh
             .lstSearchResults.Clear
             .lstSearchResults.Visible = False
-            .lblStatusBar.Caption = "Введите текст для поиска"
+            .lblStatusBar.Caption = "Enter text to search"
         End With
         SearchResultsVisible = False
         Exit Sub
@@ -40,12 +40,12 @@ Public Sub PerformSearch()
     
     On Error GoTo SearchError
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     UserFormVhIsh.lstSearchResults.Clear
     
-    ' Поиск по всем строкам и столбцам таблицы
+    ' Search across all rows and columns of the table
     If tblData.ListRows.Count > 0 Then
         For i = 1 To tblData.ListRows.Count
             Dim hasMatch As Boolean
@@ -65,25 +65,25 @@ Public Sub PerformSearch()
                 FoundCount = FoundCount + 1
             End If
             
-            ' Ограничение количества результатов
+            ' Limit number of results
             If FoundCount >= 25 Then Exit For
         Next i
     End If
     
-    ' Отображение результатов
+    ' Display results
     Call DisplaySearchResults(FoundCount)
     
     Exit Sub
     
 SearchError:
-    UserFormVhIsh.lblStatusBar.Caption = "Ошибка поиска: " & Err.description
+    UserFormVhIsh.lblStatusBar.Caption = "Search error: " & Err.description
     UserFormVhIsh.lstSearchResults.Visible = False
     SearchResultsVisible = False
 End Sub
 
-' УЛУЧШЕННАЯ ПРОЦЕДУРА: Добавление результата поиска с нумерацией
-' Добавлены поля: От кого поступил (9), Исполнитель (11), Статус подтверждения (19)
-' Убрано дублирование номера строки в конце записи (скрытый ключ хранится отдельно)
+' IMPROVED PROCEDURE: Adding search result with numbering
+' Added fields: Received from (9), Executor (11), Confirmation status (19)
+' Removed duplication of row number at the end (hidden key stored separately)
 Private Sub AddImprovedSearchResult(rowNum As Long, tbl As ListObject)
     Dim ResultText As String
     Dim serviceText As String
@@ -99,28 +99,28 @@ Private Sub AddImprovedSearchResult(rowNum As Long, tbl As ListObject)
     
     On Error GoTo AddError
     
-    ' Основные данные
-    serviceText = CStr(tbl.DataBodyRange.Cells(rowNum, 2).value)     ' Служба
-    docTypeInOut = CStr(tbl.DataBodyRange.Cells(rowNum, 3).value)    ' Вид документа (Вх./Исх.)
-    docTypeText = CStr(tbl.DataBodyRange.Cells(rowNum, 4).value)     ' Тип документа
-    docNumberText = CStr(tbl.DataBodyRange.Cells(rowNum, 5).value)   ' Номер документа
-    amountText = CStr(tbl.DataBodyRange.Cells(rowNum, 6).value)      ' Сумма
-    frpText = CStr(tbl.DataBodyRange.Cells(rowNum, 7).value)         ' Номер ФРП
+    ' Core data
+    serviceText = CStr(tbl.DataBodyRange.Cells(rowNum, 2).value)      ' Service
+    docTypeInOut = CStr(tbl.DataBodyRange.Cells(rowNum, 3).value)     ' Doc Group (Inc./Out.)
+    docTypeText = CStr(tbl.DataBodyRange.Cells(rowNum, 4).value)      ' Document Type
+    docNumberText = CStr(tbl.DataBodyRange.Cells(rowNum, 5).value)    ' Document Number
+    amountText = CStr(tbl.DataBodyRange.Cells(rowNum, 6).value)       ' Amount
+    frpText = CStr(tbl.DataBodyRange.Cells(rowNum, 7).value)          ' FRP Number
     
-    ' Дата (8)
+    ' Date (8)
     If IsDate(tbl.DataBodyRange.Cells(rowNum, 8).value) Then
         DateText = Format(tbl.DataBodyRange.Cells(rowNum, 8).value, "dd.mm.yy")
     Else
         DateText = CStr(tbl.DataBodyRange.Cells(rowNum, 8).value)
     End If
     
-    ' Новые поля
-    fromWhomText = CStr(tbl.DataBodyRange.Cells(rowNum, 9).value)    ' От кого поступил
-    executorText = CStr(tbl.DataBodyRange.Cells(rowNum, 11).value)   ' Исполнитель
-    statusText = CStr(tbl.DataBodyRange.Cells(rowNum, 19).value)     ' Статус подтверждения
+    ' New fields
+    fromWhomText = CStr(tbl.DataBodyRange.Cells(rowNum, 9).value)     ' Received from
+    executorText = CStr(tbl.DataBodyRange.Cells(rowNum, 11).value)    ' Executor
+    statusText = CStr(tbl.DataBodyRange.Cells(rowNum, 19).value)      ' Confirmation status
     
-    ' Формирование строки результата
-    ' Старт с ">" и номером строки
+    ' Format result string
+    ' Start with ">" and row number
     ResultText = ">" & rowNum & ": "
     
     If Trim(serviceText) <> "" Then
@@ -136,44 +136,44 @@ Private Sub AddImprovedSearchResult(rowNum As Long, tbl As ListObject)
     End If
     
     If Trim(docNumberText) <> "" Then
-        ResultText = ResultText & "№" & docNumberText & " "
+        ResultText = ResultText & "No." & docNumberText & " "
     End If
     
     If Trim(amountText) <> "" And amountText <> "0" Then
-        ResultText = ResultText & "(" & amountText & "р.) "
+        ResultText = ResultText & "(" & amountText & " rub.) "
     End If
     
     If Trim(frpText) <> "" Then
-        ResultText = ResultText & "ФРП:" & frpText & " "
+        ResultText = ResultText & "FRP:" & frpText & " "
     End If
     
     If Trim(DateText) <> "" Then
-        ResultText = ResultText & "от " & DateText & " "
+        ResultText = ResultText & "from " & DateText & " "
     End If
     
-    ' Добавлены поля в хвост результата:
+    ' Add fields to the tail of the result:
     If Trim(fromWhomText) <> "" Then
-        ResultText = ResultText & "| От кого: " & fromWhomText & " "
+        ResultText = ResultText & "| From: " & fromWhomText & " "
     End If
     
     If Trim(executorText) <> "" Then
-        ResultText = ResultText & "| Исп.: " & executorText & " "
+        ResultText = ResultText & "| Exec.: " & executorText & " "
     End If
     
     If Trim(statusText) <> "" Then
-        ResultText = ResultText & "| Статус: " & statusText & " "
+        ResultText = ResultText & "| Status: " & statusText & " "
     End If
     
-    ' ИЗМЕНЕНО: Не обрезаем строку для корректного расчета ширины
+    ' CHANGED: Do not trim string for correct width calculation
     ' If Len(resultText) > 120 Then
     '     resultText = Left(resultText, 117) & "..."
     ' End If
     
-    ' Добавление в список
+    ' Add to list
     With UserFormVhIsh.lstSearchResults
         .AddItem ResultText
-        ' Сохраняем скрытый идентификатор записи через разделитель,
-        ' но НЕ добавляем его визуально в текст (нет дублирования номера)
+        ' Store hidden record identifier via separator,
+        ' but DO NOT add it visually to the text
         If .ListCount > 0 Then
             .List(.ListCount - 1, 0) = ResultText & Chr(1) & CStr(rowNum)
         End If
@@ -182,35 +182,35 @@ Private Sub AddImprovedSearchResult(rowNum As Long, tbl As ListObject)
     Exit Sub
     
 AddError:
-    ' Пропускаем ошибки добавления результатов
+    ' Skip adding result errors
 End Sub
 
-' ОБНОВЛЕНА ПРОЦЕДУРА: Отображение результатов с автоматическим расширением ширины
+' UPDATED PROCEDURE: Display results with automatic width expansion
 Private Sub DisplaySearchResults(FoundCount As Integer)
     With UserFormVhIsh
         If .lstSearchResults.ListCount > 0 Then
             .lstSearchResults.Visible = True
             SearchResultsVisible = True
             
-            ' НОВОЕ: Автоматическое вычисление ширины по содержимому
+            ' NEW: Automatic width calculation based on content
             Call AutoResizeSearchResultsWidth
             
-            ' Фиксированная высота остается
+            ' Fixed height remains
             .lstSearchResults.Height = 120
             
-            ' Статус-бар
-            .lblStatusBar.Caption = "Найдено: " & FoundCount & " записей | " & _
-                                   "Навигация: ^v или щелчок для перехода | " & _
-                                   "Поиск остается активным"
+            ' Status bar
+            .lblStatusBar.Caption = "Found: " & FoundCount & " records | " & _
+                                    "Navigation: ^v or click to jump | " & _
+                                    "Search remains active"
         Else
             .lstSearchResults.Visible = False
             SearchResultsVisible = False
-            .lblStatusBar.Caption = "По запросу '" & .txtSearch.Text & "' ничего не найдено"
+            .lblStatusBar.Caption = "For query '" & .txtSearch.Text & "' nothing found"
         End If
     End With
 End Sub
 
-' НОВАЯ ПРОЦЕДУРА: Автоматическое изменение размера поля по содержимому
+' NEW PROCEDURE: Automatic field resizing based on content
 Private Sub AutoResizeSearchResultsWidth()
     Dim maxWidth As Single
     Dim textWidth As Single
@@ -221,52 +221,52 @@ Private Sub AutoResizeSearchResultsWidth()
     
     On Error GoTo ResizeError
     
-    ' Минимальная и максимальная ширина
-    minWidth = 420 ' Минимальная ширина
-    maxAllowedWidth = 800 ' Максимальная ширина (чтобы не выходить за границы формы)
+    ' Min and max width
+    minWidth = 420 ' Minimum width
+    maxAllowedWidth = 800 ' Maximum width (to stay within form boundaries)
     
     maxWidth = minWidth
     
     With UserFormVhIsh.lstSearchResults
-        ' Проходим по всем элементам списка для поиска самого длинного
+        ' Loop through all list items to find the longest one
         For i = 0 To .ListCount - 1
-            ' Получаем текст без скрытой части (до разделителя Chr(1))
+            ' Get text without hidden part (before Chr(1) separator)
             testText = .List(i, 0)
             If InStr(testText, Chr(1)) > 0 Then
                 testText = Left(testText, InStr(testText, Chr(1)) - 1)
             End If
             
-            ' НОВОЕ: Вычисляем ширину текста с учетом шрифта
+            ' NEW: Calculate text width considering font
             textWidth = CalculateTextWidth(testText, .Font.Name, .Font.Size)
             
-            ' Обновляем максимальную ширину с небольшим отступом
+            ' Update max width with a small padding
             If textWidth + 20 > maxWidth Then
                 maxWidth = textWidth + 20
             End If
         Next i
         
-        ' Ограничиваем ширину разумными пределами
+        ' Constrain width within reasonable limits
         If maxWidth < minWidth Then
             maxWidth = minWidth
         ElseIf maxWidth > maxAllowedWidth Then
             maxWidth = maxAllowedWidth
         End If
         
-        ' Применяем новую ширину
+        ' Apply new width
         .Width = maxWidth
         
-        ' НОВОЕ: Обновляем ColumnWidths для корректного отображения
-        .columnWidths = CStr(maxWidth - 10)
+        ' NEW: Update ColumnWidths for correct display
+        .ColumnWidths = CStr(maxWidth - 10)
     End With
     
     Exit Sub
     
 ResizeError:
-    ' При ошибке используем стандартную ширину
+    ' On error, use standard width
     UserFormVhIsh.lstSearchResults.Width = minWidth
 End Sub
 
-' НОВАЯ ФУНКЦИЯ: Вычисление ширины текста
+' NEW FUNCTION: Calculate text width
 Private Function CalculateTextWidth(Text As String, fontName As String, fontSize As Single) As Single
     Dim textLength As Long
     Dim avgCharWidth As Single
@@ -275,21 +275,21 @@ Private Function CalculateTextWidth(Text As String, fontName As String, fontSize
     
     textLength = Len(Text)
     
-    ' Приблизительная ширина символа в пикселях в зависимости от размера шрифта
-    ' Для Segoe UI средняя ширина символа составляет примерно 0.6 от высоты шрифта
+    ' Approximate character width in pixels depending on font size
+    ' For Segoe UI, average char width is about 0.6 of font height
     avgCharWidth = fontSize * 0.6
     
-    ' Вычисляем общую ширину с небольшим запасом
+    ' Calculate total width with a small margin
     CalculateTextWidth = textLength * avgCharWidth
     
     Exit Function
     
 WidthError:
-    ' При ошибке возвращаем базовую ширину
+    ' On error, return base width
     CalculateTextWidth = 420
 End Function
 
-' КАРДИНАЛЬНО ПЕРЕРАБОТАННАЯ ПРОЦЕДУРА: SelectSearchResult
+' RADICALLY REWORKED PROCEDURE: SelectSearchResult
 Public Sub SelectSearchResult()
     Dim selectedRow As Long
     Dim resultData As String
@@ -298,27 +298,27 @@ Public Sub SelectSearchResult()
     On Error GoTo SelectError
     
     With UserFormVhIsh.lstSearchResults
-        If .listIndex >= 0 Then
-            ' Извлекаем номер строки из скрытых данных элемента
-            resultData = .List(.listIndex, 0)
+        If .ListIndex >= 0 Then
+            ' Extract row number from hidden item data
+            resultData = .List(.ListIndex, 0)
             parts = Split(resultData, Chr(1))
             
             If UBound(parts) >= 1 Then
                 selectedRow = CLng(parts(1))
                 
-                ' Переходим к найденной записи
+                ' Jump to the found record
                 Call NavigateToRecord(selectedRow)
                 
-                ' КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: НЕ очищаем поиск и НЕ скрываем результаты!
-                ' Вместо этого подсвечиваем выбранный элемент и обновляем статус
+                ' KEY CHANGE: DO NOT clear search and DO NOT hide results!
+                ' Instead, highlight the selected item and update status
                 
-                ' Обновляем статус-бар с информацией о выбранной записи
-                UserFormVhIsh.lblStatusBar.Caption = "Переход к записи №" & selectedRow & " | " & _
-                                                    "Найдено: " & .ListCount & " записей | " & _
-                                                    "Поиск активен: """ & UserFormVhIsh.txtSearch.Text & """"
+                ' Update status bar with selected record info
+                UserFormVhIsh.lblStatusBar.Caption = "Jump to record No." & selectedRow & " | " & _
+                                                     "Found: " & .ListCount & " records | " & _
+                                                     "Search active: """ & UserFormVhIsh.txtSearch.Text & """"
                 
-                ' Визуально выделяем выбранный элемент (остается выделенным)
-                .BackColor = RGB(240, 248, 255) ' Светло-голубой фон для активного поиска
+                ' Visually highlight selected item (remains highlighted)
+                .BackColor = RGB(240, 248, 255) ' Light blue background for active search
             End If
         End If
     End With
@@ -326,22 +326,22 @@ Public Sub SelectSearchResult()
     Exit Sub
     
 SelectError:
-    MsgBox "Ошибка выбора результата поиска: " & Err.description, vbExclamation, "Ошибка"
+    MsgBox "Error selecting search result: " & Err.description, vbExclamation, "Error"
 End Sub
 
-' НОВАЯ ПРОЦЕДУРА: Очистка поиска по требованию пользователя
+' NEW PROCEDURE: Clear search on user demand
 Public Sub ClearSearch()
     With UserFormVhIsh
         .txtSearch.Text = ""
         .lstSearchResults.Clear
         .lstSearchResults.Visible = False
-        .lblStatusBar.Caption = "Поиск очищен"
+        .lblStatusBar.Caption = "Search cleared"
     End With
     LastSearchText = ""
     SearchResultsVisible = False
 End Sub
 
-' НОВАЯ ПРОЦЕДУРА: Восстановление последнего поиска
+' NEW PROCEDURE: Restore last search
 Public Sub RestoreLastSearch()
     If LastSearchText <> "" Then
         UserFormVhIsh.txtSearch.Text = LastSearchText
@@ -349,64 +349,63 @@ Public Sub RestoreLastSearch()
     End If
 End Sub
 
-' НОВАЯ ПРОЦЕДУРА: Навигация по результатам поиска с клавиатуры
+' NEW PROCEDURE: Navigate search results with keyboard
 Public Sub NavigateSearchResults(direction As String)
     With UserFormVhIsh.lstSearchResults
         If .Visible And .ListCount > 0 Then
             Select Case UCase(direction)
                 Case "UP"
-                    If .listIndex > 0 Then
-                        .listIndex = .listIndex - 1
+                    If .ListIndex > 0 Then
+                        .ListIndex = .ListIndex - 1
                     Else
-                        .listIndex = .ListCount - 1 ' Переход к последнему элементу
+                        .ListIndex = .ListCount - 1 ' Jump to last item
                     End If
                 Case "DOWN"
-                    If .listIndex < .ListCount - 1 Then
-                        .listIndex = .listIndex + 1
+                    If .ListIndex < .ListCount - 1 Then
+                        .ListIndex = .ListIndex + 1
                     Else
-                        .listIndex = 0 ' Переход к первому элементу
+                        .ListIndex = 0 ' Jump to first item
                     End If
                 Case "FIRST"
-                    .listIndex = 0
+                    .ListIndex = 0
                 Case "LAST"
-                    .listIndex = .ListCount - 1
+                    .ListIndex = .ListCount - 1
             End Select
             
-            ' Автоматически переходим к выбранной записи
+            ' Automatically jump to selected record
             Call SelectSearchResult
         End If
     End With
 End Sub
 
-' НОВАЯ ПРОЦЕДУРА: Проверка активности поиска
+' NEW PROCEDURE: Check if search is active
 Public Function IsSearchActive() As Boolean
     IsSearchActive = SearchResultsVisible And (UserFormVhIsh.lstSearchResults.ListCount > 0)
 End Function
 
-' НОВАЯ ПРОЦЕДУРА: Получение информации о текущем поиске
+' NEW PROCEDURE: Get current search info
 Public Function GetSearchInfo() As String
     If IsSearchActive() Then
         With UserFormVhIsh.lstSearchResults
-            GetSearchInfo = "Активный поиск: """ & UserFormVhIsh.txtSearch.Text & """ | " & _
-                           "Найдено: " & .ListCount & " записей | " & _
-                           "Выбрана: " & (.listIndex + 1) & " из " & .ListCount
+            GetSearchInfo = "Active search: """ & UserFormVhIsh.txtSearch.Text & """ | " & _
+                            "Found: " & .ListCount & " records | " & _
+                            "Selected: " & (.ListIndex + 1) & " of " & .ListCount
         End With
     Else
-        GetSearchInfo = "Поиск неактивен"
+        GetSearchInfo = "Search inactive"
     End If
 End Function
 
-' НОВАЯ ПРОЦЕДУРА: Подсветка найденного текста в форме
+' NEW PROCEDURE: Highlight found text in form
 Public Sub HighlightSearchTermInForm()
-    ' Эта процедура может быть расширена для подсветки найденного текста в полях формы
-    ' Пока оставляем как заглушку для будущего развития
+    ' This procedure can be expanded to highlight found text in form fields
+    ' Leaving as a stub for future development
     Dim searchTerm As String
     searchTerm = UserFormVhIsh.txtSearch.Text
     
     If Len(searchTerm) > 0 Then
-        ' Здесь можно добавить логику подсветки найденного текста в полях формы
-        ' Например, изменение цвета фона полей, содержащих искомый текст
+        ' Add logic here to highlight found text in form fields
+        ' E.g., change background color of fields containing the search text
     End If
 End Sub
-
 

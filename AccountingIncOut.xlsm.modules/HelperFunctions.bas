@@ -1,17 +1,17 @@
 Attribute VB_Name = "HelperFunctions"
 '==============================================
-' ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ HelperFunctions
-' Назначение: Общие функции для работы формы
-' Состояние: УДАЛЕНЫ ДУБЛИРУЮЩИЕ ФУНКЦИИ - ОСТАВЛЕНЫ ТОЛЬКО УНИКАЛЬНЫЕ
-' Версия: 1.4.1
-' Дата: 10.08.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' HELPER FUNCTIONS - HelperFunctions
+' Purpose: General functions for form operations
+' State: DUPLICATE FUNCTIONS REMOVED - ONLY UNIQUE ONES KEPT
+' Version: 1.4.1
+' Date: 10.08.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
 
-' УДАЛЕНЫ ДУБЛИРУЮЩИЕ ФУНКЦИИ CancelChanges() и MarkFormAsChanged()
-' Эти функции остались только в модуле DataManager
+' DUPLICATE FUNCTIONS CancelChanges() and MarkFormAsChanged() REMOVED
+' These functions are now only in the DataManager module
 
 Public Sub SetupFormAppearance()
     Call SetupRequiredFieldsHighlight
@@ -21,7 +21,7 @@ Public Sub SetupFormAppearance()
 End Sub
 
 Private Sub SetupRequiredFieldsHighlight()
-    ' Подсветка обязательных полей светло-желтым цветом
+    ' Highlight required fields with light yellow color
     Dim requiredColor As Long
     requiredColor = RGB(255, 255, 224)
     
@@ -34,20 +34,20 @@ Private Sub SetupRequiredFieldsHighlight()
         .txtVhFRP.BackColor = requiredColor
         .txtDataVhFRP.BackColor = requiredColor
         
-        ' Поле номера П/П остается серым (недоступно для редактирования)
+        ' Sequence number field remains gray (not editable)
         .txtNomerPP.BackColor = RGB(240, 240, 240)
     End With
 End Sub
 
 Private Sub SetupFieldAlignment()
     With UserFormVhIsh
-        ' Выравнивание числовых полей
+        ' Align numeric fields
         .txtSummaDoc.TextAlign = fmTextAlignRight
         .txtNomerPP.TextAlign = fmTextAlignCenter
         .txtNomerDoc.TextAlign = fmTextAlignCenter
         .txtVhFRP.TextAlign = fmTextAlignCenter
         
-        ' Ограничение длины для полей дат
+        ' Length limits for date fields
         .txtDataVhFRP.MaxLength = 8
         .txtDataPeredachi.MaxLength = 8
         .txtDataIshVSlujbu.MaxLength = 8
@@ -58,13 +58,13 @@ End Sub
 
 Private Sub SetupNavigationButtons()
     With UserFormVhIsh
-        ' Улучшаем подписи кнопок навигации
-        .btnFirst.Caption = "|< Первая"
-        .btnPrevious.Caption = "< Пред."
-        .btnNext.Caption = "След. >"
-        .btnLast.Caption = "Послед. >|"
+        ' Improve navigation button captions
+        .btnFirst.Caption = "|< First"
+        .btnPrevious.Caption = "< Prev"
+        .btnNext.Caption = "Next >"
+        .btnLast.Caption = "Last >|"
         
-        ' Делаем кнопки чуть больше
+        ' Make buttons slightly wider
         .btnFirst.Width = 70
         .btnPrevious.Width = 70
         .btnNext.Width = 70
@@ -75,82 +75,82 @@ End Sub
 Private Sub SetupStatusBar()
     With UserFormVhIsh.lblStatusBar
         .BackColor = RGB(245, 245, 245)
-        .borderStyle = fmBorderStyleSingle
+        .BorderStyle = fmBorderStyleSingle
         .Font.Size = 9
         .Font.Name = "Segoe UI"
     End With
 End Sub
 
 Public Sub ShowFieldTooltip(fieldName As String)
-    ' Подсказки для полей
+    ' Tooltips for fields
     Dim tooltip As String
     
     Select Case fieldName
         Case "txtSummaDoc"
-            tooltip = "Введите сумму документа в рублях (только цифры)"
+            tooltip = "Enter document amount in rubles (numbers only)"
         Case "txtDataVhFRP"
-            tooltip = "Формат даты: ДД.ММ.ГГ (например: 15.07.25)"
+            tooltip = "Date format: DD.MM.YY (e.g., 15.07.25)"
         Case "cmbSlujba"
-            tooltip = "Выберите службу из списка или введите новую"
+            tooltip = "Select a service from the list or enter a new one"
         Case "txtVhFRP"
-            tooltip = "Номер входящего/исходящего документа ФРП"
+            tooltip = "Incoming/outgoing FRP document number"
         Case "cmbOtKogoPostupil"
-            tooltip = "От кого поступил документ или куда направлен"
+            tooltip = "From whom the document was received or where it was sent"
         Case "cmbIspolnitel"
-            tooltip = "Выберите исполнителя из списка или введите нового"
+            tooltip = "Select an executor from the list or enter a new one"
         Case Else
-            tooltip = "Поле для ввода данных"
+            tooltip = "Data entry field"
     End Select
     
     UserFormVhIsh.lblStatusBar.Caption = tooltip
 End Sub
 
 Public Sub SetupGroupBoxes()
-    ' Функция для настройки группировки полей
-    ' Группировка полей по логическим блокам для улучшения UX
+    ' Function for setting up field grouping
+    ' Grouping fields into logical blocks to improve UX
     
-    ' Основная информация документа (поля 1-6)
-    ' Данные ФРП (поля 7-8)
-    ' Движение документа (поля 9-11)
-    ' Работа со службой (поля 12-15)
-    ' Конвертация (поля 16-17)
-    ' Статусы (поля 18-19)
+    ' Core document info (fields 1-6)
+    ' FRP data (fields 7-8)
+    ' Document movement (fields 9-11)
+    ' Service operations (fields 12-15)
+    ' Envelope conversion (fields 16-17)
+    ' Statuses (fields 18-19)
     
-    ' Эта функция может быть расширена при необходимости группировки элементов формы
+    ' This function can be expanded if grouping form elements is needed
 End Sub
 
 Public Sub ValidateFormData()
-    ' Дополнительная валидация данных перед сохранением
+    ' Additional data validation before saving
     Dim IsValid As Boolean
     IsValid = True
     
     With UserFormVhIsh
-        ' Проверка логической целостности данных
+        ' Logical data integrity check
         
-        ' Если есть дата передачи исполнителю, должен быть указан исполнитель
+        ' If transfer date to executor is specified, executor must be selected
         If Trim(.txtDataPeredachi.Text) <> "" And Trim(.cmbIspolnitel.Text) = "" Then
-            MsgBox "Если указана дата передачи исполнителю, необходимо выбрать исполнителя!", vbExclamation, "Проверка данных"
+            MsgBox "If transfer date to executor is specified, executor must be selected!", vbExclamation, "Data Validation"
             .cmbIspolnitel.SetFocus
             IsValid = False
         End If
         
-        ' Если есть номер исходящего в службу, должна быть дата
+        ' If outgoing number to service is specified, date must be entered
         If Trim(.txtNomerIshVSlujbu.Text) <> "" And Trim(.txtDataIshVSlujbu.Text) = "" Then
-            MsgBox "Если указан номер исходящего в службу, необходимо указать дату!", vbExclamation, "Проверка данных"
+            MsgBox "If outgoing number to service is specified, date must be entered!", vbExclamation, "Data Validation"
             .txtDataIshVSlujbu.SetFocus
             IsValid = False
         End If
         
-        ' Если есть номер возврата, должна быть дата
+        ' If return number is specified, return date must be entered
         If Trim(.txtNomerVozvrata.Text) <> "" And Trim(.txtDataVozvrata.Text) = "" Then
-            MsgBox "Если указан номер возврата, необходимо указать дату возврата!", vbExclamation, "Проверка данных"
+            MsgBox "If return number is specified, return date must be entered!", vbExclamation, "Data Validation"
             .txtDataVozvrata.SetFocus
             IsValid = False
         End If
         
-        ' Если есть номер исходящего конверта, должна быть дата
+        ' If outgoing envelope number is specified, date must be entered
         If Trim(.txtNomerIshKonvert.Text) <> "" And Trim(.txtDataIshKonvert.Text) = "" Then
-            MsgBox "Если указан номер исходящего конверта, необходимо указать дату!", vbExclamation, "Проверка данных"
+            MsgBox "If outgoing envelope number is specified, date must be entered!", vbExclamation, "Data Validation"
             .txtDataIshKonvert.SetFocus
             IsValid = False
         End If
@@ -162,7 +162,7 @@ Public Sub ValidateFormData()
 End Sub
 
 Public Sub FormatCurrencyField()
-    ' Форматирование поля суммы как валюты
+    ' Format amount field as currency
     With UserFormVhIsh.txtSummaDoc
         If IsNumeric(.Text) And Trim(.Text) <> "" Then
             Dim amount As Double
@@ -173,24 +173,24 @@ Public Sub FormatCurrencyField()
 End Sub
 
 Public Sub ClearSearchResults()
-    ' Очистка результатов поиска
+    ' Clear search results
     With UserFormVhIsh
         .txtSearch.Text = ""
         .lstSearchResults.Clear
         .lstSearchResults.Visible = False
-        .lblStatusBar.Caption = "Поиск очищен"
+        .lblStatusBar.Caption = "Search cleared"
     End With
 End Sub
 
 Public Function GetNextRecordNumber() As Long
-    ' Получение следующего номера записи
+    ' Get next record sequence number
     Dim wsData As Worksheet
     Dim tblData As ListObject
     
     On Error GoTo ErrorHandler
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     GetNextRecordNumber = tblData.ListRows.Count + 1
     
@@ -201,7 +201,7 @@ ErrorHandler:
 End Function
 
 Public Sub ResetFormToDefaults()
-    ' Сброс формы к настройкам по умолчанию
+    ' Reset form to default settings
     DataManager.CurrentRecordRow = 0
     DataManager.IsNewRecord = True
     DataManager.FormDataChanged = False
@@ -209,6 +209,5 @@ Public Sub ResetFormToDefaults()
     Call DataManager.ClearForm
     Call SetupFormAppearance
     
-    UserFormVhIsh.lblStatusBar.Caption = "Форма сброшена к настройкам по умолчанию"
+    UserFormVhIsh.lblStatusBar.Caption = "Form reset to default settings"
 End Sub
-

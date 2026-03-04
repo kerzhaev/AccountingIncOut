@@ -1,16 +1,16 @@
 Attribute VB_Name = "ProvodkaIntegrationModule"
 '==============================================
-' МОДУЛЬ ИНТЕГРАЦИИ С 1С - ProvodkaIntegrationModule
-' Назначение: Автоматическое сопоставление проводок 1С с документами ВхИсх
-' Состояние: НОВЫЙ МОДУЛЬ ДЛЯ ИНТЕГРАЦИИ С ВЫГРУЗКОЙ 1С
-' Версия: 1.0.0
-' Дата: 21.08.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' 1C INTEGRATION MODULE - ProvodkaIntegrationModule
+' Purpose: Automatic matching of 1C postings with IncOut documents
+' State: NEW MODULE FOR 1C EXPORT INTEGRATION
+' Version: 1.0.0
+' Date: 21.08.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
 
-' Структура для результата поиска
+' Structure for search result
 Public Type MatchResult
     Found As Boolean
     ProvodkaNumber As String
@@ -20,7 +20,7 @@ Public Type MatchResult
     candidatesList As String
 End Type
 
-' Массовая обработка всех записей ВхИсх с выгрузкой из файла 1С
+' Mass processing of all IncOut records with 1C export file
 Public Sub MassProcessWithFileSelection()
     Dim filePath As String
     Dim wb1C As Workbook
@@ -36,26 +36,26 @@ Public Sub MassProcessWithFileSelection()
     
     On Error GoTo MassProcessError
     
-    ' Выбор файла выгрузки 1С
+    ' Select 1C export file
     filePath = Application.GetOpenFilename( _
         "Excel Files (*.xlsx),*.xlsx,CSV Files (*.csv),*.csv,All Files (*.*),*.*", _
-        , "Выберите файл выгрузки из 1С")
+        , "Select 1C export file")
     
     If filePath = "False" Then Exit Sub
     
-    ' Открываем файл выгрузки 1С
-    Application.StatusBar = "Открытие файла выгрузки 1С..."
+    ' Open 1C export file
+    Application.StatusBar = "Opening 1C export file..."
     Set wb1C = Workbooks.Open(filePath, ReadOnly:=True)
-    Set ws1C = wb1C.Worksheets(1) ' Первый лист файла
+    Set ws1C = wb1C.Worksheets(1) ' First sheet of the file
     
-    ' Получаем таблицу ВхИсх
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    ' Get IncOut table
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
-    Application.StatusBar = "Начало массовой обработки..."
+    Application.StatusBar = "Starting mass processing..."
     Application.ScreenUpdating = False
     
-    ' Обрабатываем каждую запись ВхИсх
+    ' Process each IncOut record
     Dim i As Long
     Dim currentSuma As Double
     Dim currentCorrespondent As String
@@ -64,26 +64,26 @@ Public Sub MassProcessWithFileSelection()
     
     For i = 1 To tblData.ListRows.Count
         
-        ' Получаем данные текущей записи ВхИсх
+        ' Get data of current IncOut record
         On Error Resume Next
-        currentSuma = CDbl(tblData.DataBodyRange.Cells(i, 6).value)          ' Сумма документа
-        currentCorrespondent = CStr(tblData.DataBodyRange.Cells(i, 9).value) ' От кого поступил
-        currentOtmetka = Trim(CStr(tblData.DataBodyRange.Cells(i, 18).value)) ' Отметка об исполнении
+        currentSuma = CDbl(tblData.DataBodyRange.Cells(i, 6).value)          ' Document amount
+        currentCorrespondent = CStr(tblData.DataBodyRange.Cells(i, 9).value) ' Received from
+        currentOtmetka = Trim(CStr(tblData.DataBodyRange.Cells(i, 18).value)) ' Execution mark
         On Error GoTo MassProcessError
         
-        ' Пропускаем записи с уже заполненной отметкой об исполнении
+        ' Skip records with already filled execution mark
         If currentOtmetka = "" Then
             
-            ' Ищем соответствие в выгрузке 1С
+            ' Search for match in 1C export
             MatchResult = FindMatchInFile(currentSuma, currentCorrespondent, ws1C)
             
             If MatchResult.Found Then
-                ' Записываем номер проводки в отметку об исполнении
+                ' Write posting number to execution mark
                 tblData.DataBodyRange.Cells(i, 18).value = MatchResult.ProvodkaNumber
                 FoundCount = FoundCount + 1
                 
             ElseIf MatchResult.MatchCount > 1 Then
-                ' Множественные совпадения - требуют ручной обработки
+                ' Multiple matches - require manual processing
                 MultipleCount = MultipleCount + 1
                 
             End If
@@ -93,32 +93,32 @@ Public Sub MassProcessWithFileSelection()
             SkippedCount = SkippedCount + 1
         End If
         
-        ' Обновляем прогресс каждые 25 записей
+        ' Update progress every 25 records
         If (ProcessedCount + SkippedCount) Mod 25 = 0 Then
-            Application.StatusBar = "Обработано " & (ProcessedCount + SkippedCount) & " из " & tblData.ListRows.Count & " записей"
+            Application.StatusBar = "Processed " & (ProcessedCount + SkippedCount) & " of " & tblData.ListRows.Count & " records"
         End If
         
     Next i
     
-    ' Закрываем файл выгрузки 1С
+    ' Close 1C export file
     wb1C.Close False
     
     Application.ScreenUpdating = True
     
-    ' Показываем результаты обработки
-    MsgBox "МАССОВАЯ ОБРАБОТКА ЗАВЕРШЕНА:" & vbCrLf & vbCrLf & _
-           "?? СТАТИСТИКА:" & vbCrLf & _
-           "Всего записей в ВхИсх: " & tblData.ListRows.Count & vbCrLf & _
-           "Обработано (без отметки): " & ProcessedCount & vbCrLf & _
-           "Пропущено (уже заполнены): " & SkippedCount & vbCrLf & vbCrLf & _
-           "? РЕЗУЛЬТАТЫ:" & vbCrLf & _
-           "Найдено автоматически: " & FoundCount & vbCrLf & _
-           "Множественные совпадения: " & MultipleCount & vbCrLf & _
-           "Не найдено: " & (ProcessedCount - FoundCount - MultipleCount) & vbCrLf & vbCrLf & _
-           "?? Процент успеха: " & Format(IIf(ProcessedCount > 0, FoundCount / ProcessedCount, 0), "0.0%"), _
-           vbInformation, "Результаты интеграции с 1С"
+    ' Show processing results
+    MsgBox "MASS PROCESSING COMPLETED:" & vbCrLf & vbCrLf & _
+           "--- STATISTICS:" & vbCrLf & _
+           "Total records in table: " & tblData.ListRows.Count & vbCrLf & _
+           "Processed (without mark): " & ProcessedCount & vbCrLf & _
+           "Skipped (already filled): " & SkippedCount & vbCrLf & vbCrLf & _
+           "--- RESULTS:" & vbCrLf & _
+           "Found automatically: " & FoundCount & vbCrLf & _
+           "Multiple matches: " & MultipleCount & vbCrLf & _
+           "Not found: " & (ProcessedCount - FoundCount - MultipleCount) & vbCrLf & vbCrLf & _
+           "--- Success rate: " & Format(IIf(ProcessedCount > 0, FoundCount / ProcessedCount, 0), "0.0%"), _
+           vbInformation, "1C Integration Results"
            
-    Application.StatusBar = "Интеграция завершена. Найдено " & FoundCount & " соответствий из " & ProcessedCount & " записей."
+    Application.StatusBar = "Integration completed. Found " & FoundCount & " matches out of " & ProcessedCount & " records."
     
     Exit Sub
     
@@ -126,21 +126,21 @@ MassProcessError:
     Application.ScreenUpdating = True
     If Not wb1C Is Nothing Then wb1C.Close False
     
-    MsgBox "Ошибка массовой обработки:" & vbCrLf & _
-           "Ошибка: " & Err.Number & " - " & Err.description & vbCrLf & _
-           "Обработано записей: " & ProcessedCount, _
-           vbCritical, "Критическая ошибка"
+    MsgBox "Mass processing error:" & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.description & vbCrLf & _
+           "Processed records: " & ProcessedCount, _
+           vbCritical, "Critical Error"
            
-    Application.StatusBar = "Ошибка массовой обработки"
+    Application.StatusBar = "Mass processing error"
 End Sub
 
-' Поиск соответствующей проводки в файле выгрузки 1С
+' Search for matching posting in 1C export file
 Private Function FindMatchInFile(suma As Double, Correspondent As String, ws1C As Worksheet) As MatchResult
     Dim result As MatchResult
     Dim LastRow As Long
     Dim i As Long
     
-    ' Данные из выгрузки 1С
+    ' Data from 1C export
     Dim currentStatus As String
     Dim currentSuma As Double
     Dim currentCorrespondent As String
@@ -154,65 +154,64 @@ Private Function FindMatchInFile(suma As Double, Correspondent As String, ws1C A
     
     On Error GoTo FindError
     
-    ' Инициализация результата
+    ' Initialize result
     result.Found = False
     result.MatchCount = 0
-    result.StatusMessage = "Не найдено"
+    result.StatusMessage = "Not found"
     result.candidatesList = ""
     
-    ' Определяем последнюю строку с данными
+    ' Determine last row with data
     LastRow = ws1C.Cells(ws1C.Rows.Count, 1).End(xlUp).Row
     
-    ' Проверяем наличие данных
+    ' Check data availability
     If LastRow < 2 Then
-        result.StatusMessage = "Файл выгрузки пустой"
+        result.StatusMessage = "Export file is empty"
         FindMatchInFile = result
         Exit Function
     End If
     
-    ' Поиск по всем строкам выгрузки 1С (начиная со 2-й строки, первая - заголовки)
+    ' Search through all rows of 1C export (starting from 2nd row, 1st - headers)
     For i = 2 To LastRow
         
         On Error Resume Next
-        ' Читаем данные из выгрузки 1С
-        currentStatus = CStr(ws1C.Cells(i, 1).value)        ' Столбец A - Статус
-        currentSuma = CDbl(ws1C.Cells(i, 5).value)          ' Столбец E - Сумма (предположительно)
-        currentCorrespondent = CStr(ws1C.Cells(i, 6).value) ' Столбец F - Корреспондент (предположительно)
-        CurrentNumber = CStr(ws1C.Cells(i, 3).value)        ' Столбец C - Номер
-        CurrentDate = CDate(ws1C.Cells(i, 2).value)         ' Столбец B - Дата
+        ' Read data from 1C export
+        currentStatus = CStr(ws1C.Cells(i, 1).value)        ' Column A - Status
+        currentSuma = CDbl(ws1C.Cells(i, 5).value)          ' Column E - Amount (presumably)
+        currentCorrespondent = CStr(ws1C.Cells(i, 6).value) ' Column F - Correspondent (presumably)
+        CurrentNumber = CStr(ws1C.Cells(i, 3).value)        ' Column C - Number
+        CurrentDate = CDate(ws1C.Cells(i, 2).value)         ' Column B - Date
         On Error GoTo FindError
         
-' ПРОВЕРЯЕМ КРИТЕРИИ СООТВЕТСТВИЯ
-' Исключаем непроведенные документы (статус = 1)
-' Точное совпадение суммы (с допуском 0.01)
-' Частичное вхождение корреспондента
-If (currentStatus <> "1") And _
-   (Abs(currentSuma - suma) < 0.01) And _
-   (InStr(UCase(currentCorrespondent), UCase(Correspondent)) > 0) Then
-   
-    CandidatesCount = CandidatesCount + 1
-    
-    ' Сохраняем информацию о кандидатах
-    If CandidatesCount = 1 Then
-        bestCandidate = CurrentNumber
-        bestCandidateDate = CurrentDate
-        candidatesList = CurrentNumber & " (" & Format(CurrentDate, "dd.mm.yyyy") & ")"
-    Else
-        candidatesList = candidatesList & "; " & CurrentNumber & " (" & Format(CurrentDate, "dd.mm.yyyy") & ")"
-        
-        ' Выбираем более раннюю дату как лучший кандидат
-        If CurrentDate < bestCandidateDate Then
-            bestCandidate = CurrentNumber
-            bestCandidateDate = CurrentDate
+        ' CHECK MATCH CRITERIA
+        ' Exclude unposted documents (status = 1)
+        ' Exact amount match (with 0.01 tolerance)
+        ' Partial correspondent match
+        If (currentStatus <> "1") And _
+           (Abs(currentSuma - suma) < 0.01) And _
+           (InStr(UCase(currentCorrespondent), UCase(Correspondent)) > 0) Then
+           
+            CandidatesCount = CandidatesCount + 1
+            
+            ' Save candidate info
+            If CandidatesCount = 1 Then
+                bestCandidate = CurrentNumber
+                bestCandidateDate = CurrentDate
+                candidatesList = CurrentNumber & " (" & Format(CurrentDate, "dd.mm.yyyy") & ")"
+            Else
+                candidatesList = candidatesList & "; " & CurrentNumber & " (" & Format(CurrentDate, "dd.mm.yyyy") & ")"
+                
+                ' Choose earlier date as best candidate
+                If CurrentDate < bestCandidateDate Then
+                    bestCandidate = CurrentNumber
+                    bestCandidateDate = CurrentDate
+                End If
+            End If
+            
         End If
-    End If
-    
-End If
-
         
     Next i
     
-    ' Определяем результат поиска
+    ' Determine search result
     result.MatchCount = CandidatesCount
     result.candidatesList = candidatesList
     
@@ -220,17 +219,17 @@ End If
         result.Found = True
         result.ProvodkaNumber = bestCandidate
         result.ProvodkaDate = bestCandidateDate
-        result.StatusMessage = "Найдено единственное соответствие"
+        result.StatusMessage = "Single match found"
         
     ElseIf CandidatesCount > 1 Then
-        result.Found = False ' Требует ручного выбора
+        result.Found = False ' Requires manual choice
         result.ProvodkaNumber = bestCandidate
         result.ProvodkaDate = bestCandidateDate
-        result.StatusMessage = "Найдено " & CandidatesCount & " вариантов (выбран по дате)"
+        result.StatusMessage = "Found " & CandidatesCount & " variants (selected by date)"
         
     Else
         result.Found = False
-        result.StatusMessage = "Соответствие не найдено"
+        result.StatusMessage = "No match found"
     End If
     
     FindMatchInFile = result
@@ -239,11 +238,11 @@ End If
 FindError:
     result.Found = False
     result.MatchCount = 0
-    result.StatusMessage = "Ошибка поиска: " & Err.description
+    result.StatusMessage = "Search error: " & Err.description
     FindMatchInFile = result
 End Function
 
-' Обработка одной записи (для ручного поиска из формы)
+' Process single record (for manual search from form)
 Public Sub ProcessSingleRecord(RowIndex As Long)
     Dim filePath As String
     Dim wb1C As Workbook
@@ -257,133 +256,133 @@ Public Sub ProcessSingleRecord(RowIndex As Long)
     
     On Error GoTo SingleProcessError
     
-    ' Получаем таблицу ВхИсх
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    ' Get IncOut table
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
-    ' Проверяем корректность номера строки
+    ' Check row number validity
     If RowIndex < 1 Or RowIndex > tblData.ListRows.Count Then
-        MsgBox "Неверный номер записи: " & RowIndex, vbExclamation, "Ошибка"
+        MsgBox "Invalid record number: " & RowIndex, vbExclamation, "Error"
         Exit Sub
     End If
     
-    ' Получаем данные записи
+    ' Get record data
     currentSuma = CDbl(tblData.DataBodyRange.Cells(RowIndex, 6).value)
     currentCorrespondent = CStr(tblData.DataBodyRange.Cells(RowIndex, 9).value)
     
-    ' Выбор файла выгрузки 1С
+    ' Select 1C export file
     filePath = Application.GetOpenFilename( _
         "Excel Files (*.xlsx),*.xlsx,CSV Files (*.csv),*.csv,All Files (*.*),*.*", _
-        , "Выберите файл выгрузки из 1С для поиска проводки")
+        , "Select 1C export file for posting search")
     
     If filePath = "False" Then Exit Sub
     
-    ' Открываем файл выгрузки 1С
-    Application.StatusBar = "Поиск проводки в файле 1С..."
+    ' Open 1C export file
+    Application.StatusBar = "Searching for posting in 1C file..."
     Set wb1C = Workbooks.Open(filePath, ReadOnly:=True)
     Set ws1C = wb1C.Worksheets(1)
     
-    ' Ищем соответствие
+    ' Search for match
     MatchResult = FindMatchInFile(currentSuma, currentCorrespondent, ws1C)
     
-    ' Закрываем файл
+    ' Close file
     wb1C.Close False
     
-    ' Обрабатываем результат
+    ' Process result
     If MatchResult.Found Then
-        ' Автоматически заполняем поле
+        ' Automatically fill field
         tblData.DataBodyRange.Cells(RowIndex, 18).value = MatchResult.ProvodkaNumber
         
-        MsgBox "? ПРОВОДКА НАЙДЕНА!" & vbCrLf & vbCrLf & _
-               "Номер проводки: " & MatchResult.ProvodkaNumber & vbCrLf & _
-               "Дата проводки: " & Format(MatchResult.ProvodkaDate, "dd.mm.yyyy") & vbCrLf & _
-               "Сумма: " & currentSuma & vbCrLf & _
-               "Корреспондент: " & currentCorrespondent & vbCrLf & vbCrLf & _
-               "Номер проводки записан в 'Отметка об исполнении'", _
-               vbInformation, "Поиск проводки"
+        MsgBox "[OK] POSTING FOUND!" & vbCrLf & vbCrLf & _
+               "Posting Number: " & MatchResult.ProvodkaNumber & vbCrLf & _
+               "Posting Date: " & Format(MatchResult.ProvodkaDate, "dd.mm.yyyy") & vbCrLf & _
+               "Amount: " & currentSuma & vbCrLf & _
+               "Correspondent: " & currentCorrespondent & vbCrLf & vbCrLf & _
+               "Posting number written to 'Execution Mark'", _
+               vbInformation, "Posting Search"
                
-        ' Если форма открыта, обновляем отображение
+        ' If form is open, update display
         If TableEventHandler.IsFormOpen("UserFormVhIsh") Then
             UserFormVhIsh.txtOtmetkaIspolnenie.Text = MatchResult.ProvodkaNumber
-            UserFormVhIsh.txtOtmetkaIspolnenie.BackColor = RGB(200, 255, 200) ' Светло-зеленый
+            UserFormVhIsh.txtOtmetkaIspolnenie.BackColor = RGB(200, 255, 200) ' Light green
         End If
         
     ElseIf MatchResult.MatchCount > 1 Then
-        ' Показываем диалог выбора из множественных вариантов
+        ' Show dialog to choose from multiple variants
         Call ShowMultipleChoiceDialog(RowIndex, MatchResult, currentSuma, currentCorrespondent)
         
     Else
-        MsgBox "? ПРОВОДКА НЕ НАЙДЕНА" & vbCrLf & vbCrLf & _
-               "Критерии поиска:" & vbCrLf & _
-               "Сумма: " & currentSuma & vbCrLf & _
-               "Корреспондент: " & currentCorrespondent & vbCrLf & vbCrLf & _
-               "Возможные причины:" & vbCrLf & _
-               "• Документ еще не проведен в 1С" & vbCrLf & _
-               "• Отличается сумма или название корреспондента" & vbCrLf & _
-               "• Документ сторнирован в 1С", _
-               vbExclamation, "Поиск проводки"
+        MsgBox "[WARN] POSTING NOT FOUND" & vbCrLf & vbCrLf & _
+               "Search criteria:" & vbCrLf & _
+               "Amount: " & currentSuma & vbCrLf & _
+               "Correspondent: " & currentCorrespondent & vbCrLf & vbCrLf & _
+               "Possible reasons:" & vbCrLf & _
+               "- Document not yet posted in 1C" & vbCrLf & _
+               "- Amount or correspondent name differs" & vbCrLf & _
+               "- Document reversed in 1C", _
+               vbExclamation, "Posting Search"
     End If
     
-    Application.StatusBar = "Поиск проводки завершен"
+    Application.StatusBar = "Posting search completed"
     Exit Sub
     
 SingleProcessError:
     If Not wb1C Is Nothing Then wb1C.Close False
     
-    MsgBox "Ошибка поиска проводки:" & vbCrLf & _
-           "Ошибка: " & Err.Number & " - " & Err.description, _
-           vbCritical, "Ошибка"
+    MsgBox "Posting search error:" & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.description, _
+           vbCritical, "Error"
            
-    Application.StatusBar = "Ошибка поиска проводки"
+    Application.StatusBar = "Posting search error"
 End Sub
 
-' Диалог выбора из множественных вариантов
+' Dialog to choose from multiple variants
 Private Sub ShowMultipleChoiceDialog(RowIndex As Long, MatchResult As MatchResult, suma As Double, Correspondent As String)
     Dim userChoice As String
     Dim selectedProvodka As String
     
     userChoice = InputBox( _
-        "?? НАЙДЕНО НЕСКОЛЬКО ВАРИАНТОВ ПРОВОДОК:" & vbCrLf & vbCrLf & _
-        "Критерии поиска:" & vbCrLf & _
-        "Сумма: " & suma & vbCrLf & _
-        "Корреспондент: " & Correspondent & vbCrLf & vbCrLf & _
-        "Найденные варианты:" & vbCrLf & _
+        "[INFO] MULTIPLE POSTING VARIANTS FOUND:" & vbCrLf & vbCrLf & _
+        "Search criteria:" & vbCrLf & _
+        "Amount: " & suma & vbCrLf & _
+        "Correspondent: " & Correspondent & vbCrLf & vbCrLf & _
+        "Found variants:" & vbCrLf & _
         MatchResult.candidatesList & vbCrLf & vbCrLf & _
-        "Введите номер проводки для записи" & vbCrLf & _
-        "(или оставьте пустым для отмены):", _
-        "Выбор проводки", _
+        "Enter posting number to save" & vbCrLf & _
+        "(or leave empty to cancel):", _
+        "Posting Selection", _
         MatchResult.ProvodkaNumber)
     
     If Trim(userChoice) <> "" Then
-        ' Записываем выбранную проводку
+        ' Write selected posting
         Dim wsData As Worksheet
         Dim tblData As ListObject
         
-        Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-        Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+        Set wsData = ThisWorkbook.Worksheets("IncOut")
+        Set tblData = wsData.ListObjects("TableIncOut")
         
         tblData.DataBodyRange.Cells(RowIndex, 18).value = Trim(userChoice)
         
-        MsgBox "? Проводка записана: " & Trim(userChoice), vbInformation, "Выбор сохранен"
+        MsgBox "[OK] Posting saved: " & Trim(userChoice), vbInformation, "Selection Saved"
         
-        ' Обновляем форму, если она открыта
+        ' Update form if open
         If TableEventHandler.IsFormOpen("UserFormVhIsh") Then
             UserFormVhIsh.txtOtmetkaIspolnenie.Text = Trim(userChoice)
-            UserFormVhIsh.txtOtmetkaIspolnenie.BackColor = RGB(255, 255, 200) ' Светло-желтый (ручной ввод)
+            UserFormVhIsh.txtOtmetkaIspolnenie.BackColor = RGB(255, 255, 200) ' Light yellow (manual input)
         End If
     End If
 End Sub
 
-' Поиск проводки для текущей записи из формы
+' Search posting for current record from form
 Public Sub FindProvodkaForCurrentRecord()
     If DataManager.CurrentRecordRow > 0 Then
         Call ProcessSingleRecord(DataManager.CurrentRecordRow)
     Else
-        MsgBox "Выберите запись в таблице или откройте форму с записью", vbExclamation, "Поиск проводки"
+        MsgBox "Select a record in the table or open form with record", vbExclamation, "Posting Search"
     End If
 End Sub
 
-' Получение статистики сопоставления
+' Get matching statistics
 Public Sub ShowMatchingStatistics()
     Dim wsData As Worksheet
     Dim tblData As ListObject
@@ -393,8 +392,8 @@ Public Sub ShowMatchingStatistics()
     Dim filledRecords As Long
     Dim emptyRecords As Long
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     totalRecords = tblData.ListRows.Count
     
@@ -406,16 +405,16 @@ Public Sub ShowMatchingStatistics()
         End If
     Next i
     
-    MsgBox "?? СТАТИСТИКА СОПОСТАВЛЕНИЯ С 1С:" & vbCrLf & vbCrLf & _
-           "Всего записей в системе: " & totalRecords & vbCrLf & _
-           "С отметкой об исполнении: " & filledRecords & " (" & Format(filledRecords / totalRecords, "0.0%") & ")" & vbCrLf & _
-           "Без отметки об исполнении: " & emptyRecords & " (" & Format(emptyRecords / totalRecords, "0.0%") & ")" & vbCrLf & vbCrLf & _
-           "Рекомендация: Используйте 'Массовую обработку' для" & vbCrLf & _
-           "автоматического заполнения пустых отметок.", _
-           vbInformation, "Статистика интеграции"
+    MsgBox "--- 1C MATCHING STATISTICS:" & vbCrLf & vbCrLf & _
+           "Total records in system: " & totalRecords & vbCrLf & _
+           "With execution mark: " & filledRecords & " (" & Format(filledRecords / totalRecords, "0.0%") & ")" & vbCrLf & _
+           "Without execution mark: " & emptyRecords & " (" & Format(emptyRecords / totalRecords, "0.0%") & ")" & vbCrLf & vbCrLf & _
+           "Recommendation: Use 'Mass processing' to" & vbCrLf & _
+           "automatically fill empty marks.", _
+           vbInformation, "Integration Statistics"
 End Sub
 
-' Очистка всех отметок об исполнении (для повторной обработки)
+' Clear all execution marks (for reprocessing)
 Public Sub ClearAllProvodkaMarks()
     Dim response As VbMsgBoxResult
     Dim wsData As Worksheet
@@ -423,19 +422,19 @@ Public Sub ClearAllProvodkaMarks()
     Dim i As Long
     Dim clearedCount As Long
     
-    response = MsgBox("?? ВНИМАНИЕ!" & vbCrLf & vbCrLf & _
-                      "Вы собираетесь очистить ВСЕ отметки об исполнении" & vbCrLf & _
-                      "в таблице ВходящиеИсходящие." & vbCrLf & vbCrLf & _
-                      "Это действие нельзя отменить!" & vbCrLf & _
-                      "Продолжить?", _
-                      vbYesNo + vbExclamation + vbDefaultButton2, "Подтверждение очистки")
+    response = MsgBox("[WARN] ATTENTION!" & vbCrLf & vbCrLf & _
+                      "You are about to clear ALL execution marks" & vbCrLf & _
+                      "in the TableIncOut table." & vbCrLf & vbCrLf & _
+                      "This action cannot be undone!" & vbCrLf & _
+                      "Continue?", _
+                      vbYesNo + vbExclamation + vbDefaultButton2, "Clear Confirmation")
     
     If response = vbNo Then Exit Sub
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
-    Application.StatusBar = "Очистка отметок об исполнении..."
+    Application.StatusBar = "Clearing execution marks..."
     
     For i = 1 To tblData.ListRows.Count
         If Trim(CStr(tblData.DataBodyRange.Cells(i, 18).value)) <> "" Then
@@ -444,11 +443,10 @@ Public Sub ClearAllProvodkaMarks()
         End If
     Next i
     
-    MsgBox "? Очистка завершена!" & vbCrLf & _
-           "Очищено записей: " & clearedCount, _
-           vbInformation, "Очистка выполнена"
+    MsgBox "[OK] Clearing completed!" & vbCrLf & _
+           "Records cleared: " & clearedCount, _
+           vbInformation, "Clearing Executed"
            
-    Application.StatusBar = "Очистка отметок завершена. Очищено " & clearedCount & " записей."
+    Application.StatusBar = "Marks clearing completed. Cleared " & clearedCount & " records."
 End Sub
-
 

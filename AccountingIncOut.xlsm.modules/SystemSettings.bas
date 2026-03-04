@@ -1,97 +1,97 @@
 Attribute VB_Name = "SystemSettings"
 '==============================================
-' МОДУЛЬ НАСТРОЕК СИСТЕМЫ - SystemSettings
-' Назначение: Управление настройками системы на скрытом листе
-' Состояние: ЭТАП 1 - БАЗОВАЯ ИНФРАСТРУКТУРА
-' Версия: 1.0.0
-' Дата: 23.08.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' SYSTEM SETTINGS MODULE - SystemSettings
+' Purpose: Managing system settings on a hidden sheet
+' State: STAGE 1 - BASIC INFRASTRUCTURE
+' Version: 1.0.0
+' Date: 23.08.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
 
-Private Const SETTINGS_SHEET_NAME As String = "СистемныеНастройки"
+Private Const SETTINGS_SHEET_NAME As String = "SystemSettings"
 
-' Инициализация листа настроек
+' Initialize settings sheet
 Public Sub InitializeSettings()
     Dim wsSettings As Worksheet
     
     On Error GoTo CreateSettings
     
-    ' Проверяем существование листа настроек
+    ' Check if settings sheet exists
     Set wsSettings = ThisWorkbook.Worksheets(SETTINGS_SHEET_NAME)
     Exit Sub
     
 CreateSettings:
-    ' Создаем лист настроек
+    ' Create settings sheet
     Set wsSettings = ThisWorkbook.Worksheets.Add
     wsSettings.Name = SETTINGS_SHEET_NAME
     wsSettings.Visible = xlSheetVeryHidden
     
-    ' Заполняем настройки по умолчанию
+    ' Fill default settings
     Call SetDefaultSettings(wsSettings)
 End Sub
 
-' Установка настроек по умолчанию
+' Set default settings
 Private Sub SetDefaultSettings(Ws As Worksheet)
     With Ws
         .Cells.Clear
         
-        ' Заголовки
-        .Range("A1").value = "Параметр"
-        .Range("B1").value = "Значение"
-        .Range("C1").value = "Описание"
+        ' Headers
+        .Range("A1").value = "Parameter"
+        .Range("B1").value = "Value"
+        .Range("C1").value = "Description"
         
-        ' Настройки интеграции с 1С
+        ' 1C Integration settings
         .Range("A3").value = "BackupEnabled"
         .Range("B3").value = True
-        .Range("C3").value = "Создавать резервные копии перед операциями"
+        .Range("C3").value = "Create backups before operations"
         
         .Range("A4").value = "MaxBackupCount"
         .Range("B4").value = 10
-        .Range("C4").value = "Максимальное количество резервных копий"
+        .Range("C4").value = "Maximum number of backup copies"
         
         .Range("A5").value = "BackupPath"
         .Range("B5").value = ThisWorkbook.Path & "\Backup\"
-        .Range("C5").value = "Путь для сохранения резервных копий"
+        .Range("C5").value = "Path to save backup copies"
         
         .Range("A6").value = "LogEnabled"
         .Range("B6").value = True
-        .Range("C6").value = "Включить журналирование операций"
+        .Range("C6").value = "Enable operation logging"
         
         .Range("A7").value = "MaxLogRecords"
         .Range("B7").value = 100
-        .Range("C7").value = "Максимальное количество записей в журнале"
+        .Range("C7").value = "Maximum number of log records"
         
         .Range("A8").value = "ProgressUpdateInterval"
         .Range("B8").value = 100
-        .Range("C8").value = "Интервал обновления прогресс-бара (записей)"
+        .Range("C8").value = "Progress bar update interval (records)"
         
         .Range("A9").value = "DefaultFileFormat"
         .Range("B9").value = "*.xlsx,*.csv"
-        .Range("C9").value = "Форматы файлов по умолчанию"
+        .Range("C9").value = "Default file formats"
         
-        ' Настройки сопоставления (для этапа 2)
+        ' Matching settings (for stage 2)
         .Range("A11").value = "MatchThreshold"
         .Range("B11").value = 75
-        .Range("C11").value = "Порог совпадения для автосопоставления (%)"
+        .Range("C11").value = "Match threshold for auto-matching (%)"
         
         .Range("A12").value = "DateTolerance"
         .Range("B12").value = 30
-        .Range("C12").value = "Допустимая разница в датах (дней)"
+        .Range("C12").value = "Allowed date difference (days)"
         
         .Range("A13").value = "AutoSelectBestMatch"
         .Range("B13").value = True
-        .Range("C13").value = "Автоматически выбирать лучшее совпадение"
+        .Range("C13").value = "Automatically select best match"
         
-        ' Форматирование
+        ' Formatting
         .Range("A1:C1").Font.Bold = True
         .Range("A1:C13").Borders.LineStyle = xlContinuous
         .Columns("A:C").AutoFit
     End With
 End Sub
 
-' Получение значения настройки
+' Get setting value
 Public Function GetSetting(parameterName As String, Optional defaultValue As Variant = "") As Variant
     Dim wsSettings As Worksheet
     Dim foundRange As Range
@@ -113,7 +113,7 @@ GetError:
     GetSetting = defaultValue
 End Function
 
-' Установка значения настройки
+' Set setting value
 Public Sub SetSetting(parameterName As String, value As Variant)
     Dim wsSettings As Worksheet
     Dim foundRange As Range
@@ -126,7 +126,7 @@ Public Sub SetSetting(parameterName As String, value As Variant)
     If Not foundRange Is Nothing Then
         wsSettings.Cells(foundRange.Row, 2).value = value
     Else
-        ' Добавляем новую настройку
+        ' Add new setting
         Dim LastRow As Long
         LastRow = wsSettings.Cells(wsSettings.Rows.Count, 1).End(xlUp).Row + 1
         wsSettings.Cells(LastRow, 1).value = parameterName
@@ -136,10 +136,10 @@ Public Sub SetSetting(parameterName As String, value As Variant)
     Exit Sub
     
 SetError:
-    MsgBox "Ошибка сохранения настройки: " & Err.description, vbExclamation, "Ошибка настроек"
+    MsgBox "Error saving setting: " & Err.description, vbExclamation, "Settings Error"
 End Sub
 
-' Показ диалога настроек
+' Show settings dialog
 Public Sub ShowSettingsDialog()
     Dim wsSettings As Worksheet
     
@@ -147,21 +147,20 @@ Public Sub ShowSettingsDialog()
     
     Set wsSettings = ThisWorkbook.Worksheets(SETTINGS_SHEET_NAME)
     
-    ' Временно делаем лист видимым для редактирования
+    ' Temporarily make sheet visible for editing
     wsSettings.Visible = xlSheetVisible
     wsSettings.Activate
     
-    MsgBox "Лист настроек открыт для редактирования." & vbCrLf & _
-           "После внесения изменений нажмите OK для скрытия листа.", _
-           vbInformation, "Редактирование настроек"
+    MsgBox "Settings sheet opened for editing." & vbCrLf & _
+           "After making changes, press OK to hide the sheet.", _
+           vbInformation, "Edit Settings"
     
-    ' Скрываем лист обратно
+    ' Hide sheet back
     wsSettings.Visible = xlSheetVeryHidden
     
     Exit Sub
     
 ShowError:
-    MsgBox "Ошибка открытия настроек: " & Err.description, vbExclamation, "Ошибка"
+    MsgBox "Error opening settings: " & Err.description, vbExclamation, "Error"
 End Sub
-
 

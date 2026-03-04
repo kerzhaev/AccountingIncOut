@@ -1,46 +1,46 @@
 Attribute VB_Name = "TableEventHandler"
 '==============================================
-' МОДУЛЬ ОБРАБОТКИ СОБЫТИЙ ТАБЛИЦЫ - TableEventHandler
-' Назначение: Обработка щелчков по таблице для открытия формы с активацией нужного поля
-' Состояние: ИСПРАВЛЕНЫ ВСЕ ОБРАЩЕНИЯ К ГЛОБАЛЬНЫМ ПЕРЕМЕННЫМ
-' Версия: 1.6.0
-' Дата: 10.08.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' TABLE EVENT HANDLER MODULE - TableEventHandler
+' Purpose: Handling table clicks to open form with activation of specific field
+' State: ALL REFERENCES TO GLOBAL VARIABLES FIXED
+' Version: 1.6.0
+' Date: 10.08.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
 
-' Глобальные переменные для работы с таблицей
+' Global variables for table operations
 Private wsData As Worksheet
 Private tblVhIsh As ListObject
 Private isSystemActive As Boolean
 
-' Переменные для отслеживания последнего выбора
+' Variables to track the last selection
 Private lastSelectedRow As Long
 Private lastSelectedColumn As Long
 
-' Переменные для контекстного меню
+' Variables for context menu
 Private currentRightClickRow As Long
 Private contextMenuInitialized As Boolean
 
-' Обработчик событий Application через класс
+' Application event handler via class
 Private AppEventsHandler As AppEventHandler
 
-' ОТКЛЮЧЕНЫ ВСПЛЫВАЮЩИЕ ОКНА: Инициализация обработчика событий
+' POPUP WINDOWS DISABLED: Event handler initialization
 Public Sub InitializeTableEvents()
     On Error GoTo InitError
     
-    ' Деактивируем систему перед инициализацией
+    ' Deactivate system before initialization
     isSystemActive = False
     contextMenuInitialized = False
     
-    ' Проверка существования листа
+    ' Check if sheet exists
     Dim wsExists As Boolean
     wsExists = False
     
     Dim Ws As Worksheet
     For Each Ws In ThisWorkbook.Worksheets
-        If Ws.Name = "ВхИсх" Then
+        If Ws.Name = "IncOut" Then
             wsExists = True
             Set wsData = Ws
             Exit For
@@ -48,18 +48,18 @@ Public Sub InitializeTableEvents()
     Next Ws
     
     If Not wsExists Then
-        ' ОСТАВЛЕНО: Критические ошибки показываем
-        MsgBox "Лист 'ВхИсх' не найден в книге!", vbCritical, "Ошибка инициализации"
+        ' KEPT: Critical errors are shown
+        MsgBox "Sheet 'IncOut' not found in the workbook!", vbCritical, "Initialization Error"
         Exit Sub
     End If
     
-    ' Проверка существования таблицы
+    ' Check if table exists
     Dim tblExists As Boolean
     tblExists = False
     
     Dim tbl As ListObject
     For Each tbl In wsData.ListObjects
-        If tbl.Name = "ВходящиеИсходящие" Then
+        If tbl.Name = "TableIncOut" Then
             tblExists = True
             Set tblVhIsh = tbl
             Exit For
@@ -67,50 +67,49 @@ Public Sub InitializeTableEvents()
     Next tbl
     
     If Not tblExists Then
-        ' ОСТАВЛЕНО: Критические ошибки показываем
-        MsgBox "Таблица 'ВходящиеИсходящие' не найдена на листе 'ВхИсх'!" & vbCrLf & _
-               "Убедитесь, что таблица существует и имеет правильное название.", vbCritical, "Ошибка инициализации"
+        ' KEPT: Critical errors are shown
+        MsgBox "Table 'TableIncOut' not found on sheet 'IncOut'!" & vbCrLf & _
+               "Make sure the table exists and has the correct name.", vbCritical, "Initialization Error"
         Exit Sub
     End If
     
-    ' Проверка содержимого таблицы (только Debug, без MsgBox)
+    ' Check table content (Debug only, no MsgBox)
     If tblVhIsh.DataBodyRange Is Nothing Then
-        Debug.Print "ПРЕДУПРЕЖДЕНИЕ: Таблица 'ВходящиеИсходящие' пустая!"
-        Application.StatusBar = "Предупреждение: таблица пуста. Добавьте данные для работы."
+        Debug.Print "WARNING: Table 'TableIncOut' is empty!"
+        Application.StatusBar = "Warning: table is empty. Add data to work."
     End If
     
-    ' Инициализируем переменные отслеживания
+    ' Initialize tracking variables
     lastSelectedRow = 0
     lastSelectedColumn = 0
     currentRightClickRow = 0
     
-    ' Инициализация обработчика событий Application через класс
+    ' Initialize Application event handler via class
     Set AppEventsHandler = New AppEventHandler
     Call AppEventsHandler.InitializeAppEvents
     
-    ' Активируем систему
+    ' Activate system
     isSystemActive = True
     contextMenuInitialized = True
     
-    ' ОТКЛЮЧЕНЫ ВСПЛЫВАЮЩИЕ ОКНА: Только статус-бар и Debug
-    Application.StatusBar = "Система интерактивных форм активна (Excel 2021). Используйте Ctrl+Shift+M для меню."
-    
-    Debug.Print "Система интерактивных форм активирована для Excel 2021!"
-    Debug.Print "Найдена таблица: " & tblVhIsh.Name
-    Debug.Print "Строк данных: " & IIf(tblVhIsh.DataBodyRange Is Nothing, 0, tblVhIsh.ListRows.Count)
-    Debug.Print "СПОСОБЫ РАБОТЫ: Двойной щелчок, Ctrl+E, Ctrl+Shift+M, Ctrl+D"
+    ' POPUP WINDOWS DISABLED: Status bar and Debug only
+    Application.StatusBar = "Interactive forms system is active (Excel 2021). Use Ctrl+Shift+M for menu."
+    Debug.Print "Interactive forms system activated for Excel 2021!"
+    Debug.Print "Found table: " & tblVhIsh.Name
+    Debug.Print "Data rows: " & IIf(tblVhIsh.DataBodyRange Is Nothing, 0, tblVhIsh.ListRows.Count)
+    Debug.Print "WORK METHODS: Double click, Ctrl+E, Ctrl+Shift+M, Ctrl+D"
     
     Exit Sub
     
 InitError:
     isSystemActive = False
     contextMenuInitialized = False
-    ' ОСТАВЛЕНО: Критические ошибки показываем
-    MsgBox "Критическая ошибка инициализации системы событий таблицы:" & vbCrLf & _
-           "Ошибка: " & Err.Number & " - " & Err.description, vbCritical, "Критическая ошибка"
+    ' KEPT: Critical errors are shown
+    MsgBox "Critical error initializing table events system:" & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.description, vbCritical, "Critical Error"
 End Sub
 
-' ОТКЛЮЧЕНЫ ВСПЛЫВАЮЩИЕ ОКНА: Показ меню действий для Excel 2021
+' POPUP WINDOWS DISABLED: Show action menu for Excel 2021
 Public Sub ShowActionMenuExcel2021()
     Dim userChoice As String
     Dim currentCell As Range
@@ -119,9 +118,9 @@ Public Sub ShowActionMenuExcel2021()
     
     On Error GoTo MenuError
     
-    ' Проверяем, что находимся в правильной таблице
-    If ActiveSheet.Name <> "ВхИсх" Then
-        Application.StatusBar = "Перейдите на лист 'ВхИсх' для использования меню действий."
+    ' Check if we are in the correct sheet
+    If ActiveSheet.Name <> "IncOut" Then
+        Application.StatusBar = "Switch to sheet 'IncOut' to use the action menu."
         Exit Sub
     End If
     
@@ -134,18 +133,18 @@ Public Sub ShowActionMenuExcel2021()
             If Not intersectRange Is Nothing And currentCell.Cells.Count = 1 Then
                 RowNumber = intersectRange.Row - tblVhIsh.DataBodyRange.Row + 1
                 
-                ' ОСТАВЛЕНО: Меню через InputBox (основная функциональность)
+                ' KEPT: Menu via InputBox (core functionality)
                 userChoice = InputBox( _
-                    "МЕНЮ ДЕЙСТВИЙ ДЛЯ ЗАПИСИ №" & RowNumber & ":" & vbCrLf & vbCrLf & _
-                    "Доступные команды:" & vbCrLf & _
-                    "1 - Редактировать в форме" & vbCrLf & _
-                    "2 - Дублировать запись" & vbCrLf & _
-                    "3 - Показать информацию о записи" & vbCrLf & _
-                    "0 - Отмена" & vbCrLf & vbCrLf & _
-                    "Введите номер команды:", _
-                    "Меню действий Excel 2021", "1")
+                    "ACTION MENU FOR RECORD No." & RowNumber & ":" & vbCrLf & vbCrLf & _
+                    "Available commands:" & vbCrLf & _
+                    "1 - Edit in form" & vbCrLf & _
+                    "2 - Duplicate record" & vbCrLf & _
+                    "3 - Show record information" & vbCrLf & _
+                    "0 - Cancel" & vbCrLf & vbCrLf & _
+                    "Enter command number:", _
+                    "Excel 2021 Action Menu", "1")
                 
-                ' Обрабатываем выбор пользователя
+                ' Process user choice
                 Select Case userChoice
                     Case "1"
                         Call OpenFormForCurrentSelection
@@ -154,27 +153,27 @@ Public Sub ShowActionMenuExcel2021()
                     Case "3"
                         Call ShowRecordInfo(RowNumber)
                     Case "0", ""
-                        ' Отмена - ничего не делаем
+                        ' Cancel - do nothing
                     Case Else
-                        Application.StatusBar = "Неверный выбор. Используйте числа 0-3."
+                        Application.StatusBar = "Invalid choice. Use numbers 0-3."
                 End Select
             Else
-                Application.StatusBar = "Выберите ячейку внутри таблицы данных для использования меню."
+                Application.StatusBar = "Select a cell inside the data table to use the menu."
             End If
         Else
-            Application.StatusBar = "Таблица пуста!"
+            Application.StatusBar = "Table is empty!"
         End If
     Else
-        Application.StatusBar = "Таблица не найдена!"
+        Application.StatusBar = "Table not found!"
     End If
     
     Exit Sub
     
 MenuError:
-    Application.StatusBar = "Ошибка отображения меню: " & Err.description
+    Application.StatusBar = "Error displaying menu: " & Err.description
 End Sub
 
-' ОТКЛЮЧЕНЫ ВСПЛЫВАЮЩИЕ ОКНА: Показ информации о записи
+' POPUP WINDOWS DISABLED: Show record information
 Private Sub ShowRecordInfo(RowNumber As Long)
     Dim info As String
     Dim serviceText As String
@@ -187,44 +186,44 @@ Private Sub ShowRecordInfo(RowNumber As Long)
     If tblVhIsh Is Nothing Or tblVhIsh.DataBodyRange Is Nothing Then Exit Sub
     If RowNumber < 1 Or RowNumber > tblVhIsh.ListRows.Count Then Exit Sub
     
-    ' Получаем основную информацию о записи
-    serviceText = CStr(tblVhIsh.DataBodyRange.Cells(RowNumber, 2).value)     ' Служба
-    docTypeText = CStr(tblVhIsh.DataBodyRange.Cells(RowNumber, 4).value)     ' Тип документа
-    docNumberText = CStr(tblVhIsh.DataBodyRange.Cells(RowNumber, 5).value)   ' Номер документа
-    amountText = CStr(tblVhIsh.DataBodyRange.Cells(RowNumber, 6).value)      ' Сумма
+    ' Get basic record info
+    serviceText = CStr(tblVhIsh.DataBodyRange.Cells(RowNumber, 2).value)     ' Service
+    docTypeText = CStr(tblVhIsh.DataBodyRange.Cells(RowNumber, 4).value)     ' Document Type
+    docNumberText = CStr(tblVhIsh.DataBodyRange.Cells(RowNumber, 5).value)   ' Document Number
+    amountText = CStr(tblVhIsh.DataBodyRange.Cells(RowNumber, 6).value)      ' Amount
     
-    info = "ИНФОРМАЦИЯ О ЗАПИСИ №" & RowNumber & ":" & vbCrLf & vbCrLf
-    info = info & "Служба: " & serviceText & vbCrLf
-    info = info & "Тип документа: " & docTypeText & vbCrLf
-    info = info & "Номер документа: " & docNumberText & vbCrLf
-    info = info & "Сумма: " & amountText & " руб." & vbCrLf & vbCrLf
-    info = info & "Нажмите OK для продолжения."
+    info = "RECORD No." & RowNumber & " INFO:" & vbCrLf & vbCrLf
+    info = info & "Service: " & serviceText & vbCrLf
+    info = info & "Document Type: " & docTypeText & vbCrLf
+    info = info & "Document Number: " & docNumberText & vbCrLf
+    info = info & "Amount: " & amountText & " rub." & vbCrLf & vbCrLf
+    info = info & "Press OK to continue."
     
-    ' ОСТАВЛЕНО: Информационные окна (основная функциональность)
-    MsgBox info, vbInformation, "Информация о записи"
+    ' KEPT: Information windows (core functionality)
+    MsgBox info, vbInformation, "Record Information"
     
     Exit Sub
     
 InfoError:
-    Application.StatusBar = "Ошибка получения информации о записи: " & Err.description
+    Application.StatusBar = "Error getting record information: " & Err.description
 End Sub
 
-' Добавление контекстного меню
+' Add context menu
 Public Sub AddContextMenuButton()
     On Error GoTo MenuError
     
-    ' Пробуем стандартный подход для совместимости
+    ' Try standard approach for compatibility
     Call RemoveContextMenuButton
     
     Dim contextMenu As CommandBar
     Set contextMenu = Application.CommandBars("Cell")
     
-    ' Кнопка редактирования
+    ' Edit button
     Dim editButton As CommandBarButton
     Set editButton = contextMenu.Controls.Add(Type:=msoControlButton, temporary:=True)
     
     With editButton
-        .Caption = "?? Редактировать в форме"
+        .Caption = "Edit in form"
         .OnAction = "TableEventHandler.OpenFormForCurrentSelection"
         .FaceId = 162
         .BeginGroup = True
@@ -233,12 +232,12 @@ Public Sub AddContextMenuButton()
         .Enabled = True
     End With
     
-    ' Кнопка дублирования
+    ' Duplicate button
     Dim duplicateButton As CommandBarButton
     Set duplicateButton = contextMenu.Controls.Add(Type:=msoControlButton, temporary:=True)
     
     With duplicateButton
-        .Caption = "?? Дублировать запись"
+        .Caption = "Duplicate record"
         .OnAction = "TableEventHandler.DuplicateCurrentRecord"
         .FaceId = 19
         .BeginGroup = False
@@ -247,12 +246,12 @@ Public Sub AddContextMenuButton()
         .Enabled = True
     End With
     
-    ' Альтернативное меню для Excel 2021
+    ' Alternative menu for Excel 2021
     Dim altMenuButton As CommandBarButton
     Set altMenuButton = contextMenu.Controls.Add(Type:=msoControlButton, temporary:=True)
     
     With altMenuButton
-        .Caption = "?? Меню действий (Ctrl+Shift+M)"
+        .Caption = "Action menu (Ctrl+Shift+M)"
         .OnAction = "TableEventHandler.ShowActionMenuExcel2021"
         .FaceId = 923
         .BeginGroup = False
@@ -261,32 +260,30 @@ Public Sub AddContextMenuButton()
         .Enabled = True
     End With
     
-    ' Кнопка поиска проводки
-Dim provodkaButton As CommandBarButton
-Set provodkaButton = contextMenu.Controls.Add(Type:=msoControlButton, temporary:=True)
+    ' Find posting in 1C button
+    Dim provodkaButton As CommandBarButton
+    Set provodkaButton = contextMenu.Controls.Add(Type:=msoControlButton, temporary:=True)
 
-With provodkaButton
-    .Caption = "Найти проводку в 1С"
-    .OnAction = "ProvodkaIntegrationModule.FindProvodkaForCurrentRecord"
-    .FaceId = 1219
-    .BeginGroup = False
-    .Tag = "CustomProvodka_VhIsh_2025"
-    .Visible = True
-    .Enabled = True
-End With
+    With provodkaButton
+        .Caption = "Find posting in 1C"
+        .OnAction = "ProvodkaIntegrationModule.FindProvodkaForCurrentRecord"
+        .FaceId = 1219
+        .BeginGroup = False
+        .Tag = "CustomProvodka_VhIsh_2025"
+        .Visible = True
+        .Enabled = True
+    End With
     
-    
-    
-    ' Принудительное обновление для Excel 2021
+    ' Force update for Excel 2021
     contextMenu.Reset
     
     Exit Sub
     
 MenuError:
-    Debug.Print "Ошибка создания контекстного меню: " & Err.description
+    Debug.Print "Error creating context menu: " & Err.description
 End Sub
 
-' Удаление контекстного меню
+' Remove context menu
 Public Sub RemoveContextMenuButton()
     On Error GoTo RemoveMenuError
     
@@ -295,18 +292,19 @@ Public Sub RemoveContextMenuButton()
     
     Set contextMenu = Application.CommandBars("Cell")
     
-    ' Удаляем все наши кнопки по тегам
+    ' Remove all our buttons by tags
     For Each ctrl In contextMenu.Controls
         If InStr(ctrl.Tag, "Custom") > 0 And InStr(ctrl.Tag, "VhIsh") > 0 Then
             ctrl.Delete
         End If
     Next ctrl
     
-    ' Дополнительная очистка по названиям
+    ' Additional cleanup by captions
     For Each ctrl In contextMenu.Controls
-        If InStr(ctrl.Caption, "?? Редактировать") > 0 Or _
-           InStr(ctrl.Caption, "?? Дублировать") > 0 Or _
-           InStr(ctrl.Caption, "?? Меню действий") > 0 Then
+        If InStr(ctrl.Caption, "Edit in form") > 0 Or _
+           InStr(ctrl.Caption, "Duplicate record") > 0 Or _
+           InStr(ctrl.Caption, "Action menu") > 0 Or _
+           InStr(ctrl.Caption, "Find posting") > 0 Then
             ctrl.Delete
         End If
     Next ctrl
@@ -314,23 +312,23 @@ Public Sub RemoveContextMenuButton()
     Exit Sub
     
 RemoveMenuError:
-    Debug.Print "Ошибка удаления контекстного меню: " & Err.description
+    Debug.Print "Error removing context menu: " & Err.description
 End Sub
 
-' Деактивация обработчика событий
+' Deactivate event handler
 Public Sub DeactivateTableEvents()
     On Error Resume Next
     
     isSystemActive = False
     contextMenuInitialized = False
     
-    ' Деактивируем обработчик событий Application через класс
+    ' Deactivate Application event handler via class
     If Not AppEventsHandler Is Nothing Then
         Call AppEventsHandler.DeactivateAppEvents
         Set AppEventsHandler = Nothing
     End If
     
-    ' Безопасно очищаем объекты
+    ' Safely clear objects
     Set wsData = Nothing
     Set tblVhIsh = Nothing
     
@@ -338,12 +336,12 @@ Public Sub DeactivateTableEvents()
     lastSelectedColumn = 0
     currentRightClickRow = 0
     
-    Application.StatusBar = "Система интерактивных форм деактивирована"
+    Application.StatusBar = "Interactive forms system deactivated"
     
     On Error GoTo 0
 End Sub
 
-' Функция определения имени поля по номеру столбца
+' Function to get field name by column number
 Public Function GetFieldNameByColumn(columnIndex As Long) As String
     On Error GoTo FieldNameError
     
@@ -377,41 +375,41 @@ FieldNameError:
     GetFieldNameByColumn = "txtNomerDoc"
 End Function
 
-' Функция получения отображаемого имени поля
+' Function to get field display name
 Public Function GetFieldDisplayName(fieldName As String) As String
     On Error GoTo DisplayNameError
     
     Select Case fieldName
-        Case "txtNomerPP": GetFieldDisplayName = "№ П/П"
-        Case "cmbSlujba": GetFieldDisplayName = "Служба"
-        Case "cmbVidDocumenta": GetFieldDisplayName = "Вид документа"
-        Case "cmbVidDoc": GetFieldDisplayName = "Тип документа"
-        Case "txtNomerDoc": GetFieldDisplayName = "Номер документа"
-        Case "txtSummaDoc": GetFieldDisplayName = "Сумма документа"
-        Case "txtVhFRP": GetFieldDisplayName = "Вх.ФРП/Исх.ФРП"
-        Case "txtDataVhFRP": GetFieldDisplayName = "Дата Вх.ФРП/Исх.ФРП"
-        Case "cmbOtKogoPostupil": GetFieldDisplayName = "От кого поступил"
-        Case "txtDataPeredachi": GetFieldDisplayName = "Дата передачи исполнителю"
-        Case "cmbIspolnitel": GetFieldDisplayName = "Исполнитель"
-        Case "txtNomerIshVSlujbu": GetFieldDisplayName = "№ исх. в службу"
-        Case "txtDataIshVSlujbu": GetFieldDisplayName = "Дата исх. в службу"
-        Case "txtNomerVozvrata": GetFieldDisplayName = "№ возврата"
-        Case "txtDataVozvrata": GetFieldDisplayName = "Дата возврата"
-        Case "txtNomerIshKonvert": GetFieldDisplayName = "№ исх. конверт"
-        Case "txtDataIshKonvert": GetFieldDisplayName = "Дата исх. конверт"
-        Case "txtOtmetkaIspolnenie": GetFieldDisplayName = "Отметка об исполнении"
-        Case "cmbStatusPodtverjdenie": GetFieldDisplayName = "Статус подтверждения"
-        Case "txtNaryadInfo": GetFieldDisplayName = "Информация о наряде"
-        Case Else: GetFieldDisplayName = "Поле данных"
+        Case "txtNomerPP": GetFieldDisplayName = "Seq No"
+        Case "cmbSlujba": GetFieldDisplayName = "Service"
+        Case "cmbVidDocumenta": GetFieldDisplayName = "Document Group"
+        Case "cmbVidDoc": GetFieldDisplayName = "Document Type"
+        Case "txtNomerDoc": GetFieldDisplayName = "Document Number"
+        Case "txtSummaDoc": GetFieldDisplayName = "Document Amount"
+        Case "txtVhFRP": GetFieldDisplayName = "Inc.FRP/Out.FRP"
+        Case "txtDataVhFRP": GetFieldDisplayName = "Date Inc.FRP/Out.FRP"
+        Case "cmbOtKogoPostupil": GetFieldDisplayName = "Received From"
+        Case "txtDataPeredachi": GetFieldDisplayName = "Date Transferred to Executor"
+        Case "cmbIspolnitel": GetFieldDisplayName = "Executor"
+        Case "txtNomerIshVSlujbu": GetFieldDisplayName = "Out. No. to Service"
+        Case "txtDataIshVSlujbu": GetFieldDisplayName = "Out. Date to Service"
+        Case "txtNomerVozvrata": GetFieldDisplayName = "Return No."
+        Case "txtDataVozvrata": GetFieldDisplayName = "Return Date"
+        Case "txtNomerIshKonvert": GetFieldDisplayName = "Out. Envelope No."
+        Case "txtDataIshKonvert": GetFieldDisplayName = "Out. Envelope Date"
+        Case "txtOtmetkaIspolnenie": GetFieldDisplayName = "Execution Mark"
+        Case "cmbStatusPodtverjdenie": GetFieldDisplayName = "Confirmation Status"
+        Case "txtNaryadInfo": GetFieldDisplayName = "Order Info"
+        Case Else: GetFieldDisplayName = "Data Field"
     End Select
     
     Exit Function
     
 DisplayNameError:
-    GetFieldDisplayName = "Поле данных"
+    GetFieldDisplayName = "Data Field"
 End Function
 
-' ОТКЛЮЧЕНЫ ВСПЛЫВАЮЩИЕ ОКНА: Открытие формы по команде
+' POPUP WINDOWS DISABLED: Open form by command
 Public Sub OpenFormForCurrentSelection()
     Dim currentCell As Range
     Dim intersectRange As Range
@@ -421,95 +419,95 @@ Public Sub OpenFormForCurrentSelection()
     
     On Error GoTo OpenError
     
-    ' Проверки состояния системы (только статус-бар)
+    ' Check system state (status bar only)
     If Not isSystemActive Then
-        Application.StatusBar = "Система интерактивных форм не активна!"
+        Application.StatusBar = "Interactive forms system is not active!"
         Exit Sub
     End If
     
     If wsData Is Nothing Or tblVhIsh Is Nothing Then
-        Application.StatusBar = "Ошибка: объекты системы не инициализированы!"
+        Application.StatusBar = "Error: system objects not initialized!"
         Exit Sub
     End If
     
-    ' Проверяем активный лист
-    If ActiveSheet.Name <> "ВхИсх" Then
-        Application.StatusBar = "Перейдите на лист 'ВхИсх' для работы с таблицей."
+    ' Check active sheet
+    If ActiveSheet.Name <> "IncOut" Then
+        Application.StatusBar = "Switch to sheet 'IncOut' to work with the table."
         Exit Sub
     End If
     
-    ' Проверка: Таблица не пуста
+    ' Check: Table is not empty
     If tblVhIsh.DataBodyRange Is Nothing Then
-        Application.StatusBar = "Таблица пуста! Добавьте данные для работы с формой."
+        Application.StatusBar = "Table is empty! Add data to work with the form."
         Exit Sub
     End If
     
     Set currentCell = Selection
     
-    ' Проверяем, что выделена одна ячейка в области таблицы
+    ' Check that one cell is selected in the table area
     If currentCell.Cells.Count = 1 Then
         Set intersectRange = Intersect(currentCell, tblVhIsh.DataBodyRange)
         
         If Not intersectRange Is Nothing Then
-            ' Получаем координаты в таблице
+            ' Get coordinates in table
             RowNumber = intersectRange.Row - tblVhIsh.DataBodyRange.Row + 1
             columnNumber = intersectRange.Column - tblVhIsh.DataBodyRange.Column + 1
             fieldToActivate = GetFieldNameByColumn(columnNumber)
             
-            ' Открываем форму
+            ' Open form
             Call OpenFormWithRecord(RowNumber, fieldToActivate, columnNumber)
         Else
-            Application.StatusBar = "Выберите ячейку внутри таблицы данных."
+            Application.StatusBar = "Select a cell inside the data table."
         End If
     Else
-        Application.StatusBar = "Выберите одну ячейку в таблице для редактирования."
+        Application.StatusBar = "Select a single cell in the table for editing."
     End If
     
     Exit Sub
     
 OpenError:
-    Application.StatusBar = "Ошибка открытия формы: " & Err.description
+    Application.StatusBar = "Error opening form: " & Err.description
 End Sub
 
-' Процедура открытия формы с активацией нужного поля
+' Procedure to open form with activation of specific field
 Private Sub OpenFormWithRecord(RowNumber As Long, fieldName As String, columnNumber As Long)
     On Error GoTo OpenError
     
-    ' Проверяем, открыта ли уже форма
+    ' Check if form is already open
     Dim formAlreadyOpen As Boolean
     formAlreadyOpen = IsFormOpen("UserFormVhIsh")
     
     If Not formAlreadyOpen Then
-        ' Загружаем форму
+        ' Load form
         Load UserFormVhIsh
-        ' Показываем форму
-        UserFormVhIsh.Show vbModeless ' Показываем в немодальном режиме для работы с таблицей
+        ' Show form
+        UserFormVhIsh.Show vbModeless ' Show modeless for working with table
     End If
     
-    ' Загружаем нужную запись
+    ' Load specific record
     Call UserFormVhIsh.LoadRecordToForm(RowNumber)
     
-    ' ИСПРАВЛЕНО: Правильные обращения к глобальным переменным DataManager
+    ' FIXED: Correct calls to global variables of DataManager
     DataManager.CurrentRecordRow = RowNumber
     DataManager.IsNewRecord = False
     DataManager.FormDataChanged = False
     
-    ' Активируем нужное поле с небольшой задержкой
+    ' Activate specific field with a slight delay
     Application.OnTime Now + TimeValue("00:00:01"), "'TableEventHandler.ActivateFormField """ & fieldName & """'"
     
-    ' Обновляем статус-бар формы
-    UserFormVhIsh.lblStatusBar.Caption = "Загружена запись №" & RowNumber & " | Активно поле: " & GetFieldDisplayName(fieldName)
+    ' Update form status bar
+    UserFormVhIsh.lblStatusBar.Caption = "Loaded record No." & RowNumber & " | Active field: " & GetFieldDisplayName(fieldName)
     
-    ' Подсвечиваем активное поле
+    ' Highlight active field
     Call HighlightActiveField(fieldName, columnNumber)
     
     Exit Sub
     
 OpenError:
-    Application.StatusBar = "Ошибка открытия формы: " & Err.description
+    Application.StatusBar = "Error opening form: " & Err.description
 End Sub
 
-' Функция проверки, открыта ли форма
+' Function to check if form is open
 Public Function IsFormOpen(formName As String) As Boolean
     Dim frm As Object
     IsFormOpen = False
@@ -522,13 +520,13 @@ FormNotOpen:
     On Error GoTo 0
 End Function
 
-' Процедура активации поля формы (вызывается через OnTime)
+' Procedure to activate form field (called via OnTime)
 Public Sub ActivateFormField(fieldName As String)
     On Error GoTo ActivateError
     
-    ' Проверяем, что форма все еще открыта
+    ' Check that form is still open
     If IsFormOpen("UserFormVhIsh") Then
-        ' Устанавливаем фокус на нужное поле
+        ' Set focus to specific field
         Select Case fieldName
             Case "txtNomerPP": UserFormVhIsh.txtNomerPP.SetFocus
             Case "cmbSlujba": UserFormVhIsh.cmbSlujba.SetFocus
@@ -550,61 +548,61 @@ Public Sub ActivateFormField(fieldName As String)
             Case "txtOtmetkaIspolnenie": UserFormVhIsh.txtOtmetkaIspolnenie.SetFocus
             Case "cmbStatusPodtverjdenie": UserFormVhIsh.cmbStatusPodtverjdenie.SetFocus
             Case "txtNaryadInfo": UserFormVhIsh.txtNaryadInfo.SetFocus
-            Case Else: UserFormVhIsh.txtNomerDoc.SetFocus ' По умолчанию
+            Case Else: UserFormVhIsh.txtNomerDoc.SetFocus ' Default
         End Select
     End If
     
     Exit Sub
     
 ActivateError:
-    ' Игнорируем ошибки активации поля
+    ' Ignore field activation errors
 End Sub
 
-' Процедура подсветки активного поля
+' Procedure to highlight active field
 Private Sub HighlightActiveField(fieldName As String, columnIndex As Long)
     On Error GoTo HighlightError
     
-    ' Проверки существования таблицы и столбца
+    ' Check existence of table and column
     If tblVhIsh Is Nothing Then Exit Sub
     If columnIndex < 1 Or columnIndex > tblVhIsh.ListColumns.Count Then Exit Sub
     If tblVhIsh.DataBodyRange Is Nothing Then Exit Sub
     
-    ' Временно подсвечиваем соответствующий столбец в таблице
+    ' Temporarily highlight corresponding column in table
     Dim columnRange As Range
     Set columnRange = tblVhIsh.ListColumns(columnIndex).DataBodyRange
     
-    ' Применяем временную подсветку
-    columnRange.Interior.Color = RGB(255, 255, 200) ' Светло-желтый
+    ' Apply temporary highlight
+    columnRange.Interior.Color = RGB(255, 255, 200) ' Light yellow
     
-    ' Снимаем подсветку через 2 секунды
+    ' Remove highlight after 2 seconds
     Application.OnTime Now + TimeValue("00:00:02"), "'TableEventHandler.RemoveColumnHighlight " & columnIndex & "'"
     
     Exit Sub
     
 HighlightError:
-    ' Игнорируем ошибки подсветки
+    ' Ignore highlight errors
 End Sub
 
-' Процедура снятия подсветки столбца
+' Procedure to remove column highlight
 Public Sub RemoveColumnHighlight(columnIndex As Long)
     On Error GoTo RemoveError
     
-    ' Проверки существования таблицы и столбца
+    ' Check existence of table and column
     If tblVhIsh Is Nothing Then Exit Sub
     If columnIndex < 1 Or columnIndex > tblVhIsh.ListColumns.Count Then Exit Sub
     If tblVhIsh.DataBodyRange Is Nothing Then Exit Sub
     
     Dim columnRange As Range
     Set columnRange = tblVhIsh.ListColumns(columnIndex).DataBodyRange
-    columnRange.Interior.ColorIndex = xlNone ' Убираем подсветку
+    columnRange.Interior.ColorIndex = xlNone ' Remove highlight
     
     Exit Sub
     
 RemoveError:
-    ' Игнорируем ошибки снятия подсветки
+    ' Ignore remove highlight errors
 End Sub
 
-' ОСТАВЛЕНО ПОДТВЕРЖДЕНИЕ: Дублирование текущей записи
+' CONFIRMATION KEPT: Duplicate current record
 Public Sub DuplicateCurrentRecord()
     Dim currentCell As Range
     Dim intersectRange As Range
@@ -612,65 +610,65 @@ Public Sub DuplicateCurrentRecord()
     
     On Error GoTo DuplicateError
     
-    ' Проверяем состояние системы (статус-бар)
+    ' Check system state (status bar)
     If Not isSystemActive Then
-        Application.StatusBar = "Система интерактивных форм не активна!"
+        Application.StatusBar = "Interactive forms system is not active!"
         Exit Sub
     End If
     
     If wsData Is Nothing Or tblVhIsh Is Nothing Then
-        Application.StatusBar = "Ошибка: объекты системы не инициализированы!"
+        Application.StatusBar = "Error: system objects not initialized!"
         Exit Sub
     End If
     
-    ' Проверяем активный лист
-    If ActiveSheet.Name <> "ВхИсх" Then
-        Application.StatusBar = "Перейдите на лист 'ВхИсх' для работы с таблицей."
+    ' Check active sheet
+    If ActiveSheet.Name <> "IncOut" Then
+        Application.StatusBar = "Switch to sheet 'IncOut' to work with the table."
         Exit Sub
     End If
     
-    ' Проверяем, что таблица не пуста
+    ' Check that table is not empty
     If tblVhIsh.DataBodyRange Is Nothing Then
-        Application.StatusBar = "Таблица пуста! Нет записей для дублирования."
+        Application.StatusBar = "Table is empty! No records to duplicate."
         Exit Sub
     End If
     
     Set currentCell = Selection
     
-    ' Проверяем, что выделена одна ячейка в области таблицы
+    ' Check that one cell is selected in the table area
     If currentCell.Cells.Count = 1 Then
         Set intersectRange = Intersect(currentCell, tblVhIsh.DataBodyRange)
         
         If Not intersectRange Is Nothing Then
-            ' Получаем номер строки в таблице
+            ' Get row number in table
             RowNumber = intersectRange.Row - tblVhIsh.DataBodyRange.Row + 1
             
-            ' ОСТАВЛЕНО: Подтверждение дублирования (основная функциональность)
+            ' KEPT: Duplication confirmation (core functionality)
             Dim response As VbMsgBoxResult
-            response = MsgBox("Дублировать запись №" & RowNumber & "?" & vbCrLf & vbCrLf & _
-                             "Будут скопированы все данные кроме:" & vbCrLf & _
-                             "• Номера документа" & vbCrLf & _
-                             "• Суммы документа" & vbCrLf & _
-                             "• Информации о наряде", _
-                             vbYesNo + vbQuestion, "Подтверждение дублирования")
+            response = MsgBox("Duplicate record No." & RowNumber & "?" & vbCrLf & vbCrLf & _
+                             "All data will be copied except:" & vbCrLf & _
+                             "- Document Number" & vbCrLf & _
+                             "- Document Amount" & vbCrLf & _
+                             "- Order Info", _
+                             vbYesNo + vbQuestion, "Duplication Confirmation")
             
             If response = vbYes Then
                 Call PerformDuplication(RowNumber)
             End If
         Else
-            Application.StatusBar = "Выберите ячейку внутри таблицы данных для дублирования."
+            Application.StatusBar = "Select a cell inside the data table to duplicate."
         End If
     Else
-        Application.StatusBar = "Выберите одну ячейку в таблице для дублирования записи."
+        Application.StatusBar = "Select a single cell in the table to duplicate the record."
     End If
     
     Exit Sub
     
 DuplicateError:
-    Application.StatusBar = "Ошибка дублирования записи: " & Err.description
+    Application.StatusBar = "Error duplicating record: " & Err.description
 End Sub
 
-' ОСТАВЛЕНО УВЕДОМЛЕНИЕ: Выполнение дублирования записи
+' NOTIFICATION KEPT: Perform record duplication
 Private Sub PerformDuplication(sourceRowNumber As Long)
     Dim newRow As ListRow
     Dim sourceRowIndex As Long
@@ -679,56 +677,56 @@ Private Sub PerformDuplication(sourceRowNumber As Long)
     
     On Error GoTo PerformDuplicationError
     
-    ' Добавляем новую строку в таблицу
+    ' Add new row to table
     Set newRow = tblVhIsh.ListRows.Add
     newRowIndex = newRow.Index
     sourceRowIndex = sourceRowNumber
     
-    ' Копируем данные из исходной строки, исключая определенные поля
+    ' Copy data from source row, excluding specific fields
     For i = 1 To tblVhIsh.ListColumns.Count
         Select Case i
-            Case 1  ' № П/П - устанавливаем новый номер
+            Case 1  ' Seq No - set new number
                 tblVhIsh.DataBodyRange.Cells(newRowIndex, i).value = newRowIndex
                 
-            Case 5  ' txtNomerDoc - НЕ копируем (номер документа)
+            Case 5  ' txtNomerDoc - DO NOT copy (document number)
                 tblVhIsh.DataBodyRange.Cells(newRowIndex, i).value = ""
                 
-            Case 6  ' txtSummaDoc - НЕ копируем (сумма документа)
+            Case 6  ' txtSummaDoc - DO NOT copy (document amount)
                 tblVhIsh.DataBodyRange.Cells(newRowIndex, i).value = 0
                 
-            Case 20 ' txtNaryadInfo - НЕ копируем (информация о наряде)
+            Case 20 ' txtNaryadInfo - DO NOT copy (order info)
                 tblVhIsh.DataBodyRange.Cells(newRowIndex, i).value = ""
                 
-            Case Else ' Все остальные поля - копируем
+            Case Else ' All other fields - copy
                 tblVhIsh.DataBodyRange.Cells(newRowIndex, i).value = _
                     tblVhIsh.DataBodyRange.Cells(sourceRowIndex, i).value
         End Select
     Next i
     
-    ' ОСТАВЛЕНО: Уведомление об успешном дублировании (основная функциональность)
-    MsgBox "Запись №" & sourceRowNumber & " успешно продублирована!" & vbCrLf & _
-           "Новая запись: №" & newRowIndex & vbCrLf & vbCrLf & _
-           "Обратите внимание:" & vbCrLf & _
-           "• Номер документа не скопирован (требует заполнения)" & vbCrLf & _
-           "• Сумма документа обнулена (требует заполнения)" & vbCrLf & _
-           "• Информация о наряде не скопирована", _
-           vbInformation, "Дублирование завершено"
+    ' KEPT: Successful duplication notification (core functionality)
+    MsgBox "Record No." & sourceRowNumber & " successfully duplicated!" & vbCrLf & _
+           "New record: No." & newRowIndex & vbCrLf & vbCrLf & _
+           "Please note:" & vbCrLf & _
+           "- Document number not copied (requires filling)" & vbCrLf & _
+           "- Document amount reset to zero (requires filling)" & vbCrLf & _
+           "- Order info not copied", _
+           vbInformation, "Duplication Completed"
     
-    ' Переходим к новой записи
+    ' Go to new record
     Dim newCellRange As Range
     Set newCellRange = tblVhIsh.DataBodyRange.Cells(newRowIndex, 1)
     newCellRange.Select
     
-    ' Обновляем статус-бар
-    Application.StatusBar = "Создана дубликат записи №" & newRowIndex & " на основе записи №" & sourceRowNumber
+    ' Update status bar
+    Application.StatusBar = "Created duplicate of record No." & newRowIndex & " based on record No." & sourceRowNumber
     
     Exit Sub
     
 PerformDuplicationError:
-    ' ОСТАВЛЕНО: Критические ошибки показываем
-    MsgBox "Ошибка выполнения дублирования: " & Err.description, vbCritical, "Критическая ошибка"
+    ' KEPT: Critical errors are shown
+    MsgBox "Error performing duplication: " & Err.description, vbCritical, "Critical Error"
     
-    ' Пытаемся удалить созданную строку при ошибке
+    ' Try to delete created row on error
     On Error Resume Next
     If Not newRow Is Nothing Then
         newRow.Delete
@@ -736,7 +734,7 @@ PerformDuplicationError:
     On Error GoTo 0
 End Sub
 
-' Обработка щелчка по ячейке из события листа
+' Handle cell click from worksheet event
 Public Sub ProcessCellClick(Target As Range)
     Dim intersectRange As Range
     Dim RowNumber As Long
@@ -745,49 +743,49 @@ Public Sub ProcessCellClick(Target As Range)
     
     On Error GoTo ProcessError
     
-    ' Проверяем активность системы
+    ' Check system activity
     If Not isSystemActive Then Exit Sub
     
-    ' Проверяем существование объектов
+    ' Check object existence
     If wsData Is Nothing Or tblVhIsh Is Nothing Then Exit Sub
     
-    ' Проверяем, что таблица не пуста
+    ' Check that table is not empty
     If tblVhIsh.DataBodyRange Is Nothing Then Exit Sub
     
-    ' Проверяем, что щелчок в области данных таблицы
+    ' Check that click is in table data area
     Set intersectRange = Intersect(Target, tblVhIsh.DataBodyRange)
     
     If Not intersectRange Is Nothing And Target.Cells.Count = 1 Then
-        ' Получаем координаты в таблице
+        ' Get coordinates in table
         RowNumber = intersectRange.Row - tblVhIsh.DataBodyRange.Row + 1
         columnNumber = intersectRange.Column - tblVhIsh.DataBodyRange.Column + 1
         fieldToActivate = GetFieldNameByColumn(columnNumber)
         
-        ' Обновляем отслеживание выделения
+        ' Update selection tracking
         lastSelectedRow = RowNumber
         lastSelectedColumn = columnNumber
         
-        ' Обновляем статус-бар с информацией о горячих клавишах
-        Application.StatusBar = "Строка " & RowNumber & ", столбец " & columnNumber & _
-                               " | Ctrl+Shift+M: меню | Ctrl+E: редактировать | Ctrl+D: дублировать | " & _
+        ' Update status bar with hotkeys info
+        Application.StatusBar = "Row " & RowNumber & ", Col " & columnNumber & _
+                               " | Ctrl+Shift+M: menu | Ctrl+E: edit | Ctrl+D: duplicate | " & _
                                GetFieldDisplayName(fieldToActivate)
     Else
-        ' Сбрасываем если вышли из таблицы
+        ' Reset if we exited table
         If lastSelectedRow <> 0 Then
             lastSelectedRow = 0
             lastSelectedColumn = 0
-            Application.StatusBar = "Система интерактивных форм активна (Excel 2021). Используйте горячие клавиши."
+            Application.StatusBar = "Interactive forms system is active (Excel 2021). Use hotkeys."
         End If
     End If
     
     Exit Sub
     
 ProcessError:
-    ' Логируем ошибку но не прерываем работу
-    Debug.Print "Ошибка обработки щелчка: " & Err.description
+    ' Log error but do not interrupt
+    Debug.Print "Error processing cell click: " & Err.description
 End Sub
 
-' Открытие формы для конкретной ячейки (из двойного щелчка)
+' Open form for specific cell (from double click)
 Public Sub OpenFormForSpecificCell(Target As Range)
     Dim intersectRange As Range
     Dim RowNumber As Long
@@ -796,43 +794,42 @@ Public Sub OpenFormForSpecificCell(Target As Range)
     
     On Error GoTo OpenSpecificError
     
-    ' Проверяем активность системы (статус-бар)
+    ' Check system activity (status bar)
     If Not isSystemActive Then
-        Application.StatusBar = "Система интерактивных форм не активна!"
+        Application.StatusBar = "Interactive forms system is not active!"
         Exit Sub
     End If
     
-    ' Проверяем существование объектов
+    ' Check object existence
     If wsData Is Nothing Or tblVhIsh Is Nothing Then
-        Application.StatusBar = "Ошибка: объекты системы не инициализированы!"
+        Application.StatusBar = "Error: system objects not initialized!"
         Exit Sub
     End If
     
-    ' Проверяем, что таблица не пуста
+    ' Check that table is not empty
     If tblVhIsh.DataBodyRange Is Nothing Then
-        Application.StatusBar = "Таблица пуста! Добавьте данные для работы с формой."
+        Application.StatusBar = "Table is empty! Add data to work with the form."
         Exit Sub
     End If
     
-    ' Проверяем, что щелчок в области данных таблицы
+    ' Check that click is in table data area
     Set intersectRange = Intersect(Target, tblVhIsh.DataBodyRange)
     
     If Not intersectRange Is Nothing And Target.Cells.Count = 1 Then
-        ' Получаем координаты в таблице
+        ' Get coordinates in table
         RowNumber = intersectRange.Row - tblVhIsh.DataBodyRange.Row + 1
         columnNumber = intersectRange.Column - tblVhIsh.DataBodyRange.Column + 1
         fieldToActivate = GetFieldNameByColumn(columnNumber)
         
-        ' Открываем форму
+        ' Open form
         Call OpenFormWithRecord(RowNumber, fieldToActivate, columnNumber)
     Else
-        Application.StatusBar = "Выберите ячейку внутри таблицы данных."
+        Application.StatusBar = "Select a cell inside the data table."
     End If
     
     Exit Sub
     
 OpenSpecificError:
-    Application.StatusBar = "Ошибка открытия формы: " & Err.description
+    Application.StatusBar = "Error opening form: " & Err.description
 End Sub
-
 

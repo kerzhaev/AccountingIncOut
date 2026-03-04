@@ -1,11 +1,11 @@
 Attribute VB_Name = "DataManager"
 '==============================================
-' МОДУЛЬ УПРАВЛЕНИЯ ДАННЫМИ ТАБЛИЦЫ - DataManager
-' Назначение: Функции для работы с таблицей ВходящиеИсходящие
-' Состояние: ДОБАВЛЕНА ФУНКЦИЯ ДУБЛИРОВАНИЯ ЗАПИСЕЙ С ИСКЛЮЧЕНИЯМИ ПОЛЕЙ
-' Версия: 2.0.0
-' Дата: 09.08.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' TABLE DATA MANAGEMENT MODULE - DataManager
+' Purpose: Functions for working with the TableIncOut table
+' State: ADDED RECORD DUPLICATION FUNCTION WITH FIELD EXCLUSIONS
+' Version: 2.0.0
+' Date: 09.08.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
@@ -19,111 +19,111 @@ Public Sub SaveCurrentRecord()
     Dim tblData As ListObject
     Dim newRow As ListRow
     
-    ' Валидация обязательных полей
+    ' Validate required fields
     If Not ValidateRequiredFields() Then
         Exit Sub
     End If
     
-    ' Валидация дат
+    ' Validate dates
     If Not ValidateDates() Then
         Exit Sub
     End If
     
     On Error GoTo ErrorHandler
     
-    ' КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Правильное название листа
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    ' CRITICAL FIX: Correct sheet name
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     If IsNewRecord Then
-        ' Добавление новой записи
+        ' Add new record
         Set newRow = tblData.ListRows.Add
         CurrentRecordRow = newRow.Index
         
-        ' Автозаполнение номера П/П
+        ' Auto-fill sequence number
         UserFormVhIsh.txtNomerPP.Text = CStr(tblData.ListRows.Count)
     End If
     
-    ' Сохранение данных в таблицу
+    ' Save data to table
     Call WriteFormDataToTable(tblData, CurrentRecordRow)
     
-    ' Обновление статуса
+    ' Update status
     IsNewRecord = False
     FormDataChanged = False
-    UserFormVhIsh.lblStatusBar.Caption = "Запись сохранена успешно"
+    UserFormVhIsh.lblStatusBar.Caption = "Record saved successfully"
     
     Exit Sub
     
 ErrorHandler:
-    MsgBox "Ошибка при сохранении данных: " & Err.description, vbCritical, "Ошибка сохранения"
-    UserFormVhIsh.lblStatusBar.Caption = "Ошибка сохранения данных"
+    MsgBox "Error saving data: " & Err.description, vbCritical, "Save Error"
+    UserFormVhIsh.lblStatusBar.Caption = "Error saving data"
 End Sub
 
 Public Function ValidateRequiredFields() As Boolean
     ValidateRequiredFields = True
     
-    ' Проверка обязательных полей
+    ' Check required fields
     With UserFormVhIsh
-        ' Используем Value для ComboBox
-        ' Служба
+        ' Use Value for ComboBox
+        ' Service
         If Trim(CStr(.cmbSlujba.value)) = "" Then
-            MsgBox "Поле 'Служба' обязательно для заполнения!", vbExclamation, "Проверка данных"
+            MsgBox "Field 'Service' is required!", vbExclamation, "Data Validation"
             .cmbSlujba.SetFocus
             ValidateRequiredFields = False
             Exit Function
         End If
         
-        ' Вид документа (ComboBox) - 4-й столбец
+        ' Document Type (ComboBox) - 4th column
         If Trim(CStr(.cmbVidDoc.value)) = "" Then
-            MsgBox "Поле 'Тип документа' обязательно для заполнения!", vbExclamation, "Проверка данных"
+            MsgBox "Field 'Document Type' is required!", vbExclamation, "Data Validation"
             .cmbVidDoc.SetFocus
             ValidateRequiredFields = False
             Exit Function
         End If
         
-        ' Вид документа (Вх./Исх.) - 3-й столбец - cmbVidDocumenta
+        ' Document Group (Inc./Out.) - 3rd column - cmbVidDocumenta
         If Trim(CStr(.cmbVidDocumenta.value)) = "" Then
-            MsgBox "Поле 'Вид документа (Вх./Исх.)' обязательно для заполнения!", vbExclamation, "Проверка данных"
+            MsgBox "Field 'Document Group (Inc./Out.)' is required!", vbExclamation, "Data Validation"
             .cmbVidDocumenta.SetFocus
             ValidateRequiredFields = False
             Exit Function
         End If
         
-        ' Номер документа
+        ' Document Number
         If Trim(.txtNomerDoc.Text) = "" Then
-            MsgBox "Поле 'Номер документа' обязательно для заполнения!", vbExclamation, "Проверка данных"
+            MsgBox "Field 'Document Number' is required!", vbExclamation, "Data Validation"
             .txtNomerDoc.SetFocus
             ValidateRequiredFields = False
             Exit Function
         End If
         
-        ' Сумма документа
+        ' Document Amount
         If Trim(.txtSummaDoc.Text) = "" Then
-            MsgBox "Поле 'Сумма документа' обязательно для заполнения!", vbExclamation, "Проверка данных"
+            MsgBox "Field 'Document Amount' is required!", vbExclamation, "Data Validation"
             .txtSummaDoc.SetFocus
             ValidateRequiredFields = False
             Exit Function
         End If
         
-        ' Проверка, что сумма - число
+        ' Check that amount is numeric
         If Not IsNumeric(.txtSummaDoc.Text) Then
-            MsgBox "Поле 'Сумма документа' должно содержать числовое значение!", vbExclamation, "Проверка данных"
+            MsgBox "Field 'Document Amount' must contain a numeric value!", vbExclamation, "Data Validation"
             .txtSummaDoc.SetFocus
             ValidateRequiredFields = False
             Exit Function
         End If
         
-        ' Вх.ФРП/Исх.ФРП
+        ' Inc.FRP/Out.FRP
         If Trim(.txtVhFRP.Text) = "" Then
-            MsgBox "Поле 'Вх.ФРП/Исх.ФРП' обязательно для заполнения!", vbExclamation, "Проверка данных"
+            MsgBox "Field 'Inc.FRP/Out.FRP' is required!", vbExclamation, "Data Validation"
             .txtVhFRP.SetFocus
             ValidateRequiredFields = False
             Exit Function
         End If
         
-        ' Дата Вх.ФРП/Исх.ФРП
+        ' Date Inc.FRP/Out.FRP
         If Trim(.txtDataVhFRP.Text) = "" Then
-            MsgBox "Поле 'Дата Вх.ФРП/Исх.ФРП' обязательно для заполнения!", vbExclamation, "Проверка данных"
+            MsgBox "Field 'Date Inc.FRP/Out.FRP' is required!", vbExclamation, "Data Validation"
             .txtDataVhFRP.SetFocus
             ValidateRequiredFields = False
             Exit Function
@@ -135,10 +135,10 @@ Public Function ValidateDates() As Boolean
     ValidateDates = True
     
     With UserFormVhIsh
-        ' Проверка всех полей дат
+        ' Check all date fields
         If Trim(.txtDataVhFRP.Text) <> "" Then
             If Not CommonUtilities.IsValidDateFormat(.txtDataVhFRP.Text) Then
-                MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата Вх.ФРП/Исх.ФРП'", vbExclamation, "Проверка данных"
+                MsgBox "Enter a valid date in DD.MM.YY format in the 'Date Inc.FRP/Out.FRP' field", vbExclamation, "Data Validation"
                 .txtDataVhFRP.SetFocus
                 ValidateDates = False
                 Exit Function
@@ -147,7 +147,7 @@ Public Function ValidateDates() As Boolean
         
         If Trim(.txtDataPeredachi.Text) <> "" Then
             If Not CommonUtilities.IsValidDateFormat(.txtDataPeredachi.Text) Then
-                MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата передачи исполнителю'", vbExclamation, "Проверка данных"
+                MsgBox "Enter a valid date in DD.MM.YY format in the 'Date Transferred to Executor' field", vbExclamation, "Data Validation"
                 .txtDataPeredachi.SetFocus
                 ValidateDates = False
                 Exit Function
@@ -156,7 +156,7 @@ Public Function ValidateDates() As Boolean
         
         If Trim(.txtDataIshVSlujbu.Text) <> "" Then
             If Not CommonUtilities.IsValidDateFormat(.txtDataIshVSlujbu.Text) Then
-                MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата исх. в службу'", vbExclamation, "Проверка данных"
+                MsgBox "Enter a valid date in DD.MM.YY format in the 'Out. Date to Service' field", vbExclamation, "Data Validation"
                 .txtDataIshVSlujbu.SetFocus
                 ValidateDates = False
                 Exit Function
@@ -165,7 +165,7 @@ Public Function ValidateDates() As Boolean
         
         If Trim(.txtDataVozvrata.Text) <> "" Then
             If Not CommonUtilities.IsValidDateFormat(.txtDataVozvrata.Text) Then
-                MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата возврата со службы'", vbExclamation, "Проверка данных"
+                MsgBox "Enter a valid date in DD.MM.YY format in the 'Return Date from Service' field", vbExclamation, "Data Validation"
                 .txtDataVozvrata.SetFocus
                 ValidateDates = False
                 Exit Function
@@ -174,7 +174,7 @@ Public Function ValidateDates() As Boolean
         
         If Trim(.txtDataIshKonvert.Text) <> "" Then
             If Not CommonUtilities.IsValidDateFormat(.txtDataIshKonvert.Text) Then
-                MsgBox "Введите корректную дату в формате ДД.ММ.ГГ в поле 'Дата исх. конверт'", vbExclamation, "Проверка данных"
+                MsgBox "Enter a valid date in DD.MM.YY format in the 'Out. Envelope Date' field", vbExclamation, "Data Validation"
                 .txtDataIshKonvert.SetFocus
                 ValidateDates = False
                 Exit Function
@@ -183,21 +183,21 @@ Public Function ValidateDates() As Boolean
     End With
 End Function
 
-' Функция IsValidDateFormat перенесена в CommonUtilities.bas
+' Function IsValidDateFormat moved to CommonUtilities.bas
 
 Public Sub WriteFormDataToTable(tbl As ListObject, RowIndex As Long)
     On Error GoTo WriteError
     
     With UserFormVhIsh
-        tbl.DataBodyRange.Cells(RowIndex, 1).value = RowIndex ' Номер записи = номер строки
+        tbl.DataBodyRange.Cells(RowIndex, 1).value = RowIndex ' Record number = row number
         tbl.DataBodyRange.Cells(RowIndex, 2).value = .cmbSlujba.value
-        ' cmbVidDocumenta идет в 3-й столбец
+        ' cmbVidDocumenta goes to 3rd column
         tbl.DataBodyRange.Cells(RowIndex, 3).value = .cmbVidDocumenta.value
-        ' cmbVidDoc идет в 4-й столбец
+        ' cmbVidDoc goes to 4th column
         tbl.DataBodyRange.Cells(RowIndex, 4).value = .cmbVidDoc.value
         tbl.DataBodyRange.Cells(RowIndex, 5).value = .txtNomerDoc.Text
         
-        ' Безопасное преобразование суммы
+        ' Safe amount conversion
         If IsNumeric(.txtSummaDoc.Text) Then
             tbl.DataBodyRange.Cells(RowIndex, 6).value = CDbl(.txtSummaDoc.Text)
         Else
@@ -206,7 +206,7 @@ Public Sub WriteFormDataToTable(tbl As ListObject, RowIndex As Long)
         
         tbl.DataBodyRange.Cells(RowIndex, 7).value = .txtVhFRP.Text
         
-        ' Безопасная запись даты
+        ' Safe date writing
         Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 8), .txtDataVhFRP.Text)
         
         tbl.DataBodyRange.Cells(RowIndex, 9).value = .cmbOtKogoPostupil.value
@@ -229,17 +229,17 @@ Public Sub WriteFormDataToTable(tbl As ListObject, RowIndex As Long)
         tbl.DataBodyRange.Cells(RowIndex, 18).value = .txtOtmetkaIspolnenie.Text
         tbl.DataBodyRange.Cells(RowIndex, 19).value = .cmbStatusPodtverjdenie.value
         
-        ' Информация о наряде - 20-й столбец
+        ' Order Info - 20th column
         tbl.DataBodyRange.Cells(RowIndex, 20).value = .txtNaryadInfo.Text
     End With
     
     Exit Sub
     
 WriteError:
-    MsgBox "Ошибка записи данных в таблицу: " & Err.description, vbCritical, "Ошибка"
+    MsgBox "Error writing data to table: " & Err.description, vbCritical, "Error"
 End Sub
 
-' Функция WriteDateToCell перенесена в CommonUtilities.bas
+' Function WriteDateToCell moved to CommonUtilities.bas
 
 Public Sub MarkFormAsChanged()
     FormDataChanged = True
@@ -258,7 +258,7 @@ Public Sub CancelChanges()
     End If
     
     FormDataChanged = False
-    UserFormVhIsh.lblStatusBar.Caption = "Изменения отменены"
+    UserFormVhIsh.lblStatusBar.Caption = "Changes cancelled"
 End Sub
 
 Public Sub ClearForm()
@@ -266,15 +266,15 @@ Public Sub ClearForm()
     CurrentRecordRow = 0
     FormDataChanged = False
     
-    ' Устанавливаем следующий номер П/П для новой записи
+    ' Set next sequence number for new record
     Dim wsData As Worksheet
     Dim tblData As ListObject
     Dim nextNumber As Long
     
     On Error Resume Next
-    ' КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Правильное название листа
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    ' CRITICAL FIX: Correct sheet name
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     If Not wsData Is Nothing And Not tblData Is Nothing Then
         nextNumber = tblData.ListRows.Count + 1
@@ -284,8 +284,8 @@ Public Sub ClearForm()
     On Error GoTo 0
     
     With UserFormVhIsh
-        ' Очистка всех полей
-        .txtNomerPP.Text = CStr(nextNumber) ' Устанавливаем следующий номер
+        ' Clear all fields
+        .txtNomerPP.Text = CStr(nextNumber) ' Set next number
         .cmbVidDocumenta.value = ""
         .txtNomerDoc.Text = ""
         .txtSummaDoc.Text = ""
@@ -300,17 +300,17 @@ Public Sub ClearForm()
         .txtNomerIshKonvert.Text = ""
         .txtDataIshKonvert.Text = ""
         .txtOtmetkaIspolnenie.Text = ""
-        .cmbStatusPodtverjdenie.listIndex = 0 ' Устанавливаем пустое значение
+        .cmbStatusPodtverjdenie.ListIndex = 0 ' Set empty value
         
-        ' Очистка остальных комбобоксов
+        ' Clear other comboboxes
         .cmbSlujba.value = ""
         .cmbVidDoc.value = ""
         .cmbIspolnitel.value = ""
         
-        ' Очистка поля наряда
+        ' Clear order info field
         .txtNaryadInfo.Text = ""
         
-        ' Очистка поиска
+        ' Clear search
         .txtSearch.Text = ""
         .lstSearchResults.Clear
         .lstSearchResults.Visible = False
@@ -319,7 +319,7 @@ Public Sub ClearForm()
     Call UpdateStatusBar
 End Sub
 
-' НОВАЯ ФУНКЦИЯ: Дублирование записи с исключением определенных полей
+' NEW FUNCTION: Duplicate record excluding certain fields
 Public Function DuplicateRecord(sourceRowNumber As Long) As Long
     Dim wsData As Worksheet
     Dim tblData As ListObject
@@ -329,52 +329,52 @@ Public Function DuplicateRecord(sourceRowNumber As Long) As Long
     
     On Error GoTo DuplicateError
     
-    ' Получаем ссылки на таблицу
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    ' Get references to table
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
-    ' Проверяем корректность исходной строки
+    ' Check source row correctness
     If sourceRowNumber < 1 Or sourceRowNumber > tblData.ListRows.Count Then
-        MsgBox "Неверный номер записи для дублирования: " & sourceRowNumber, vbExclamation, "Ошибка"
+        MsgBox "Invalid record number for duplication: " & sourceRowNumber, vbExclamation, "Error"
         DuplicateRecord = 0
         Exit Function
     End If
     
-    ' Добавляем новую строку
+    ' Add new row
     Set newRow = tblData.ListRows.Add
     newRowIndex = newRow.Index
     
-    ' Копируем данные из исходной строки, исключая определенные поля
+    ' Copy data from source row, excluding specific fields
     For i = 1 To tblData.ListColumns.Count
         Select Case i
-            Case 1  ' № П/П - устанавливаем новый номер
+            Case 1  ' Seq No - set new number
                 tblData.DataBodyRange.Cells(newRowIndex, i).value = newRowIndex
                 
-            Case 5  ' txtNomerDoc - НЕ копируем (номер документа)
+            Case 5  ' txtNomerDoc - DO NOT copy (document number)
                 tblData.DataBodyRange.Cells(newRowIndex, i).value = ""
                 
-            Case 6  ' txtSummaDoc - НЕ копируем (сумма документа)
+            Case 6  ' txtSummaDoc - DO NOT copy (document amount)
                 tblData.DataBodyRange.Cells(newRowIndex, i).value = 0
                 
-            Case 20 ' txtNaryadInfo - НЕ копируем (информация о наряде)
+            Case 20 ' txtNaryadInfo - DO NOT copy (order info)
                 tblData.DataBodyRange.Cells(newRowIndex, i).value = ""
                 
-            Case Else ' Все остальные поля - копируем
+            Case Else ' All other fields - copy
                 tblData.DataBodyRange.Cells(newRowIndex, i).value = _
                     tblData.DataBodyRange.Cells(sourceRowNumber, i).value
         End Select
     Next i
     
-    ' Возвращаем номер новой записи
+    ' Return new record number
     DuplicateRecord = newRowIndex
     
     Exit Function
     
 DuplicateError:
-    MsgBox "Ошибка дублирования записи: " & Err.description, vbCritical, "Критическая ошибка"
+    MsgBox "Error duplicating record: " & Err.description, vbCritical, "Critical Error"
     DuplicateRecord = 0
     
-    ' Пытаемся удалить созданную строку при ошибке
+    ' Try to delete created row on error
     On Error Resume Next
     If Not newRow Is Nothing Then
         newRow.Delete
@@ -382,7 +382,7 @@ DuplicateError:
     On Error GoTo 0
 End Function
 
-' НОВАЯ ФУНКЦИЯ: Получение информации о записи для дублирования
+' NEW FUNCTION: Get record information for duplication
 Public Function GetRecordInfo(RowNumber As Long) As String
     Dim wsData As Worksheet
     Dim tblData As ListObject
@@ -390,45 +390,45 @@ Public Function GetRecordInfo(RowNumber As Long) As String
     
     On Error GoTo InfoError
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
     If RowNumber < 1 Or RowNumber > tblData.ListRows.Count Then
-        GetRecordInfo = "Неверный номер записи"
+        GetRecordInfo = "Invalid record number"
         Exit Function
     End If
     
-    ' Формируем информационную строку
-    recordInfo = "Запись №" & RowNumber & ": "
-    recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(RowNumber, 2).value) & " - " ' Служба
-    recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(RowNumber, 3).value) & " " ' Вид документа
-    recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(RowNumber, 4).value) & " " ' Тип документа
-    recordInfo = recordInfo & "№" & CStr(tblData.DataBodyRange.Cells(RowNumber, 5).value) ' Номер документа
+    ' Build information string
+    recordInfo = "Record No." & RowNumber & ": "
+    recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(RowNumber, 2).value) & " - " ' Service
+    recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(RowNumber, 3).value) & " " ' Document Group
+    recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(RowNumber, 4).value) & " " ' Document Type
+    recordInfo = recordInfo & "No." & CStr(tblData.DataBodyRange.Cells(RowNumber, 5).value) ' Document Number
     
     GetRecordInfo = recordInfo
     
     Exit Function
     
 InfoError:
-    GetRecordInfo = "Ошибка получения информации о записи"
+    GetRecordInfo = "Error getting record information"
 End Function
 
 Public Sub SetupGroupBoxes()
-    ' Функция-заглушка для настройки группировки
-    ' Будет реализована при создании интерфейса формы
+    ' Dummy function for grouping setup
+    ' Will be implemented upon form UI creation
 End Sub
 
-' НОВАЯ ФУНКЦИЯ: Проверка возможности дублирования записи
+' NEW FUNCTION: Check if record can be duplicated
 Public Function CanDuplicateRecord(RowNumber As Long) As Boolean
     Dim wsData As Worksheet
     Dim tblData As ListObject
     
     On Error GoTo CannotDuplicate
     
-    Set wsData = ThisWorkbook.Worksheets("ВхИсх")
-    Set tblData = wsData.ListObjects("ВходящиеИсходящие")
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
     
-    ' Проверяем существование таблицы и записи
+    ' Check if table and record exist
     If tblData Is Nothing Then
         CanDuplicateRecord = False
         Exit Function
@@ -450,5 +450,4 @@ Public Function CanDuplicateRecord(RowNumber As Long) As Boolean
 CannotDuplicate:
     CanDuplicateRecord = False
 End Function
-
 

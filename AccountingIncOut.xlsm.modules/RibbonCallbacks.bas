@@ -1,28 +1,28 @@
 Attribute VB_Name = "RibbonCallbacks"
 '==============================================
-' МОДУЛЬ ОБРАБОТЧИКОВ ЛЕНТЫ - RibbonCallbacks
-' Назначение: Обработка команд ленты Office для системы УчётВхИсх
-' Состояние: ЭТАП 1 - БАЗОВАЯ ИНФРАСТРУКТУРА
-' Версия: 1.1.0
-' Дата: 05.09.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' RIBBON CALLBACKS MODULE - RibbonCallbacks
+' Purpose: Handling Office ribbon commands for IncOut system
+' State: STAGE 1 - BASIC INFRASTRUCTURE
+' Version: 1.1.0
+' Date: 05.09.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
 
 Public ribMain As IRibbonUI
 
-' Callback для инициализации ленты
+' Callback for ribbon initialization
 Public Sub RibbonOnLoad(ribbon As IRibbonUI)
     Set ribMain = ribbon
-    Call SystemLogger.LogOperation("RibbonLoad", "Лента УчётВхИсх загружена", "SUCCESS", 0)
+    Call SystemLogger.LogOperation("RibbonLoad", "IncOut ribbon loaded", "SUCCESS", 0)
 End Sub
 
-' ГРУППА: Интеграция с 1С
+' GROUP: 1C Integration
 '==============================================
 
-' Команда: Массовая обработка (существующая функция)
-' ИСПРАВЛЕННАЯ версия обработчика массовой обработки
+' Command: Mass processing (existing function)
+' FIXED version of mass processing handler
 Public Sub btnMassProcess_Click(control As IRibbonControl)
     Dim StartTime As Double
     
@@ -30,92 +30,91 @@ Public Sub btnMassProcess_Click(control As IRibbonControl)
     
     StartTime = Timer
     
-    ' Логируем начало операции (если модуль SystemLogger существует)
+    ' Log operation start (if SystemLogger module exists)
     On Error Resume Next
-    Call SystemLogger.LogOperation("MassProcess", "Начало массовой обработки", "START", StartTime)
+    Call SystemLogger.LogOperation("MassProcess", "Mass processing started", "START", StartTime)
     On Error GoTo ProcessError
     
-    ' Создаем резервную копию (если модуль SystemBackup существует)
+    ' Create backup (if SystemBackup module exists)
     On Error Resume Next
     If Not SystemBackup.CreateBackup("MassProcess") Then
-        MsgBox "Предупреждение: Не удалось создать резервную копию." & vbCrLf & _
-               "Операция будет выполнена без резервирования.", vbExclamation, "Предупреждение"
+        MsgBox "Warning: Failed to create a backup." & vbCrLf & _
+               "The operation will be executed without backup.", vbExclamation, "Warning"
     End If
     On Error GoTo ProcessError
     
-    ' Показываем прогресс-бар (если модуль ProgressManager существует)
+    ' Show progress bar (if ProgressManager module exists)
     On Error Resume Next
-    Call ProgressManager.ShowProgress("Массовая обработка записей", True)
+    Call ProgressManager.ShowProgress("Mass processing of records", True)
     On Error GoTo ProcessError
     
-    ' ОСНОВНОЙ ВЫЗОВ - вызываем существующую функцию
+    ' MAIN CALL - execute existing function
     Call ProvodkaIntegrationModule.MassProcessWithFileSelection
     
-    ' Скрываем прогресс-бар
+    ' Hide progress bar
     On Error Resume Next
     Call ProgressManager.HideProgress
     On Error GoTo ProcessError
     
-    ' Логируем успешное завершение
+    ' Log successful completion
     On Error Resume Next
-    Call SystemLogger.LogOperation("MassProcess", "Массовая обработка завершена", "SUCCESS", Timer - StartTime)
+    Call SystemLogger.LogOperation("MassProcess", "Mass processing completed", "SUCCESS", Timer - StartTime)
     On Error GoTo ProcessError
     
     Exit Sub
     
 ProcessError:
-    ' Скрываем прогресс-бар при ошибке
+    ' Hide progress bar on error
     On Error Resume Next
     Call ProgressManager.HideProgress
     On Error GoTo 0
     
-    ' Детальная диагностика ошибки
+    ' Detailed error diagnostics
     Dim errorMsg As String
-    errorMsg = "Ошибка массовой обработки:" & vbCrLf & vbCrLf & _
-               "Код ошибки: " & Err.Number & vbCrLf & _
-               "Описание: " & Err.description & vbCrLf & _
-               "Источник: " & Err.Source
+    errorMsg = "Mass processing error:" & vbCrLf & vbCrLf & _
+               "Error code: " & Err.Number & vbCrLf & _
+               "Description: " & Err.description & vbCrLf & _
+               "Source: " & Err.Source
     
-    ' Логируем ошибку
+    ' Log error
     On Error Resume Next
-    Call SystemLogger.LogOperation("MassProcess", "ОШИБКА: " & Err.description, "ERROR", Timer - StartTime)
+    Call SystemLogger.LogOperation("MassProcess", "ERROR: " & Err.description, "ERROR", Timer - StartTime)
     On Error GoTo 0
     
-    ' Показываем детальную ошибку пользователю
-    MsgBox errorMsg, vbCritical, "Критическая ошибка массовой обработки"
+    ' Show detailed error to user
+    MsgBox errorMsg, vbCritical, "Critical Mass Processing Error"
 End Sub
 
-
-' Команда: Статистика интеграции с 1С
+' Command: 1C Integration Statistics
 Public Sub btnStatistics_Click(control As IRibbonControl)
     Call ProvodkaIntegrationModule.ShowMatchingStatistics
-    Call SystemLogger.LogOperation("Statistics", "Показана статистика интеграции", "INFO", 0)
+    Call SystemLogger.LogOperation("Statistics", "Integration statistics shown", "INFO", 0)
 End Sub
 
-' Команда: Очистка отметок об исполнении
+' Command: Clear execution marks
 Public Sub btnClearMarks_Click(control As IRibbonControl)
     On Error GoTo ClearError
     
-    ' Создаем резервную копию перед очисткой
+    ' Create backup before clearing
     If Not SystemBackup.CreateBackup("ClearMarks") Then
-        MsgBox "Не удалось создать резервную копию. Операция отменена.", vbCritical, "Ошибка резервирования"
+        MsgBox "Failed to create a backup. Operation cancelled.", vbCritical, "Backup Error"
         Exit Sub
     End If
     
     Call ProvodkaIntegrationModule.ClearAllProvodkaMarks
-    Call SystemLogger.LogOperation("ClearMarks", "Очищены отметки об исполнении", "SUCCESS", 0)
+    Call SystemLogger.LogOperation("ClearMarks", "Execution marks cleared", "SUCCESS", 0)
     
     Exit Sub
     
 ClearError:
-    Call SystemLogger.LogOperation("ClearMarks", "Ошибка очистки: " & Err.description, "ERROR", 0)
-    MsgBox "Ошибка очистки отметок: " & Err.description, vbCritical, "Ошибка"
+    Call SystemLogger.LogOperation("ClearMarks", "Clear error: " & Err.description, "ERROR", 0)
+    MsgBox "Error clearing marks: " & Err.description, vbCritical, "Error"
 End Sub
 
-' ГРУППА: Анализ доверенностей
+' GROUP: Doverennosti Analysis
 '==============================================
 
-' АКТИВИРОВАННАЯ команда: Сопоставление доверенностей
+' ACTIVATED command: Doverennosti Matching
 Public Sub btnMatchDoverennosti_Click(control As IRibbonControl)
     Dim StartTime As Double
     
@@ -123,27 +122,23 @@ Public Sub btnMatchDoverennosti_Click(control As IRibbonControl)
     
     StartTime = Timer
     
-    ' Логируем начало
-    Call SystemLogger.LogOperation("MatchDoverennosti", "Запуск сопоставления доверенностей", "START", StartTime)
+    ' Log start
+    Call SystemLogger.LogOperation("MatchDoverennosti", "Starting Doverennosti matching", "START", StartTime)
     
-    ' Запускаем мастер-сценарий (мастер-файл + выгрузка периода + операции 1С)
+    ' Run master scenario (master file + period export + 1C operations)
     Call DoverennostMatchingModule.ProcessDoverennostMasterMatching
     
-    ' Логируем завершение
-    Call SystemLogger.LogOperation("MatchDoverennosti", "Сопоставление доверенностей завершено", "SUCCESS", Timer - StartTime)
+    ' Log completion
+    Call SystemLogger.LogOperation("MatchDoverennosti", "Doverennosti matching completed", "SUCCESS", Timer - StartTime)
     
     Exit Sub
     
-   
-    
 MatchError:
-    Call SystemLogger.LogOperation("MatchDoverennosti", "Ошибка: " & Err.description, "ERROR", Timer - StartTime)
-    MsgBox "Ошибка сопоставления доверенностей:" & vbCrLf & Err.description, vbCritical, "Ошибка"
+    Call SystemLogger.LogOperation("MatchDoverennosti", "Error: " & Err.description, "ERROR", Timer - StartTime)
+    MsgBox "Doverennosti matching error:" & vbCrLf & Err.description, vbCritical, "Error"
 End Sub
 
-
-
- ' Команда: Формирование писем по доверенностям v1.1.4
+' Command: Generate Word Letters v1.1.4
 Public Sub btnGenerateWordLetters_Click(control As IRibbonControl)
     Dim StartTime As Double
     
@@ -151,123 +146,118 @@ Public Sub btnGenerateWordLetters_Click(control As IRibbonControl)
     
     StartTime = Timer
     
-    ' Логируем начало операции
+    ' Log start
     On Error Resume Next
-    Call SystemLogger.LogOperation("GenerateLetters", "Начало формирования писем по доверенностям", "START", StartTime)
+    Call SystemLogger.LogOperation("GenerateLetters", "Starting Word letters generation", "START", StartTime)
     On Error GoTo GenerateError
     
-    ' Создаем резервную копию (опционально)
+    ' Create backup (optional)
     On Error Resume Next
     If Not SystemBackup.CreateBackup("GenerateLetters") Then
-        MsgBox "Предупреждение: Не удалось создать резервную копию." & vbCrLf & _
-               "Операция будет выполнена без резервирования.", vbExclamation, "Предупреждение"
+        MsgBox "Warning: Failed to create a backup." & vbCrLf & _
+               "The operation will be executed without backup.", vbExclamation, "Warning"
     End If
     On Error GoTo GenerateError
     
-    ' Показываем прогресс-бар
+    ' Show progress bar
     On Error Resume Next
-    Call ProgressManager.ShowProgress("Формирование писем по доверенностям", True)
+    Call ProgressManager.ShowProgress("Generating Word letters", True)
     On Error GoTo GenerateError
     
-    ' ОСНОВНОЙ ВЫЗОВ - запускаем формирование писем
-    Call GenerateWordLetters
+    ' MAIN CALL - execute letter generation
+    Call ModuleWordLetters.GenerateWordLetters
     
-    ' Скрываем прогресс-бар
+    ' Hide progress bar
     On Error Resume Next
     Call ProgressManager.HideProgress
     On Error GoTo GenerateError
     
-    ' Логируем успешное завершение
+    ' Log successful completion
     On Error Resume Next
-    Call SystemLogger.LogOperation("GenerateLetters", "Формирование писем завершено успешно", "SUCCESS", Timer - StartTime)
+    Call SystemLogger.LogOperation("GenerateLetters", "Letters generation completed successfully", "SUCCESS", Timer - StartTime)
     On Error GoTo GenerateError
     
     Exit Sub
     
 GenerateError:
-    ' Скрываем прогресс-бар при ошибке
+    ' Hide progress bar on error
     On Error Resume Next
     Call ProgressManager.HideProgress
     On Error GoTo 0
     
-    ' Детальная диагностика ошибки
+    ' Detailed error diagnostics
     Dim errorMsg As String
-    errorMsg = "Ошибка формирования писем по доверенностям:" & vbCrLf & vbCrLf & _
-               "Код ошибки: " & Err.Number & vbCrLf & _
-               "Описание: " & Err.description & vbCrLf & _
-               "Источник: " & Err.Source & vbCrLf & vbCrLf & _
-               "Проверьте:" & vbCrLf & _
-               "• Наличие файлов доверенностей и адресов" & vbCrLf & _
-               "• Корректность шаблона Word" & vbCrLf & _
-               "• Права на запись в выбранную папку"
+    errorMsg = "Letter generation error:" & vbCrLf & vbCrLf & _
+               "Error code: " & Err.Number & vbCrLf & _
+               "Description: " & Err.description & vbCrLf & _
+               "Source: " & Err.Source & vbCrLf & vbCrLf & _
+               "Please check:" & vbCrLf & _
+               "- Presence of doverennosti and addresses files" & vbCrLf & _
+               "- Word template correctness" & vbCrLf & _
+               "- Write permissions for the selected folder"
     
-    ' Логируем ошибку
+    ' Log error
     On Error Resume Next
-    Call SystemLogger.LogOperation("GenerateLetters", "ОШИБКА: " & Err.description, "ERROR", Timer - StartTime)
+    Call SystemLogger.LogOperation("GenerateLetters", "ERROR: " & Err.description, "ERROR", Timer - StartTime)
     On Error GoTo 0
     
-    ' Показываем детальную ошибку пользователю
-    MsgBox errorMsg, vbCritical, "Ошибка формирования писем по доверенностям v1.1.4"
+    ' Show detailed error to user
+    MsgBox errorMsg, vbCritical, "Word Letters Generation Error v1.1.4"
 End Sub
 
-    
-    
-
-
-' ГРУППА: Настройки и отчеты
+' GROUP: Settings and Reports
 '==============================================
 
-' Команда: Настройки системы
+' Command: System Settings
 Public Sub btnSettings_Click(control As IRibbonControl)
     Call SystemSettings.ShowSettingsDialog
-    Call SystemLogger.LogOperation("Settings", "Открыты настройки системы", "INFO", 0)
+    Call SystemLogger.LogOperation("Settings", "System settings opened", "INFO", 0)
 End Sub
 
-' Команда: Журнал операций
+' Command: Operation Log
 Public Sub btnShowLog_Click(control As IRibbonControl)
     Call SystemLogger.ShowLogDialog
-    Call SystemLogger.LogOperation("ShowLog", "Открыт журнал операций", "INFO", 0)
+    Call SystemLogger.LogOperation("ShowLog", "Operation log opened", "INFO", 0)
 End Sub
 
-' Команда: Резервные копии
+' Command: Backups
 Public Sub btnBackupManager_Click(control As IRibbonControl)
     Call SystemBackup.ShowBackupDialog
-    Call SystemLogger.LogOperation("BackupManager", "Открыт менеджер резервных копий", "INFO", 0)
+    Call SystemLogger.LogOperation("BackupManager", "Backup manager opened", "INFO", 0)
 End Sub
 
-' Команда: Справка по системе
+' Command: System Help
 Public Sub btnHelp_Click(control As IRibbonControl)
     Call ShowSystemHelp
-    Call SystemLogger.LogOperation("Help", "Открыта справка системы", "INFO", 0)
+    Call SystemLogger.LogOperation("Help", "System help opened", "INFO", 0)
 End Sub
 
-' Показ справки по системе
+' Show system help
 Private Sub ShowSystemHelp()
     Dim helpText As String
     
-    helpText = "СИСТЕМА УЧЁТА ВХОДЯЩИХ И ИСХОДЯЩИХ ДОКУМЕНТОВ" & vbCrLf & vbCrLf & _
-               "?? ИНТЕГРАЦИЯ С 1С:" & vbCrLf & _
-               "• Массовая обработка - автоматическое сопоставление проводок" & vbCrLf & _
-               "• Статистика - отчет по результатам интеграции" & vbCrLf & _
-               "• Очистка отметок - сброс для повторной обработки" & vbCrLf & vbCrLf & _
-               "?? АНАЛИЗ ДОВЕРЕННОСТЕЙ: (Этап 2)" & vbCrLf & _
-               "• Сопоставление доверенностей с операциями" & vbCrLf & _
-               "• Анализ документооборота" & vbCrLf & vbCrLf & _
-               "?? НАСТРОЙКИ И ОТЧЕТЫ:" & vbCrLf & _
-               "• Настройки - конфигурация системы" & vbCrLf & _
-               "• Журнал - лог всех операций" & vbCrLf & _
-               "• Резервные копии - управление бэкапами" & vbCrLf & vbCrLf & _
-               "Версия: 1.0.0 | Дата: 23.08.2025" & vbCrLf & _
-               "Автор: Кержаев Евгений, ФКУ '95 ФЭС' МО РФ"
+    helpText = "INCOMING AND OUTGOING DOCUMENTS SYSTEM" & vbCrLf & vbCrLf & _
+               "[1C INTEGRATION]:" & vbCrLf & _
+               "- Mass processing - automatic matching of postings" & vbCrLf & _
+               "- Statistics - report on integration results" & vbCrLf & _
+               "- Clear marks - reset for reprocessing" & vbCrLf & vbCrLf & _
+               "[DOVERENNOSTI ANALYSIS]: (Stage 2)" & vbCrLf & _
+               "- Matching doverennosti with operations" & vbCrLf & _
+               "- Workflow analysis" & vbCrLf & vbCrLf & _
+               "[SETTINGS AND REPORTS]:" & vbCrLf & _
+               "- Settings - system configuration" & vbCrLf & _
+               "- Log - journal of all operations" & vbCrLf & _
+               "- Backups - backup management" & vbCrLf & vbCrLf & _
+               "Version: 1.0.0 | Date: 23.08.2025" & vbCrLf & _
+               "Author: Evgeniy Kerzhaev, FKU '95 FES' MO RF"
     
-    MsgBox helpText, vbInformation, "Справка по системе УчётВхИсх"
+    MsgBox helpText, vbInformation, "IncOut System Help"
 End Sub
 
-' Команда обновления ленты
+' Command to refresh ribbon
 Public Sub RefreshRibbon()
     If Not ribMain Is Nothing Then
         ribMain.Invalidate
     End If
 End Sub
-
 

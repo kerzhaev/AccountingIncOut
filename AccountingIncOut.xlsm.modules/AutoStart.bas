@@ -1,79 +1,79 @@
 Attribute VB_Name = "AutoStart"
 '==============================================
-' МОДУЛЬ АВТОЗАПУСКА СИСТЕМЫ - AutoStart
-' Назначение: Автоматическая инициализация системы при открытии книги
-' Состояние: ОТКЛЮЧЕНЫ ВСПЛЫВАЮЩИЕ ОКНА - ТОЛЬКО СТАТУС-БАР И DEBUG
-' Версия: 2.3.0
-' Дата: 10.08.2025
-' Автор: Кержаев Евгений, ФКУ "95 ФЭС" МО РФ
+' SYSTEM AUTOSTART MODULE - AutoStart
+' Purpose: Automatic system initialization upon workbook opening
+' State: POPUP WINDOWS DISABLED - STATUS BAR AND DEBUG ONLY
+' Version: 2.3.0
+' Date: 10.08.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
 
-' Глобальная переменная для отслеживания состояния системы
+' Global variable to track system state
 Public SystemInitialized As Boolean
 
-' ОТКЛЮЧЕНЫ ВСПЛЫВАЮЩИЕ ОКНА: Основная инициализация системы
+' POPUP WINDOWS DISABLED: Main system initialization
 Public Sub InitializeSystem()
     On Error GoTo InitError
     
-    ' Сброс флага инициализации
+    ' Reset initialization flag
     SystemInitialized = False
     
-    ' Информируем пользователя через статус-бар (без MsgBox)
-    Application.StatusBar = "Инициализация системы интерактивных форм..."
+    ' Inform user via status bar (no MsgBox)
+    Application.StatusBar = "Initializing interactive forms system..."
     
-    ' 1. Инициализация обработчика событий таблицы
+    ' 1. Initialize table event handler
     Call TableEventHandler.InitializeTableEvents
     
-    ' 2. Принудительная активация контекстного меню
+    ' 2. Force context menu activation
     Call ForceActivateContextMenu
     
-    ' 3. Проверка состояния системы (только в Debug)
+    ' 3. Check system state (Debug only)
     Call DiagnoseSystemState
     
-    ' 4. Активация листа с таблицей
+    ' 4. Activate sheet with the table
     On Error Resume Next
-    ThisWorkbook.Worksheets("ВхИсх").Activate
+    ThisWorkbook.Worksheets("IncOut").Activate
     On Error GoTo InitError
     
-    ' 5. Установка флага успешной инициализации
+    ' 5. Set successful initialization flag
     SystemInitialized = True
     
-    ' ОТКЛЮЧЕНО ВСПЛЫВАЮЩЕЕ ОКНО: Только статус-бар
-    Application.StatusBar = "Система интерактивных форм активна. Готова к работе."
+    ' POPUP WINDOW DISABLED: Status bar only
+    Application.StatusBar = "Interactive forms system is active. Ready to work."
     
-    ' ОТКЛЮЧЕНО: ShowUserInstructions - убираем всплывающие инструкции
-    ' Debug-информация для разработчика
-    Debug.Print "Система интерактивных форм успешно инициализирована"
+    ' DISABLED: ShowUserInstructions - removed popup instructions
+    ' Debug information for developer
+    Debug.Print "Interactive forms system successfully initialized"
     
     Exit Sub
     
 InitError:
     SystemInitialized = False
-    ' ОСТАВЛЕНО: Критические ошибки показываем через MsgBox
-    MsgBox "КРИТИЧЕСКАЯ ОШИБКА инициализации системы!" & vbCrLf & _
-           "Ошибка: " & Err.Number & " - " & Err.description, vbCritical, "Системная ошибка"
+    ' KEPT: Critical errors are shown via MsgBox
+    MsgBox "CRITICAL ERROR initializing system!" & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.description, vbCritical, "System Error"
     
-    Application.StatusBar = "ОШИБКА инициализации системы."
+    Application.StatusBar = "ERROR initializing system."
 End Sub
 
-' Принудительная активация контекстного меню
+' Force activation of the context menu
 Public Sub ForceActivateContextMenu()
     On Error GoTo MenuError
     
-    ' Удаляем существующие кнопки (если есть)
+    ' Remove existing buttons (if any)
     Call TableEventHandler.RemoveContextMenuButton
     
-    ' Небольшая пауза
+    ' Short pause
     Application.Wait Now + TimeValue("00:00:01")
     
-    ' Добавляем контекстное меню
+    ' Add context menu
     Call TableEventHandler.AddContextMenuButton
     
-    ' Проверяем успешность добавления
+    ' Check if successfully added
     If Not CheckContextMenuExists() Then
-        ' Повторная попытка
+        ' Retry
         Application.Wait Now + TimeValue("00:00:01")
         Call TableEventHandler.AddContextMenuButton
     End If
@@ -81,10 +81,10 @@ Public Sub ForceActivateContextMenu()
     Exit Sub
     
 MenuError:
-    Debug.Print "Ошибка принудительной активации контекстного меню: " & Err.description
+    Debug.Print "Error forcing context menu activation: " & Err.description
 End Sub
 
-' Проверка существования контекстного меню
+' Check if context menu exists
 Public Function CheckContextMenuExists() As Boolean
     Dim contextMenu As CommandBar
     Dim ctrl As CommandBarControl
@@ -94,7 +94,7 @@ Public Function CheckContextMenuExists() As Boolean
     Set contextMenu = Application.CommandBars("Cell")
     
     For Each ctrl In contextMenu.Controls
-        If ctrl.Caption = "Дублировать запись" Or InStr(ctrl.Caption, "Дублировать") > 0 Then
+        If ctrl.Caption = "Duplicate record" Or InStr(ctrl.Caption, "Duplicate") > 0 Then
             CheckContextMenuExists = True
             Exit Function
         End If
@@ -107,213 +107,213 @@ CheckError:
     CheckContextMenuExists = False
 End Function
 
-' Диагностика состояния системы (только Debug, без MsgBox)
+' System state diagnostics (Debug only, no MsgBox)
 Public Sub DiagnoseSystemState()
     Dim diagResult As String
     
-    diagResult = "ДИАГНОСТИКА СИСТЕМЫ:" & vbCrLf & vbCrLf
+    diagResult = "SYSTEM DIAGNOSTICS:" & vbCrLf & vbCrLf
     
-    ' Проверка листа
+    ' Check sheet
     On Error Resume Next
     Dim Ws As Worksheet
-    Set Ws = ThisWorkbook.Worksheets("ВхИсх")
+    Set Ws = ThisWorkbook.Worksheets("IncOut")
     If Ws Is Nothing Then
-        diagResult = diagResult & "? Лист 'ВхИсх' НЕ найден!" & vbCrLf
+        diagResult = diagResult & "[X] Sheet 'IncOut' NOT found!" & vbCrLf
     Else
-        diagResult = diagResult & "? Лист 'ВхИсх' найден" & vbCrLf
+        diagResult = diagResult & "[OK] Sheet 'IncOut' found" & vbCrLf
         
-        ' Проверка таблицы
+        ' Check table
         Dim tbl As ListObject
-        Set tbl = Ws.ListObjects("ВходящиеИсходящие")
+        Set tbl = Ws.ListObjects("TableIncOut")
         If tbl Is Nothing Then
-            diagResult = diagResult & "? Таблица 'ВходящиеИсходящие' НЕ найдена!" & vbCrLf
+            diagResult = diagResult & "[X] Table 'TableIncOut' NOT found!" & vbCrLf
         Else
-            diagResult = diagResult & "? Таблица найдена (" & tbl.ListRows.Count & " строк)" & vbCrLf
+            diagResult = diagResult & "[OK] Table found (" & tbl.ListRows.Count & " rows)" & vbCrLf
         End If
     End If
     On Error GoTo 0
     
-    ' Проверка контекстного меню
+    ' Check context menu
     If CheckContextMenuExists() Then
-        diagResult = diagResult & "? Контекстное меню активно" & vbCrLf
+        diagResult = diagResult & "[OK] Context menu is active" & vbCrLf
     Else
-        diagResult = diagResult & "? Контекстное меню НЕ активно!" & vbCrLf
+        diagResult = diagResult & "[X] Context menu is NOT active!" & vbCrLf
     End If
     
-    ' ОТКЛЮЧЕНО ВСПЛЫВАЮЩЕЕ ОКНО: Только записываем результат в Debug
+    ' POPUP WINDOW DISABLED: Write result to Debug only
     Debug.Print diagResult
 End Sub
 
-' ОТКЛЮЧЕНО ВСПЛЫВАЮЩЕЕ ОКНО: Показ инструкций пользователю
+' POPUP WINDOW DISABLED: Show instructions to user
 ' Public Sub ShowUserInstructions()
-'     ' Эта процедура отключена для предотвращения всплывающих окон
-'     Debug.Print "Инструкции отключены. Система готова к работе."
+'     ' This procedure is disabled to prevent popups
+'     Debug.Print "Instructions disabled. System ready to work."
 ' End Sub
 
-' Ручная инициализация системы (без всплывающих окон)
+' Manual system initialization (no popup windows)
 Public Sub ManualInitializeSystem()
-    Application.StatusBar = "Ручная инициализация системы..."
+    Application.StatusBar = "Manual system initialization..."
     Call InitializeSystem
-    Application.StatusBar = "Ручная инициализация завершена."
+    Application.StatusBar = "Manual initialization completed."
 End Sub
 
-' ОТКЛЮЧЕНЫ ВСПЛЫВАЮЩИЕ ОКНА: Принудительная перезагрузка контекстного меню
+' POPUP WINDOWS DISABLED: Force context menu reload
 Public Sub ReloadContextMenu()
     On Error GoTo ReloadError
     
-    Application.StatusBar = "Перезагрузка контекстного меню..."
+    Application.StatusBar = "Reloading context menu..."
     
-    ' Удаляем
+    ' Remove
     Call TableEventHandler.RemoveContextMenuButton
     Application.Wait Now + TimeValue("00:00:02")
     
-    ' Добавляем
+    ' Add
     Call TableEventHandler.AddContextMenuButton
     Application.Wait Now + TimeValue("00:00:01")
     
-    ' Проверяем (только статус-бар)
+    ' Check (Status bar only)
     If CheckContextMenuExists() Then
-        Application.StatusBar = "? Контекстное меню успешно перезагружено!"
-        Debug.Print "Контекстное меню успешно перезагружено"
+        Application.StatusBar = "[OK] Context menu successfully reloaded!"
+        Debug.Print "Context menu successfully reloaded"
     Else
-        Application.StatusBar = "? Ошибка перезагрузки контекстного меню!"
-        Debug.Print "Ошибка перезагрузки контекстного меню"
+        Application.StatusBar = "[X] Error reloading context menu!"
+        Debug.Print "Error reloading context menu"
     End If
     
     Exit Sub
     
 ReloadError:
-    Application.StatusBar = "Ошибка перезагрузки: " & Err.description
-    Debug.Print "Ошибка перезагрузки: " & Err.description
+    Application.StatusBar = "Reload error: " & Err.description
+    Debug.Print "Reload error: " & Err.description
 End Sub
 
-' ОТКЛЮЧЕНЫ ВСПЛЫВАЮЩИЕ ОКНА: Тест контекстного меню
+' POPUP WINDOWS DISABLED: Context menu test
 Public Sub TestContextMenu()
     Dim result As String
     
-    result = "ТЕСТ КОНТЕКСТНОГО МЕНЮ:" & vbCrLf & vbCrLf
+    result = "CONTEXT MENU TEST:" & vbCrLf & vbCrLf
     
-    ' Активируем лист
+    ' Activate sheet
     On Error Resume Next
-    ThisWorkbook.Worksheets("ВхИсх").Activate
+    ThisWorkbook.Worksheets("IncOut").Activate
     On Error GoTo 0
     
-    ' Проверяем наличие меню
+    ' Check if menu exists
     If CheckContextMenuExists() Then
-        result = result & "? Контекстное меню найдено в системе" & vbCrLf
-        result = result & "Щелкните ПРАВОЙ кнопкой по ячейке ВНУТРИ таблицы"
-        Application.StatusBar = "Контекстное меню найдено - готово к использованию"
+        result = result & "[OK] Context menu found in the system" & vbCrLf
+        result = result & "Right-click a cell INSIDE the table"
+        Application.StatusBar = "Context menu found - ready to use"
     Else
-        result = result & "? Контекстное меню НЕ найдено!" & vbCrLf
-        result = result & "Выполняю принудительную активацию..."
+        result = result & "[X] Context menu NOT found!" & vbCrLf
+        result = result & "Forcing activation..."
         
         Call ForceActivateContextMenu
         
         If CheckContextMenuExists() Then
-            result = result & vbCrLf & "? Активация успешна!"
-            Application.StatusBar = "Контекстное меню активировано успешно"
+            result = result & vbCrLf & "[OK] Activation successful!"
+            Application.StatusBar = "Context menu activated successfully"
         Else
-            result = result & vbCrLf & "? Активация не удалась!"
-            Application.StatusBar = "Ошибка активации контекстного меню"
+            result = result & vbCrLf & "[X] Activation failed!"
+            Application.StatusBar = "Error activating context menu"
         End If
     End If
     
-    ' ОТКЛЮЧЕНО ВСПЛЫВАЮЩЕЕ ОКНО: Только Debug и статус-бар
+    ' POPUP WINDOW DISABLED: Debug and status bar only
     Debug.Print result
 End Sub
 
-' Деактивация системы (переименована из DeactivateSystem)
+' System deactivation (renamed from DeactivateSystem)
 Public Sub ShutdownSystem()
     On Error Resume Next
     
-    ' Деактивируем обработчик событий
+    ' Deactivate event handler
     Call TableEventHandler.DeactivateTableEvents
     
-    ' Удаляем контекстное меню
+    ' Remove context menu
     Call TableEventHandler.RemoveContextMenuButton
     
-    ' Сбрасываем флаг системы
+    ' Reset system flag
     SystemInitialized = False
     
-    ' Обновляем статус
-    Application.StatusBar = "Система интерактивных форм завершена"
-    Debug.Print "Система корректно завершена"
+    ' Update status
+    Application.StatusBar = "Interactive forms system shut down"
+    Debug.Print "System correctly shut down"
     
     On Error GoTo 0
 End Sub
 
-' Альтернативное имя для совместимости
+' Alternative name for compatibility
 Public Sub DeactivateSystem()
-    ' Вызываем основную процедуру завершения
+    ' Call main shutdown procedure
     Call ShutdownSystem
 End Sub
 
-' Функция проверки состояния системы
+' Function to check system state
 Public Function IsSystemReady() As Boolean
     IsSystemReady = SystemInitialized And CheckContextMenuExists()
 End Function
 
-' ОТКЛЮЧЕНЫ ВСПЛЫВАЮЩИЕ ОКНА: Полная диагностика для пользователя
+' POPUP WINDOWS DISABLED: Full diagnostics for user
 Public Sub FullDiagnostic()
     Dim Report As String
     
-    Report = "?? ПОЛНАЯ ДИАГНОСТИКА СИСТЕМЫ:" & vbCrLf & vbCrLf
+    Report = "=== FULL SYSTEM DIAGNOSTICS ===" & vbCrLf & vbCrLf
     
-    ' 1. Проверка инициализации
-    Report = Report & "Система инициализирована: " & IIf(SystemInitialized, "? ДА", "? НЕТ") & vbCrLf
+    ' 1. Check initialization
+    Report = Report & "System initialized: " & IIf(SystemInitialized, "[OK] YES", "[X] NO") & vbCrLf
     
-    ' 2. Проверка листа и таблицы
+    ' 2. Check sheet and table
     On Error Resume Next
     Dim Ws As Worksheet
     Dim tbl As ListObject
-    Set Ws = ThisWorkbook.Worksheets("ВхИсх")
+    Set Ws = ThisWorkbook.Worksheets("IncOut")
     
     If Not Ws Is Nothing Then
-        Report = Report & "Лист 'ВхИсх': ? Найден" & vbCrLf
-        Set tbl = Ws.ListObjects("ВходящиеИсходящие")
+        Report = Report & "Sheet 'IncOut': [OK] Found" & vbCrLf
+        Set tbl = Ws.ListObjects("TableIncOut")
         If Not tbl Is Nothing Then
-            Report = Report & "Таблица: ? Найдена (" & tbl.ListRows.Count & " строк)" & vbCrLf
+            Report = Report & "Table: [OK] Found (" & tbl.ListRows.Count & " rows)" & vbCrLf
         Else
-            Report = Report & "Таблица: ? НЕ найдена!" & vbCrLf
+            Report = Report & "Table: [X] NOT found!" & vbCrLf
         End If
     Else
-        Report = Report & "Лист 'ВхИсх': ? НЕ найден!" & vbCrLf
+        Report = Report & "Sheet 'IncOut': [X] NOT found!" & vbCrLf
     End If
     On Error GoTo 0
     
-    ' 3. Проверка контекстного меню
-    Report = Report & "Контекстное меню: " & IIf(CheckContextMenuExists(), "? Активно", "? НЕ активно") & vbCrLf
+    ' 3. Check context menu
+    Report = Report & "Context menu: " & IIf(CheckContextMenuExists(), "[OK] Active", "[X] NOT active") & vbCrLf
     
-    ' 4. Проверка активного листа
-    Report = Report & "Активный лист: " & ActiveSheet.Name & vbCrLf
+    ' 4. Check active sheet
+    Report = Report & "Active sheet: " & ActiveSheet.Name & vbCrLf
     
-    ' 5. Версия Office
-    Report = Report & "Версия Office: " & Application.Version & vbCrLf
+    ' 5. Office version
+    Report = Report & "Office version: " & Application.Version & vbCrLf
     
-    ' ОТКЛЮЧЕНО ВСПЛЫВАЮЩЕЕ ОКНО: Только Debug и статус-бар
+    ' POPUP WINDOW DISABLED: Debug and status bar only
     Debug.Print Report
-    Application.StatusBar = "Диагностика завершена. См. результаты в Debug (Ctrl+G)"
+    Application.StatusBar = "Diagnostics completed. See results in Debug (Ctrl+G)"
 End Sub
 
-' Экстренное завершение системы (без всплывающих окон)
+' Emergency system shutdown (no popup windows)
 Public Sub EmergencyShutdown()
     On Error Resume Next
     
-    ' Принудительная очистка всех ресурсов
+    ' Force clear all resources
     Call TableEventHandler.RemoveContextMenuButton
     Call TableEventHandler.DeactivateTableEvents
     
-    ' Сброс всех переменных состояния
+    ' Reset all state variables
     SystemInitialized = False
     
-    ' Очистка статус-бара
-    Application.StatusBar = "Экстренное завершение системы выполнено"
-    Debug.Print "Экстренное завершение системы выполнено. Все ресурсы освобождены."
+    ' Clear status bar
+    Application.StatusBar = "Emergency system shutdown completed"
+    Debug.Print "Emergency system shutdown completed. All resources freed."
     
     On Error GoTo 0
 End Sub
 
-' Проверка целостности системы
+' Check system integrity
 Public Function SystemIntegrityCheck() As Boolean
     Dim allGood As Boolean
     
@@ -321,20 +321,20 @@ Public Function SystemIntegrityCheck() As Boolean
     
     allGood = True
     
-    ' Проверка 1: Лист существует
+    ' Check 1: Sheet exists
     Dim Ws As Worksheet
-    Set Ws = ThisWorkbook.Worksheets("ВхИсх")
+    Set Ws = ThisWorkbook.Worksheets("IncOut")
     If Ws Is Nothing Then allGood = False
     
-    ' Проверка 2: Таблица существует
+    ' Check 2: Table exists
     If Not Ws Is Nothing Then
         Dim tbl As ListObject
-        Set tbl = Ws.ListObjects("ВходящиеИсходящие")
+        Set tbl = Ws.ListObjects("TableIncOut")
         If tbl Is Nothing Then allGood = False
     End If
     
-    ' Проверка 3: Модули существуют
-    ' (Если VBA дошел до этой точки, модули существуют)
+    ' Check 3: Modules exist
+    ' (If VBA reached this point, modules exist)
     
     SystemIntegrityCheck = allGood
     Exit Function
@@ -343,22 +343,21 @@ IntegrityError:
     SystemIntegrityCheck = False
 End Function
 
-' ОТКЛЮЧЕНЫ ВСПЛЫВАЮЩИЕ ОКНА: Быстрый перезапуск системы
+' POPUP WINDOWS DISABLED: Quick system restart
 Public Sub RestartSystem()
-    Application.StatusBar = "Перезапуск системы интерактивных форм..."
-    Debug.Print "Начало перезапуска системы"
+    Application.StatusBar = "Restarting interactive forms system..."
+    Debug.Print "System restart initiated"
     
-    ' Завершаем текущую систему
+    ' Shutdown current system
     Call ShutdownSystem
     
-    ' Пауза
+    ' Pause
     Application.Wait Now + TimeValue("00:00:02")
     
-    ' Запускаем заново
+    ' Start again
     Call InitializeSystem
     
-    Application.StatusBar = "Система успешно перезапущена!"
-    Debug.Print "Система успешно перезапущена!"
+    Application.StatusBar = "System successfully restarted!"
+    Debug.Print "System successfully restarted!"
 End Sub
-
 
