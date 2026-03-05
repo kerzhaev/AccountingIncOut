@@ -83,11 +83,11 @@ Public Sub ProcessDoverennostMatching()
     Debug.Print "=== START OF THREE-PASS SYSTEM WITH FIXED REGEX ==="
     
     FileDoverennosti = Application.GetOpenFilename("Excel Files (*.xlsx),*.xlsx,CSV Files (*.csv),*.csv", , _
-        "Select Doverennosti journal file")
+        LocalizationManager.GetText("Select Doverennosti journal file"))
     If FileDoverennosti = "False" Then Exit Sub
     
     FileOperations = Application.GetOpenFilename("Excel Files (*.xlsx),*.xlsx,CSV Files (*.csv),*.csv", , _
-        "Select 1C operations journal file")
+        LocalizationManager.GetText("Select 1C operations journal file"))
     If FileOperations = "False" Then Exit Sub
     
     Set WbDoverennosti = Workbooks.Open(FileDoverennosti, ReadOnly:=False)
@@ -109,7 +109,7 @@ ProcessError:
     If Not WbDoverennosti Is Nothing Then WbDoverennosti.Close False
     
     Debug.Print "Error: " & Err.description
-    MsgBox "Error: " & Err.description, vbCritical
+    MsgBox LocalizationManager.GetText("Error: ") & Err.description, vbCritical
 End Sub
 
 ' =============================================
@@ -132,29 +132,29 @@ Public Sub ProcessDoverennostMasterMatching()
     Debug.Print "=== MASTER: Doverennosti Matching (Merge + 1C) ==="
     
     FileMaster = Application.GetOpenFilename("Excel Files (*.xlsx),*.xlsx,CSV Files (*.csv),*.csv", , _
-        "Select MASTER Doverennosti file (cumulative)")
+        LocalizationManager.GetText("Select MASTER Doverennosti file (cumulative)"))
     If FileMaster = "False" Then Exit Sub
     
     FilePeriod = Application.GetOpenFilename("Excel Files (*.xlsx),*.xlsx,CSV Files (*.csv),*.csv", , _
-        "Select period Doverennosti file (export)")
+        LocalizationManager.GetText("Select period Doverennosti file (export)"))
     If FilePeriod = "False" Then Exit Sub
     
     FileOperations = Application.GetOpenFilename("Excel Files (*.xlsx),*.xlsx,CSV Files (*.csv),*.csv", , _
-        "Select 1C operations journal file (export)")
+        LocalizationManager.GetText("Select 1C operations journal file (export)"))
     If FileOperations = "False" Then Exit Sub
     
-    Application.StatusBar = "Opening files..."
+    Application.StatusBar = LocalizationManager.GetText("Opening files...")
     Set WbMaster = Workbooks.Open(FileMaster, ReadOnly:=False)
     Set WbPeriod = Workbooks.Open(FilePeriod, ReadOnly:=True)
     Set WbOperations = Workbooks.Open(FileOperations, ReadOnly:=True)
     
-    Application.StatusBar = "Merging Doverennosti into master..."
+    Application.StatusBar = LocalizationManager.GetText("Merging Doverennosti into master...")
     Call MergePeriodDoverennostiIntoMaster(WbMaster.Worksheets(1), WbPeriod.Worksheets(1), AddedCount)
     
-    Application.StatusBar = "Matching master file with 1C operations..."
+    Application.StatusBar = LocalizationManager.GetText("Matching master file with 1C operations...")
     Call PerformThreePassMatching(WbMaster, WbOperations)
     
-    Application.StatusBar = "Saving master file..."
+    Application.StatusBar = LocalizationManager.GetText("Saving master file...")
     WbOperations.Close False
     WbPeriod.Close False
     WbMaster.Save
@@ -162,8 +162,8 @@ Public Sub ProcessDoverennostMasterMatching()
     
     Application.StatusBar = False
     
-    MsgBox "Done." & vbCrLf & vbCrLf & _
-           "Added new records to master: " & AddedCount, vbInformation, "Doverennosti Matching"
+    MsgBox LocalizationManager.GetText("Done.") & vbCrLf & vbCrLf & _
+           LocalizationManager.GetText("Added new records to master: ") & AddedCount, vbInformation, LocalizationManager.GetText("Doverennosti Matching")
     
     Exit Sub
     
@@ -175,7 +175,7 @@ ProcessError:
     Application.StatusBar = False
     
     Debug.Print "Master matching error: " & Err.description
-    MsgBox "Error: " & Err.description, vbCritical
+    MsgBox LocalizationManager.GetText("Error: ") & Err.description, vbCritical
 End Sub
 
 ' =============================================
@@ -258,7 +258,7 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
         DoverComment = Trim(CStr(DoverData(i, 9)))
         
         If i Mod 25 = 0 Then
-            Application.StatusBar = "3-pass system running: " & i & " of " & UBound(DoverData, 1)
+            Application.StatusBar = LocalizationManager.GetText("3-pass system running: ") & i & LocalizationManager.GetText(" of ") & UBound(DoverData, 1)
         End If
         
         ' Check if row was already processed and FOUND
@@ -294,7 +294,7 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
                     
                     If MatchResult.FoundMatch Then
                         Pass1Found = Pass1Found + 1
-                        MatchResult.MatchDetails = "1st pass: " & MatchResult.MatchDetails
+                        MatchResult.MatchDetails = LocalizationManager.GetText("1st pass: ") & MatchResult.MatchDetails
                     Else
                         ' Save for 2nd pass
                         Pass1Count = Pass1Count + 1
@@ -302,7 +302,7 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
                         ReDim Preserve Pass1NotFoundData(Pass1Count - 1)
                         Pass1NotFound(Pass1Count - 1) = CurrentRow
                         Pass1NotFoundData(Pass1Count - 1) = ParsedDover
-                        MatchResult.MatchDetails = "Awaiting 2nd pass"
+                        MatchResult.MatchDetails = LocalizationManager.GetText("Awaiting 2nd pass")
                     End If
                 Else
                     ' Other document types - save for 3rd pass
@@ -312,7 +312,7 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
                     Pass2NotFound(Pass2Count - 1) = CurrentRow
                     Pass2NotFoundData(Pass2Count - 1) = ParsedDover
                     
-                    MatchResult = CreateEmptyMatchResult("Awaiting 3rd pass")
+                    MatchResult = CreateEmptyMatchResult(LocalizationManager.GetText("Awaiting 3rd pass"))
                     MatchResult.PassNumber = 0
                 End If
             Else
@@ -324,13 +324,13 @@ Private Sub PerformThreePassMatching(WbDover As Workbook, WbOper As Workbook)
                 Pass2NotFoundData(Pass2Count - 1).OriginalText = DoverComment
                 Pass2NotFoundData(Pass2Count - 1).IsValid = False
                 
-                MatchResult = CreateEmptyMatchResult("Awaiting 3rd pass")
+                MatchResult = CreateEmptyMatchResult(LocalizationManager.GetText("Awaiting 3rd pass"))
                 MatchResult.PassNumber = 0
             End If
             
             ProcessedCount = ProcessedCount + 1
         Else
-            MatchResult = CreateEmptyMatchResult("Empty comment")
+            MatchResult = CreateEmptyMatchResult(LocalizationManager.GetText("Empty comment"))
             MatchResult.PassNumber = 0
         End If
         
@@ -387,7 +387,7 @@ MatchingError:
     Application.StatusBar = False
     
     Debug.Print "Three-pass system error: " & Err.description
-    MsgBox "Error: " & Err.description, vbCritical
+    MsgBox LocalizationManager.GetText("Error: ") & Err.description, vbCritical
 End Sub
 
 ' =============================================
@@ -399,7 +399,7 @@ Private Sub MergePeriodDoverennostiIntoMaster(WsMaster As Worksheet, WsPeriod As
     Dim MasterData As Variant, PeriodData As Variant
     Dim Dict As Object
     Dim i As Long
-    Dim Key As String
+    Dim key As String
     
     On Error GoTo ErrorHandler
     
@@ -416,9 +416,9 @@ Private Sub MergePeriodDoverennostiIntoMaster(WsMaster As Worksheet, WsPeriod As
     If LastRowMaster >= 2 Then
         MasterData = WsMaster.Range("A2:I" & LastRowMaster).Value2
         For i = 1 To UBound(MasterData, 1)
-            Key = BuildMasterRowKey(MasterData, i)
-            If Key <> "" Then
-                If Not Dict.Exists(Key) Then Dict.Add Key, True
+            key = BuildMasterRowKey(MasterData, i)
+            If key <> "" Then
+                If Not Dict.Exists(key) Then Dict.Add key, True
             End If
         Next i
     End If
@@ -426,12 +426,12 @@ Private Sub MergePeriodDoverennostiIntoMaster(WsMaster As Worksheet, WsPeriod As
     PeriodData = WsPeriod.Range("A2:I" & LastRowPeriod).Value2
     
     For i = 1 To UBound(PeriodData, 1)
-        Key = BuildMasterRowKey(PeriodData, i)
-        If Key <> "" Then
-            If Not Dict.Exists(Key) Then
+        key = BuildMasterRowKey(PeriodData, i)
+        If key <> "" Then
+            If Not Dict.Exists(key) Then
                 LastRowMaster = LastRowMaster + 1
                 WsMaster.Range("A" & LastRowMaster & ":I" & LastRowMaster).Value2 = GetRowAs2DArray(PeriodData, i, 9)
-                Dict.Add Key, True
+                Dict.Add key, True
                 AddedCount = AddedCount + 1
             End If
         End If
@@ -450,19 +450,19 @@ End Sub
 ' =============================================
 Private Function BuildMasterRowKey(DataArr As Variant, RowIndex As Long) As String
     Dim j As Long
-    Dim Key As String
+    Dim key As String
     
     On Error GoTo ErrorHandler
     
     For j = 1 To 9
         If j = 1 Then
-            Key = NormalizeKeyPart(DataArr(RowIndex, j))
+            key = NormalizeKeyPart(DataArr(RowIndex, j))
         Else
-            Key = Key & "|" & NormalizeKeyPart(DataArr(RowIndex, j))
+            key = key & "|" & NormalizeKeyPart(DataArr(RowIndex, j))
         End If
     Next j
     
-    BuildMasterRowKey = Key
+    BuildMasterRowKey = key
     Exit Function
     
 ErrorHandler:
@@ -546,7 +546,7 @@ Private Function ProcessSecondPassWithSmartComponent(WsDover As Worksheet, OperD
         
         If MatchResult.FoundMatch Then
             SecondPassFound = SecondPassFound + 1
-            MatchResult.MatchDetails = "2nd pass smart (" & Format(MatchResult.MatchScore, "0") & "%): " & MatchResult.MatchDetails
+            MatchResult.MatchDetails = LocalizationManager.GetText("2nd pass smart (") & Format(MatchResult.MatchScore, "0") & "%): " & MatchResult.MatchDetails
             
             Call WriteThreePassResult(WsDover, NotFoundRows(i), MatchResult)
             
@@ -588,7 +588,7 @@ Private Function FindBySmartComponents(DoverData As ParsedNaryad, OperData As Va
                 ComponentMatch.Confidence = ComponentMatch.Confidence + CorrespondentBonus
                 
                 If CorrespondentBonus > 0 Then
-                    ComponentMatch.MatchDetails = ComponentMatch.MatchDetails & " corr:+" & Format(CorrespondentBonus, "0") & "%"
+                    ComponentMatch.MatchDetails = ComponentMatch.MatchDetails & LocalizationManager.GetText(" corr:+") & Format(CorrespondentBonus, "0") & "%"
                 End If
                 
                 If ComponentMatch.Confidence >= 40 Then
@@ -611,7 +611,7 @@ Private Function FindBySmartComponents(DoverData As ParsedNaryad, OperData As Va
     Next i
     
     If Not result.FoundMatch Then
-        result.MatchDetails = "smart search did not find suitable components"
+        result.MatchDetails = LocalizationManager.GetText("smart search did not find suitable components")
     End If
     
     FindBySmartComponents = result
@@ -951,7 +951,7 @@ Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
     Next i
     
     If FoundType = "" Then
-        result.MatchDetails = "No keywords found"
+        result.MatchDetails = LocalizationManager.GetText("No keywords found")
         ParseNaryadForSubstring = result
         Exit Function
     End If
@@ -962,9 +962,9 @@ Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
     
     If result.DocumentNumber <> "" And result.DocumentDate <> "" Then
         result.IsValid = True
-        result.MatchDetails = "Substring parse: success"
+        result.MatchDetails = LocalizationManager.GetText("Substring parse: success")
     Else
-        result.MatchDetails = "Substring parse: no number or date"
+        result.MatchDetails = LocalizationManager.GetText("Substring parse: no number or date")
     End If
     
     ParseNaryadForSubstring = result
@@ -972,7 +972,7 @@ Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
     
 SubstringParseError:
     result.IsValid = False
-    result.MatchDetails = "Parse error: " & Err.description
+    result.MatchDetails = LocalizationManager.GetText("Parse error: ") & Err.description
     ParseNaryadForSubstring = result
 End Function
 
@@ -1167,7 +1167,7 @@ Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As
                 result.MatchScore = 100
                 result.OperationRow = i + 1
                 result.OperationNumber = Trim(CStr(OperArray(i, 3)))
-                result.MatchDetails = "found number, date and correspondent | 1C: " & OperComment
+                result.MatchDetails = LocalizationManager.GetText("found number, date and correspondent | 1C: ") & OperComment
                 
                 On Error Resume Next
                 result.OperationDate = CDate(OperArray(i, 2))
@@ -1180,7 +1180,7 @@ Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As
                     BestPartialMatch.MatchScore = 50
                     BestPartialMatch.OperationRow = i + 1
                     BestPartialMatch.OperationNumber = Trim(CStr(OperArray(i, 3)))
-                    BestPartialMatch.MatchDetails = "found number and date, but correspondent mismatch | 1C: " & OperComment
+                    BestPartialMatch.MatchDetails = LocalizationManager.GetText("found number and date, but correspondent mismatch | 1C: ") & OperComment
                     
                     On Error Resume Next
                     BestPartialMatch.OperationDate = CDate(OperArray(i, 2))
@@ -1197,7 +1197,7 @@ Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As
     End If
     
     If Not result.FoundMatch Then
-        result.MatchDetails = "number, date or correspondent not found"
+        result.MatchDetails = LocalizationManager.GetText("number, date or correspondent not found")
     End If
     
     FindBySubstringEnhanced = result
@@ -1357,7 +1357,7 @@ Private Function ProcessThirdPass(WsDover As Worksheet, OperData As Variant, Not
             
             If MatchResult.FoundMatch Then
                 ThirdPassFound = ThirdPassFound + 1
-                MatchResult.MatchDetails = "3rd pass: " & UniversalDoc.DocumentType & " No " & UniversalDoc.DocumentNumber
+                MatchResult.MatchDetails = LocalizationManager.GetText("3rd pass: ") & UniversalDoc.DocumentType & " No " & UniversalDoc.DocumentNumber
                 
                 Select Case UCase(UniversalDoc.DocumentType)
                     Case "ALLOTMENT": Pass3ByType(0) = Pass3ByType(0) + 1
@@ -1396,7 +1396,7 @@ Private Function ParseUniversalDocument(Text As String) As ParsedNaryad
     Next i
     
     If FoundType = "" Then
-        result.MatchDetails = "Document type not found"
+        result.MatchDetails = LocalizationManager.GetText("Document type not found")
         ParseUniversalDocument = result
         Exit Function
     End If
@@ -1407,9 +1407,9 @@ Private Function ParseUniversalDocument(Text As String) As ParsedNaryad
     
     If result.DocumentNumber <> "" And result.DocumentDate <> "" Then
         result.IsValid = True
-        result.MatchDetails = "3rd pass: success"
+        result.MatchDetails = LocalizationManager.GetText("3rd pass: success")
     Else
-        result.MatchDetails = "3rd pass: no number or date"
+        result.MatchDetails = LocalizationManager.GetText("3rd pass: no number or date")
     End If
     
     ParseUniversalDocument = result
@@ -1445,7 +1445,7 @@ Private Function FindByUniversalDocument(UniversalDoc As ParsedNaryad, OperData 
                 result.MatchScore = 100
                 result.OperationRow = i + 1
                 result.OperationNumber = Trim(CStr(OperData(i, 3)))
-                result.MatchDetails = "found " & UniversalDoc.DocumentType
+                result.MatchDetails = LocalizationManager.GetText("found ") & UniversalDoc.DocumentType
                 
                 On Error Resume Next
                 result.OperationDate = CDate(OperData(i, 2))
@@ -1456,7 +1456,7 @@ Private Function FindByUniversalDocument(UniversalDoc As ParsedNaryad, OperData 
     Next i
     
     If Not result.FoundMatch Then
-        result.MatchDetails = "number or date not found"
+        result.MatchDetails = LocalizationManager.GetText("number or date not found")
     End If
     
     FindByUniversalDocument = result
@@ -1503,7 +1503,7 @@ Private Sub AddThreePassResultColumns(Ws As Worksheet)
     Dim AlreadyExists As Boolean
     
     For i = 1 To 25
-        If Trim(CStr(Ws.Cells(1, i).value)) = "Three-pass search" Then
+        If Trim(CStr(Ws.Cells(1, i).value)) = LocalizationManager.GetText("Three-pass search") Then
             AlreadyExists = True
             Exit For
         End If
@@ -1513,11 +1513,11 @@ Private Sub AddThreePassResultColumns(Ws As Worksheet)
         LastCol = Ws.Cells(1, Ws.Columns.Count).End(xlToLeft).Column
         
         With Ws
-            .Cells(1, LastCol + 1).value = "Three-pass search"
-            .Cells(1, LastCol + 2).value = "Operation Number"
-            .Cells(1, LastCol + 3).value = "Operation Date"
-            .Cells(1, LastCol + 4).value = "Details"
-            .Cells(1, LastCol + 5).value = "1C Comment"
+            .Cells(1, LastCol + 1).value = LocalizationManager.GetText("Three-pass search")
+            .Cells(1, LastCol + 2).value = LocalizationManager.GetText("Operation Number")
+            .Cells(1, LastCol + 3).value = LocalizationManager.GetText("Operation Date")
+            .Cells(1, LastCol + 4).value = LocalizationManager.GetText("Details")
+            .Cells(1, LastCol + 5).value = LocalizationManager.GetText("1C Comment")
             
             .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 5)).Font.Bold = True
             .Range(.Cells(1, LastCol + 1), .Cells(1, LastCol + 5)).Interior.Color = RGB(220, 220, 255)
@@ -1538,7 +1538,7 @@ Private Sub WriteThreePassResult(Ws As Worksheet, Row As Long, MatchResult As Ma
     
     If CachedCol = 0 Then
         For ResultCol = 10 To 30
-            If Trim(CStr(Ws.Cells(1, ResultCol).value)) = "Three-pass search" Then
+            If Trim(CStr(Ws.Cells(1, ResultCol).value)) = LocalizationManager.GetText("Three-pass search") Then
                 CachedCol = ResultCol
                 Exit For
             End If
@@ -1549,9 +1549,9 @@ Private Sub WriteThreePassResult(Ws As Worksheet, Row As Long, MatchResult As Ma
         If MatchResult.FoundMatch Then
             Dim ResultText As String
             If MatchResult.MatchScore = 100 Then
-                ResultText = "FOUND"
+                ResultText = LocalizationManager.GetText("FOUND")
             Else
-                ResultText = "REQUIRES VERIFICATION"
+                ResultText = LocalizationManager.GetText("REQUIRES VERIFICATION")
             End If
             
             Ws.Cells(Row, CachedCol).value = ResultText
@@ -1609,7 +1609,7 @@ Private Sub WriteThreePassResult(Ws As Worksheet, Row As Long, MatchResult As Ma
                 DetailsWithoutCommentNotFound = MatchResult.MatchDetails
             End If
             
-            Ws.Cells(Row, CachedCol).value = "NOT FOUND"
+            Ws.Cells(Row, CachedCol).value = LocalizationManager.GetText("NOT FOUND")
             Ws.Cells(Row, CachedCol + 3).value = DetailsWithoutCommentNotFound
             Ws.Cells(Row, CachedCol).HorizontalAlignment = xlGeneral
             Ws.Cells(Row, CachedCol + 3).HorizontalAlignment = xlGeneral
@@ -1638,25 +1638,25 @@ Private Sub ShowThreePassStatistics(Processed As Long, Pass1 As Long, Pass2 As L
     
     TotalFound = Pass1 + Pass2 + Pass3
     
-    Message = "=== THREE-PASS SYSTEM RESULTS ===" & vbCrLf & vbCrLf & _
-              "Total processed: " & Processed & vbCrLf & vbCrLf & _
-              "1st pass (exact orders): " & Pass1 & " (" & Format(Pass1 / Processed * 100, "0.0") & "%)" & vbCrLf & _
-              "2nd pass (regex orders): " & Pass2 & " (" & Format(Pass2 / Processed * 100, "0.0") & "%)" & vbCrLf & _
-              "3rd pass (other documents): " & Pass3 & " (" & Format(Pass3 / Processed * 100, "0.0") & "%)" & vbCrLf & _
-              "   - Allotments: " & Pass3ByType(0) & vbCrLf & _
-              "   - Telegrams: " & Pass3ByType(1) & vbCrLf & _
-              "   - Certificates: " & Pass3ByType(2) & vbCrLf & _
-              "   - Requests: " & Pass3ByType(3) & vbCrLf & vbCrLf & _
-              "Overall result: " & TotalFound & " (" & Format(TotalFound / Processed * 100, "0.0") & "%)" & vbCrLf & _
-              "Not found: " & (Processed - TotalFound) & vbCrLf & vbCrLf & _
-              "Skipped operations with empty correspondent: " & SkippedEmpty & vbCrLf & vbCrLf & _
-              "COLOR CODING:" & vbCrLf & _
-              "Dark Green = 1st pass (exact orders)" & vbCrLf & _
-              "Light Green = 2nd pass (regex orders)" & vbCrLf & _
-              "Blue = 3rd pass (other documents)" & vbCrLf & vbCrLf & _
-              "Results in 'Three-pass search' columns"
+    Message = LocalizationManager.GetText("=== THREE-PASS SYSTEM RESULTS ===") & vbCrLf & vbCrLf & _
+              LocalizationManager.GetText("Total processed: ") & Processed & vbCrLf & vbCrLf & _
+              LocalizationManager.GetText("1st pass (exact orders): ") & Pass1 & " (" & Format(Pass1 / Processed * 100, "0.0") & "%)" & vbCrLf & _
+              LocalizationManager.GetText("2nd pass (regex orders): ") & Pass2 & " (" & Format(Pass2 / Processed * 100, "0.0") & "%)" & vbCrLf & _
+              LocalizationManager.GetText("3rd pass (other documents): ") & Pass3 & " (" & Format(Pass3 / Processed * 100, "0.0") & "%)" & vbCrLf & _
+              LocalizationManager.GetText("   - Allotments: ") & Pass3ByType(0) & vbCrLf & _
+              LocalizationManager.GetText("   - Telegrams: ") & Pass3ByType(1) & vbCrLf & _
+              LocalizationManager.GetText("   - Certificates: ") & Pass3ByType(2) & vbCrLf & _
+              LocalizationManager.GetText("   - Requests: ") & Pass3ByType(3) & vbCrLf & vbCrLf & _
+              LocalizationManager.GetText("Overall result: ") & TotalFound & " (" & Format(TotalFound / Processed * 100, "0.0") & "%)" & vbCrLf & _
+              LocalizationManager.GetText("Not found: ") & (Processed - TotalFound) & vbCrLf & vbCrLf & _
+              LocalizationManager.GetText("Skipped operations with empty correspondent: ") & SkippedEmpty & vbCrLf & vbCrLf & _
+              LocalizationManager.GetText("COLOR CODING:") & vbCrLf & _
+              LocalizationManager.GetText("Dark Green = 1st pass (exact orders)") & vbCrLf & _
+              LocalizationManager.GetText("Light Green = 2nd pass (regex orders)") & vbCrLf & _
+              LocalizationManager.GetText("Blue = 3rd pass (other documents)") & vbCrLf & vbCrLf & _
+              LocalizationManager.GetText("Results in 'Three-pass search' columns")
     
-    MsgBox Message, vbInformation, "Three-pass system completed"
+    MsgBox Message, vbInformation, LocalizationManager.GetText("Three-pass system completed")
 End Sub
 
 Private Function ContainsMilitaryCode(Number As String) As Boolean
@@ -2111,7 +2111,7 @@ Private Function IsAlreadyProcessed(Ws As Worksheet, Row As Long, ResultColumn A
     If ResultColumn > 0 Then
         ResultValue = Trim(UCase(CStr(Ws.Cells(Row, ResultColumn).value)))
         
-        If ResultValue = "FOUND" Then
+        If ResultValue = LocalizationManager.GetText("FOUND") Then
             IsAlreadyProcessed = True
         End If
     End If
@@ -2123,7 +2123,7 @@ Private Function FindResultColumn(Ws As Worksheet) As Long
     FindResultColumn = 0
     
     For i = 1 To 30
-        If Trim(UCase(CStr(Ws.Cells(1, i).value))) = "THREE-PASS SEARCH" Then
+        If Trim(UCase(CStr(Ws.Cells(1, i).value))) = UCase(LocalizationManager.GetText("Three-pass search")) Then
             FindResultColumn = i
             Exit For
         End If
@@ -2152,7 +2152,7 @@ Private Function ProcessSecondPassWithSupplierService(WsDover As Worksheet, Oper
         
         If MatchResult.FoundMatch Then
             SecondPassFound = SecondPassFound + 1
-            MatchResult.MatchDetails = "2nd pass (" & Format(MatchResult.MatchScore, "0") & "%): " & MatchResult.MatchDetails
+            MatchResult.MatchDetails = LocalizationManager.GetText("2nd pass (") & Format(MatchResult.MatchScore, "0") & "%): " & MatchResult.MatchDetails
             
             Call WriteThreePassResult(WsDover, NotFoundRows(i), MatchResult)
         Else
@@ -2203,7 +2203,7 @@ Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As
     Next i
     
     If Not result.FoundMatch Then
-        result.MatchDetails = "supplier+service mismatch"
+        result.MatchDetails = LocalizationManager.GetText("supplier+service mismatch")
     End If
     
     FindBySupplierAndService = result

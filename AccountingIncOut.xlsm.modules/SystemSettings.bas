@@ -2,8 +2,8 @@ Attribute VB_Name = "SystemSettings"
 '==============================================
 ' SYSTEM SETTINGS MODULE - SystemSettings
 ' Purpose: Managing system settings on a hidden sheet
-' State: STAGE 1 - BASIC INFRASTRUCTURE
-' Version: 1.0.0
+' State: INTEGRATED WITH LOCALIZATION MANAGER
+' Version: 1.0.1
 ' Date: 23.08.2025
 ' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
@@ -38,51 +38,51 @@ Private Sub SetDefaultSettings(Ws As Worksheet)
         .Cells.Clear
         
         ' Headers
-        .Range("A1").value = "Parameter"
-        .Range("B1").value = "Value"
-        .Range("C1").value = "Description"
+        .Range("A1").value = LocalizationManager.GetText("Parameter")
+        .Range("B1").value = LocalizationManager.GetText("Value")
+        .Range("C1").value = LocalizationManager.GetText("Description")
         
         ' 1C Integration settings
         .Range("A3").value = "BackupEnabled"
         .Range("B3").value = True
-        .Range("C3").value = "Create backups before operations"
+        .Range("C3").value = LocalizationManager.GetText("Create backups before operations")
         
         .Range("A4").value = "MaxBackupCount"
         .Range("B4").value = 10
-        .Range("C4").value = "Maximum number of backup copies"
+        .Range("C4").value = LocalizationManager.GetText("Maximum number of backup copies")
         
         .Range("A5").value = "BackupPath"
         .Range("B5").value = ThisWorkbook.Path & "\Backup\"
-        .Range("C5").value = "Path to save backup copies"
+        .Range("C5").value = LocalizationManager.GetText("Path to save backup copies")
         
         .Range("A6").value = "LogEnabled"
         .Range("B6").value = True
-        .Range("C6").value = "Enable operation logging"
+        .Range("C6").value = LocalizationManager.GetText("Enable operation logging")
         
         .Range("A7").value = "MaxLogRecords"
         .Range("B7").value = 100
-        .Range("C7").value = "Maximum number of log records"
+        .Range("C7").value = LocalizationManager.GetText("Maximum number of log records")
         
         .Range("A8").value = "ProgressUpdateInterval"
         .Range("B8").value = 100
-        .Range("C8").value = "Progress bar update interval (records)"
+        .Range("C8").value = LocalizationManager.GetText("Progress bar update interval (records)")
         
         .Range("A9").value = "DefaultFileFormat"
         .Range("B9").value = "*.xlsx,*.csv"
-        .Range("C9").value = "Default file formats"
+        .Range("C9").value = LocalizationManager.GetText("Default file formats")
         
         ' Matching settings (for stage 2)
         .Range("A11").value = "MatchThreshold"
         .Range("B11").value = 75
-        .Range("C11").value = "Match threshold for auto-matching (%)"
+        .Range("C11").value = LocalizationManager.GetText("Match threshold for auto-matching (%)")
         
         .Range("A12").value = "DateTolerance"
         .Range("B12").value = 30
-        .Range("C12").value = "Allowed date difference (days)"
+        .Range("C12").value = LocalizationManager.GetText("Allowed date difference (days)")
         
         .Range("A13").value = "AutoSelectBestMatch"
         .Range("B13").value = True
-        .Range("C13").value = "Automatically select best match"
+        .Range("C13").value = LocalizationManager.GetText("Automatically select best match")
         
         ' Formatting
         .Range("A1:C1").Font.Bold = True
@@ -136,7 +136,7 @@ Public Sub SetSetting(parameterName As String, value As Variant)
     Exit Sub
     
 SetError:
-    MsgBox "Error saving setting: " & Err.description, vbExclamation, "Settings Error"
+    MsgBox LocalizationManager.GetText("Error saving setting: ") & Err.description, vbExclamation, LocalizationManager.GetText("Settings Error")
 End Sub
 
 ' Show settings dialog
@@ -151,9 +151,9 @@ Public Sub ShowSettingsDialog()
     wsSettings.Visible = xlSheetVisible
     wsSettings.Activate
     
-    MsgBox "Settings sheet opened for editing." & vbCrLf & _
-           "After making changes, press OK to hide the sheet.", _
-           vbInformation, "Edit Settings"
+    MsgBox LocalizationManager.GetText("Settings sheet opened for editing.") & vbCrLf & _
+           LocalizationManager.GetText("After making changes, press OK to hide the sheet."), _
+           vbInformation, LocalizationManager.GetText("Edit Settings")
     
     ' Hide sheet back
     wsSettings.Visible = xlSheetVeryHidden
@@ -161,6 +161,6 @@ Public Sub ShowSettingsDialog()
     Exit Sub
     
 ShowError:
-    MsgBox "Error opening settings: " & Err.description, vbExclamation, "Error"
+    MsgBox LocalizationManager.GetText("Error opening settings: ") & Err.description, vbExclamation, LocalizationManager.GetText("Error")
 End Sub
 

@@ -1,16 +1,16 @@
 Attribute VB_Name = "DashboardModule"
 '==============================================
-' МОДУЛЬ ФУНКЦИОНАЛЬНОГО DASHBOARD - DashboardModule
-' Назначение: Генерация и обновление сводного dashboard с реальными данными
-' Состояние: ИСПРАВЛЕНА ПРОБЛЕМА ОТОБРАЖЕНИЯ ТАБЛИЦ - ПРАВИЛЬНОЕ ПОЗИЦИОНИРОВАНИЕ И ФОРМАТИРОВАНИЕ
-' Версия: 1.9.0
-' Дата: 04.08.2025
-' Автор: VBA Solution
+' FUNCTIONAL DASHBOARD MODULE - DashboardModule
+' Purpose: Generating and updating summary dashboard with real data
+' State: FIXED TABLE DISPLAY ISSUE - CORRECT POSITIONING AND FORMATTING
+' Version: 1.9.0
+' Date: 04.08.2025
+' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
 Option Explicit
 
-' Глобальные переменные модуля
+' Global module variables
 Private dashboardTimer As Double
 Private isAutoUpdateEnabled As Boolean
 Private lastUpdateTime As Date
@@ -18,24 +18,24 @@ Private cachedData As Collection
 Private cacheTimestamp As Date
 Private previousTotalDocs As Long
 
-' Константы для настроек
+' Configuration constants
 Private Const UPDATE_INTERVAL_SECONDS As Integer = 30
 Private Const CACHE_LIFETIME_MINUTES As Integer = 5
 Private Const MAX_TOP_SERVICES As Integer = 5
 Private Const CRITICAL_DELAY_DAYS As Integer = 7
 Private Const WARNING_DELAY_DAYS As Integer = 3
 
-' Правильные имена столбцов из диагностики
-Private Const STATUS_COLUMN_NAME As String = "СтатусПодтверждения"
-Private Const DATE_COLUMN_NAME As String = "ДатаВх. ФРП"
-Private Const SERVICE_COLUMN_NAME As String = "Служба"
+' Correct column names based on translations
+Private Const STATUS_COLUMN_NAME As String = "Confirmation Status"
+Private Const DATE_COLUMN_NAME As String = "Date Inc.FRP"
+Private Const SERVICE_COLUMN_NAME As String = "Service"
 
 ' ===============================================
-' ОСНОВНАЯ ПРОЦЕДУРА ГЕНЕРАЦИИ DASHBOARD
+' MAIN DASHBOARD GENERATION PROCEDURE
 ' ===============================================
 
 Public Sub GenerateDashboard()
-    ' Объявление основных переменных
+    ' Main variables declaration
     Dim wsDashboard As Worksheet
     Dim wsData As Worksheet
     Dim tblData As ListObject
@@ -43,13 +43,13 @@ Public Sub GenerateDashboard()
     Dim processedRecords As Long
     Dim errorMessage As String
     
-    ' Переменные для параметров фильтрации
+    ' Filter parameters variables
     Dim dateFrom As Date
     Dim dateTo As Date
     Dim serviceFilter As String
     Dim statusFilter As String
     
-    ' Переменные для данных
+    ' Data variables
     Dim filteredData As Collection
     Dim kpiMetrics As Collection
     
@@ -57,99 +57,99 @@ Public Sub GenerateDashboard()
     
     StartTime = Timer
     
-    ' Отключаем обновление экрана для производительности
+    ' Disable screen updating for performance
     Application.ScreenUpdating = False
     Application.EnableEvents = False
     Application.Calculation = xlCalculationManual
     
-    ' Получаем ссылки на листы и таблицу
+    ' Get worksheet and table references
     Set wsDashboard = CommonUtilities.GetWorksheetSafe("Dashboard")
-    Set wsData = CommonUtilities.GetWorksheetSafe("ВхИсх")
+    Set wsData = CommonUtilities.GetWorksheetSafe("IncOut")
     
     If wsDashboard Is Nothing Or wsData Is Nothing Then
-        MsgBox "Ошибка: Не найдены необходимые листы для генерации Dashboard", vbCritical, "Ошибка"
+        MsgBox LocalizationManager.GetText("Error: Required sheets not found for Dashboard generation"), vbCritical, LocalizationManager.GetText("Error")
         GoTo CleanupAndExit
     End If
     
-    Set tblData = CommonUtilities.GetListObjectSafe(wsData, "ВходящиеИсходящие")
+    Set tblData = CommonUtilities.GetListObjectSafe(wsData, "TableIncOut")
     
     If tblData Is Nothing Then
-        MsgBox "Ошибка: Не найдена таблица 'ВходящиеИсходящие' для генерации Dashboard", vbCritical, "Ошибка"
+        MsgBox LocalizationManager.GetText("Error: Table 'TableIncOut' not found for Dashboard generation"), vbCritical, LocalizationManager.GetText("Error")
         GoTo CleanupAndExit
     End If
     
-    ' Сохраняем предыдущее значение для расчета динамики
+    ' Save previous value for trend calculation
     On Error Resume Next
     previousTotalDocs = CLng(wsDashboard.Range("A6").value)
     If Err.Number <> 0 Then previousTotalDocs = 0
     Err.Clear
     On Error GoTo GenerateError
     
-    ' Получаем параметры фильтрации
+    ' Get filter parameters
     Call GetFilterParameters(dateFrom, dateTo, serviceFilter, statusFilter)
     
-    ' Обновляем статус генерации
-    wsDashboard.Range("I3").value = "Генерация..."
+    ' Update generation status
+    wsDashboard.Range("I3").value = LocalizationManager.GetText("Generating...")
     wsDashboard.Range("F3").value = Now
     
-    Debug.Print "=== ГЕНЕРАЦИЯ DASHBOARD ==="
-    Debug.Print "Дата с: " & dateFrom & " до: " & dateTo
-    Debug.Print "Служба: " & serviceFilter & ", Статус: " & statusFilter
+    Debug.Print "=== DASHBOARD GENERATION ==="
+    Debug.Print "Date from: " & dateFrom & " to: " & dateTo
+    Debug.Print "Service: " & serviceFilter & ", Status: " & statusFilter
     
-    ' Обновляем вспомогательные расчёты ПЕРЕД обработкой данных
+    ' Update helper calculations BEFORE data processing
     Call UpdateHelperCalculations(wsDashboard, tblData, dateFrom, dateTo, serviceFilter, statusFilter)
     
-    ' Получаем отфильтрованные данные с правильными именами столбцов
+    ' Get filtered data with correct column names
     Set filteredData = GetFilteredDataFixed(tblData, dateFrom, dateTo, serviceFilter, statusFilter)
     processedRecords = filteredData.Count
     
-    Debug.Print "Отфильтровано записей: " & processedRecords
+    Debug.Print "Filtered records: " & processedRecords
     
-    ' Рассчитываем метрики KPI
+    ' Calculate KPI metrics
     Set kpiMetrics = CalculateKPIMetricsFixed(filteredData, tblData)
     
-    Debug.Print "=== МЕТРИКИ KPI ==="
-    Debug.Print "Всего: " & GetMetricValue(kpiMetrics, "TotalDocs")
-    Debug.Print "Подтверждено: " & GetMetricValue(kpiMetrics, "ConfirmedDocs")
-    Debug.Print "В работе: " & GetMetricValue(kpiMetrics, "InProgressDocs")
-    Debug.Print "Просрочено: " & GetMetricValue(kpiMetrics, "OverdueDocs")
+    Debug.Print "=== KPI METRICS ==="
+    Debug.Print "Total: " & GetMetricValue(kpiMetrics, "TotalDocs")
+    Debug.Print "Confirmed: " & GetMetricValue(kpiMetrics, "ConfirmedDocs")
+    Debug.Print "In progress: " & GetMetricValue(kpiMetrics, "InProgressDocs")
+    Debug.Print "Overdue: " & GetMetricValue(kpiMetrics, "OverdueDocs")
     
-    ' Обновляем все секции Dashboard
+    ' Update all Dashboard sections
     Call UpdateKPIBlocks(wsDashboard, kpiMetrics, previousTotalDocs)
     
-    ' КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Обновляем таблицы с правильным форматированием
+    ' CRITICAL FIX: Update tables with proper formatting
     Call UpdateDataTablesWithFormatting(wsDashboard, filteredData, tblData)
     
     Call UpdateTrendsData(wsDashboard, filteredData)
     Call ApplyConditionalFormatting(wsDashboard, kpiMetrics)
     Call UpdateParametersPanel(wsDashboard, dateFrom, dateTo, processedRecords)
     
-    ' Создаем диаграммы с исправленными данными
-    Call CreateChartsFixed(wsDashboard, filteredData)
+    ' Create charts with fixed data
+    Call CreateChartsFixed(wsDashboard)
     
-    ' Записываем время последнего обновления
+    ' Record last update time
     lastUpdateTime = Now
     wsDashboard.Range("Q5").value = lastUpdateTime
     wsDashboard.Range("Q5").NumberFormat = "dd.mm.yyyy hh:mm:ss"
     
-    ' Обновляем статус завершения
-    wsDashboard.Range("I3").value = "Активен"
+    ' Update completion status
+    wsDashboard.Range("I3").value = LocalizationManager.GetText("Active")
     
 CleanupAndExit:
-    ' Включаем обратно обновления
+    ' Re-enable updates
     Application.ScreenUpdating = True
     Application.EnableEvents = True
     Application.Calculation = xlCalculationAutomatic
     
-    ' Информируем о завершении
+    ' Inform about completion
     Dim processingTime As Double
     processingTime = Timer - StartTime
     
-    MsgBox "Dashboard успешно обновлен!" & vbCrLf & vbCrLf & _
-           "Обработано записей: " & processedRecords & vbCrLf & _
-           "Время обработки: " & Format(processingTime, "0.00") & " сек." & vbCrLf & _
-           "Последнее обновление: " & Format(lastUpdateTime, "dd.mm.yyyy hh:mm:ss"), _
-           vbInformation, "Dashboard обновлен"
+    MsgBox LocalizationManager.GetText("Dashboard updated successfully!") & vbCrLf & vbCrLf & _
+           LocalizationManager.GetText("Processed records: ") & processedRecords & vbCrLf & _
+           LocalizationManager.GetText("Processing time: ") & Format(processingTime, "0.00") & LocalizationManager.GetText(" sec.") & vbCrLf & _
+           LocalizationManager.GetText("Last update: ") & Format(lastUpdateTime, "dd.mm.yyyy hh:mm:ss"), _
+           vbInformation, LocalizationManager.GetText("Dashboard Updated")
     
     Call StartAutoUpdate
     
@@ -160,18 +160,17 @@ GenerateError:
     Application.EnableEvents = True
     Application.Calculation = xlCalculationAutomatic
     
-    errorMessage = "Ошибка генерации Dashboard: " & Err.description & vbCrLf & _
-                   "Номер ошибки: " & Err.Number & vbCrLf & _
-                   "Обработано записей: " & processedRecords
-    MsgBox errorMessage, vbCritical, "Критическая ошибка"
+    errorMessage = LocalizationManager.GetText("Dashboard generation error: ") & Err.description & vbCrLf & _
+                   LocalizationManager.GetText("Error number: ") & Err.Number & vbCrLf & _
+                   LocalizationManager.GetText("Processed records: ") & processedRecords
+    MsgBox errorMessage, vbCritical, LocalizationManager.GetText("Critical Error")
 End Sub
 
 ' ===============================================
-' ПРОЦЕДУРА ОБНОВЛЕНИЯ ВСПОМОГАТЕЛЬНЫХ РАСЧЁТОВ
+' HELPER CALCULATIONS UPDATE PROCEDURE
 ' ===============================================
 
 Private Sub UpdateHelperCalculations(wsDashboard As Worksheet, tblData As ListObject, dateFrom As Date, dateTo As Date, serviceFilter As String, statusFilter As String)
-    ' Объявление переменных для расчётов
     Dim totalDocs As Long
     Dim confirmedDocs As Long
     Dim sentDocs As Long
@@ -182,7 +181,6 @@ Private Sub UpdateHelperCalculations(wsDashboard As Worksheet, tblData As ListOb
     Dim avgProcessingDays As Double
     Dim periodDays As Long
     
-    ' Переменные для обработки данных
     Dim i As Long
     Dim recordDate As Date
     Dim recordService As String
@@ -191,7 +189,6 @@ Private Sub UpdateHelperCalculations(wsDashboard As Worksheet, tblData As ListOb
     Dim totalProcessingDays As Long
     Dim processedRecords As Long
     
-    ' Инициализация счётчиков
     totalDocs = 0
     confirmedDocs = 0
     sentDocs = 0
@@ -201,15 +198,13 @@ Private Sub UpdateHelperCalculations(wsDashboard As Worksheet, tblData As ListOb
     totalProcessingDays = 0
     processedRecords = 0
     
-    Debug.Print "=== ОБНОВЛЕНИЕ ВСПОМОГАТЕЛЬНЫХ РАСЧЁТОВ ==="
+    Debug.Print "=== UPDATING HELPER CALCULATIONS ==="
     
-    ' Проверяем наличие данных в таблице
     If tblData.DataBodyRange Is Nothing Then
-        Debug.Print "ПРЕДУПРЕЖДЕНИЕ: Таблица пуста"
+        Debug.Print "WARNING: Table is empty"
         GoTo WriteResults
     End If
     
-    ' Находим правильные индексы столбцов
     Dim statusColumnIndex As Integer
     Dim dateColumnIndex As Integer
     Dim serviceColumnIndex As Integer
@@ -218,51 +213,40 @@ Private Sub UpdateHelperCalculations(wsDashboard As Worksheet, tblData As ListOb
     dateColumnIndex = FindColumnIndex(tblData, DATE_COLUMN_NAME, 8)
     serviceColumnIndex = FindColumnIndex(tblData, SERVICE_COLUMN_NAME, 2)
     
-    Debug.Print "Используемые столбцы: Статус=" & statusColumnIndex & ", Дата=" & dateColumnIndex & ", Служба=" & serviceColumnIndex
+    Debug.Print "Used columns: Status=" & statusColumnIndex & ", Date=" & dateColumnIndex & ", Service=" & serviceColumnIndex
     
-    ' Обрабатываем каждую строку таблицы
     For i = 1 To tblData.ListRows.Count
-        ' Получаем дату записи
         On Error Resume Next
         recordDate = CDate(tblData.DataBodyRange.Cells(i, dateColumnIndex).value)
         If Err.Number <> 0 Then recordDate = 0
         Err.Clear
         On Error GoTo 0
         
-        ' Фильтр по дате
         If recordDate > 0 And recordDate >= dateFrom And recordDate <= dateTo Then
-            ' Получаем службу
             recordService = CStr(tblData.DataBodyRange.Cells(i, serviceColumnIndex).value)
             
-            ' Фильтр по службе
-            If serviceFilter = "Все службы" Or serviceFilter = "" Or recordService = serviceFilter Then
-                ' Получаем статус
+            If serviceFilter = "All services" Or serviceFilter = "" Or recordService = serviceFilter Then
                 recordStatus = CStr(tblData.DataBodyRange.Cells(i, statusColumnIndex).value)
                 
-                ' Фильтр по статусу
-                If statusFilter = "Все статусы" Or statusFilter = "" Or recordStatus = statusFilter Or _
-                   (statusFilter = "(пустой)" And recordStatus = "") Then
+                If statusFilter = "All statuses" Or statusFilter = "" Or recordStatus = statusFilter Or _
+                   (statusFilter = "(empty)" And recordStatus = "") Then
                     
-                    ' Увеличиваем общий счётчик
                     totalDocs = totalDocs + 1
                     
-                    ' Классифицируем по статусам
-                    If InStr(UCase(recordStatus), "ПОДТВЕРЖДЕНО") > 0 Then
+                    If InStr(UCase(recordStatus), "CONFIRM") > 0 Then
                         confirmedDocs = confirmedDocs + 1
-                    ElseIf InStr(UCase(recordStatus), "ОТПР") > 0 And InStr(UCase(recordStatus), "ИСХ") > 0 Then
+                    ElseIf InStr(UCase(recordStatus), "SENT") > 0 And InStr(UCase(recordStatus), "OUT") > 0 Then
                         sentDocs = sentDocs + 1
-                    ElseIf recordStatus = "" Or InStr(UCase(recordStatus), "НЕТ") > 0 Then
+                    ElseIf recordStatus = "" Or InStr(UCase(recordStatus), "NO ") > 0 Then
                         emptyStatusDocs = emptyStatusDocs + 1
                     End If
                     
-                    ' Проверяем на просрочку
                     daysDiff = Date - recordDate
-                    If daysDiff > CRITICAL_DELAY_DAYS And Not (InStr(UCase(recordStatus), "ПОДТВЕРЖДЕНО") > 0 Or InStr(UCase(recordStatus), "ОТПР") > 0) Then
+                    If daysDiff > CRITICAL_DELAY_DAYS And Not (InStr(UCase(recordStatus), "CONFIRM") > 0 Or InStr(UCase(recordStatus), "SENT") > 0) Then
                         overdueDocs = overdueDocs + 1
                     End If
                     
-                    ' Для расчёта среднего времени обработки
-                    If InStr(UCase(recordStatus), "ПОДТВЕРЖДЕНО") > 0 Or InStr(UCase(recordStatus), "ОТПР") > 0 Then
+                    If InStr(UCase(recordStatus), "CONFIRM") > 0 Or InStr(UCase(recordStatus), "SENT") > 0 Then
                         totalProcessingDays = totalProcessingDays + daysDiff
                         processedRecords = processedRecords + 1
                     End If
@@ -272,7 +256,6 @@ Private Sub UpdateHelperCalculations(wsDashboard As Worksheet, tblData As ListOb
     Next i
     
 WriteResults:
-    ' Рассчитываем производные показатели
     inProgressDocs = totalDocs - confirmedDocs - sentDocs - emptyStatusDocs
     If inProgressDocs < 0 Then inProgressDocs = 0
     
@@ -290,83 +273,68 @@ WriteResults:
     
     periodDays = dateTo - dateFrom + 1
     
-    ' Записываем вспомогательные расчёты в правильные ячейки
     On Error Resume Next
+    wsDashboard.Range("T3").value = totalDocs
+    wsDashboard.Range("T4").value = confirmedDocs
+    wsDashboard.Range("T5").value = sentDocs
+    wsDashboard.Range("T6").value = inProgressDocs
+    wsDashboard.Range("T7").value = emptyStatusDocs
+    wsDashboard.Range("T8").value = overdueDocs
     
-    ' Основные показатели
-    wsDashboard.Range("T3").value = totalDocs              ' Всего_Документов
-    wsDashboard.Range("T4").value = confirmedDocs          ' Подтвержденных
-    wsDashboard.Range("T5").value = sentDocs               ' Отправленных
-    wsDashboard.Range("T6").value = inProgressDocs         ' В_Работе
-    wsDashboard.Range("T7").value = emptyStatusDocs        ' Без_Статуса
-    wsDashboard.Range("T8").value = overdueDocs            ' Просроченных
+    wsDashboard.Range("T9").value = completionRate
+    wsDashboard.Range("T10").value = avgProcessingDays
+    wsDashboard.Range("T11").value = periodDays
+    wsDashboard.Range("T12").value = Date
     
-    ' Производные показатели
-    wsDashboard.Range("T9").value = completionRate         ' Процент_Завершения
-    wsDashboard.Range("T10").value = avgProcessingDays     ' Средний_Срок
-    wsDashboard.Range("T11").value = periodDays            ' Период_Дней
-    wsDashboard.Range("T12").value = Date                  ' Последняя_Дата
-    
-    ' Форматирование
-    wsDashboard.Range("T9").NumberFormat = "0.0%"          ' Процент
-    wsDashboard.Range("T10").NumberFormat = "0.0"          ' Дни с десятичными
-    wsDashboard.Range("T12").NumberFormat = "dd.mm.yyyy"   ' Дата
-    
+    wsDashboard.Range("T9").NumberFormat = "0.0%"
+    wsDashboard.Range("T10").NumberFormat = "0.0"
+    wsDashboard.Range("T12").NumberFormat = "dd.mm.yyyy"
     On Error GoTo 0
     
-    Debug.Print "Вспомогательные расчёты обновлены:"
-    Debug.Print "- Всего документов: " & totalDocs
-    Debug.Print "- Подтверждено: " & confirmedDocs
-    Debug.Print "- В работе: " & inProgressDocs
-    Debug.Print "- Просрочено: " & overdueDocs
+    Debug.Print "Helper calculations updated:"
+    Debug.Print "- Total docs: " & totalDocs
+    Debug.Print "- Confirmed: " & confirmedDocs
+    Debug.Print "- In progress: " & inProgressDocs
+    Debug.Print "- Overdue: " & overdueDocs
 End Sub
 
 ' ===============================================
-' ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: ПОИСК ИНДЕКСА СТОЛБЦА
+' HELPER FUNCTION: FIND COLUMN INDEX
 ' ===============================================
 
 Private Function FindColumnIndex(tblData As ListObject, ColumnName As String, defaultIndex As Integer) As Integer
     Dim i As Integer
     Dim foundIndex As Integer
     
-    foundIndex = defaultIndex ' Значение по умолчанию
+    foundIndex = defaultIndex
     
-    ' Ищем столбец по имени
     For i = 1 To tblData.ListColumns.Count
         If InStr(UCase(tblData.ListColumns(i).Name), UCase(ColumnName)) > 0 Then
             foundIndex = i
-            Debug.Print "Найден столбец '" & ColumnName & "' с индексом " & i
             Exit For
         End If
     Next i
     
-    ' Если не найден, используем альтернативные варианты
     If foundIndex = defaultIndex Then
         Select Case ColumnName
             Case STATUS_COLUMN_NAME
-                ' Ищем альтернативные названия для статуса
                 For i = 1 To tblData.ListColumns.Count
-                    If InStr(UCase(tblData.ListColumns(i).Name), "СТАТУС") > 0 Then
+                    If InStr(UCase(tblData.ListColumns(i).Name), "STATUS") > 0 Then
                         foundIndex = i
-                        Debug.Print "Найден альтернативный столбец статуса: " & tblData.ListColumns(i).Name & " (индекс " & i & ")"
                         Exit For
                     End If
                 Next i
             Case DATE_COLUMN_NAME
-                ' Ищем альтернативные названия для даты
                 For i = 1 To tblData.ListColumns.Count
-                    If InStr(UCase(tblData.ListColumns(i).Name), "ДАТА") > 0 And InStr(UCase(tblData.ListColumns(i).Name), "ФРП") > 0 Then
+                    If InStr(UCase(tblData.ListColumns(i).Name), "DATE") > 0 And InStr(UCase(tblData.ListColumns(i).Name), "FRP") > 0 Then
                         foundIndex = i
-                        Debug.Print "Найден альтернативный столбец даты: " & tblData.ListColumns(i).Name & " (индекс " & i & ")"
                         Exit For
                     End If
                 Next i
             Case SERVICE_COLUMN_NAME
-                ' Ищем альтернативные названия для службы
                 For i = 1 To tblData.ListColumns.Count
-                    If InStr(UCase(tblData.ListColumns(i).Name), "СЛУЖБ") > 0 Then
+                    If InStr(UCase(tblData.ListColumns(i).Name), "SERVICE") > 0 Then
                         foundIndex = i
-                        Debug.Print "Найден альтернативный столбец службы: " & tblData.ListColumns(i).Name & " (индекс " & i & ")"
                         Exit For
                     End If
                 Next i
@@ -377,7 +345,7 @@ Private Function FindColumnIndex(tblData As ListObject, ColumnName As String, de
 End Function
 
 ' ===============================================
-' ПРОЦЕДУРА ПОЛУЧЕНИЯ ПАРАМЕТРОВ ФИЛЬТРАЦИИ
+' GET FILTER PARAMETERS PROCEDURE
 ' ===============================================
 
 Private Sub GetFilterParameters(ByRef dateFrom As Date, ByRef dateTo As Date, ByRef serviceFilter As String, ByRef statusFilter As String)
@@ -385,7 +353,7 @@ Private Sub GetFilterParameters(ByRef dateFrom As Date, ByRef dateTo As Date, By
     
     On Error GoTo DefaultParameters
     
-    Set wsReports = CommonUtilities.GetWorksheetSafe("Отчеты")
+    Set wsReports = CommonUtilities.GetWorksheetSafe("Reports")
     
     If Not wsReports Is Nothing Then
         On Error Resume Next
@@ -409,16 +377,16 @@ Private Sub GetFilterParameters(ByRef dateFrom As Date, ByRef dateTo As Date, By
 DefaultParameters:
     dateFrom = Date - 365
     dateTo = Date
-    serviceFilter = "Все службы"
-    statusFilter = "Все статусы"
+    serviceFilter = "All services"
+    statusFilter = "All statuses"
     
-    Debug.Print "ИСПОЛЬЗУЮТСЯ ПАРАМЕТРЫ ПО УМОЛЧАНИЮ"
+    Debug.Print "USING DEFAULT PARAMETERS"
     
     On Error GoTo 0
 End Sub
 
 ' ===============================================
-' ФУНКЦИЯ ПОЛУЧЕНИЯ ОТФИЛЬТРОВАННЫХ ДАННЫХ
+' GET FILTERED DATA FUNCTION
 ' ===============================================
 
 Private Function GetFilteredDataFixed(tblData As ListObject, dateFrom As Date, dateTo As Date, serviceFilter As String, statusFilter As String) As Collection
@@ -434,7 +402,6 @@ Private Function GetFilteredDataFixed(tblData As ListObject, dateFrom As Date, d
     Dim validDates As Long
     Dim matchedRecords As Long
     
-    ' Определяем правильные индексы столбцов
     Dim statusColumnIndex As Integer
     Dim dateColumnIndex As Integer
     Dim serviceColumnIndex As Integer
@@ -442,7 +409,7 @@ Private Function GetFilteredDataFixed(tblData As ListObject, dateFrom As Date, d
     Set filteredData = New Collection
     
     If tblData.DataBodyRange Is Nothing Then
-        Debug.Print "ОШИБКА: Таблица не содержит данных"
+        Debug.Print "ERROR: Table has no data"
         Set GetFilteredDataFixed = filteredData
         Exit Function
     End If
@@ -455,13 +422,14 @@ Private Function GetFilteredDataFixed(tblData As ListObject, dateFrom As Date, d
     dateColumnIndex = FindColumnIndex(tblData, DATE_COLUMN_NAME, 8)
     serviceColumnIndex = FindColumnIndex(tblData, SERVICE_COLUMN_NAME, 2)
     
-    Debug.Print "=== ОБРАБОТКА ДАННЫХ ==="
-    Debug.Print "Всего строк: " & TotalRows & ", Индексы: С=" & statusColumnIndex & ", Д=" & dateColumnIndex & ", СЛ=" & serviceColumnIndex
+    Debug.Print "=== PROCESSING DATA ==="
+    Debug.Print "Total rows: " & TotalRows & ", Indices: S=" & statusColumnIndex & ", D=" & dateColumnIndex & ", SRV=" & serviceColumnIndex
     
-    fieldNames = Array("НомерПП", "Служба", "ВидДокумента", "ТипДокумента", "НомерДокумента", _
-                      "СуммаДокумента", "НомерФРП", "ДатаФРП", "ОтКогоПоступил", "ДатаПередачи", _
-                      "Исполнитель", "НомерИсхВСлужбу", "ДатаИсхВСлужбу", "НомерВозврата", _
-                      "ДатаВозврата", "НомерИсхКонверт", "ДатаИсхКонверт", "ОтметкаИсполнения", "Статус")
+    ' Translated internal array keys
+    fieldNames = Array("SeqNo", "Service", "DocGroup", "DocType", "DocNumber", _
+                      "DocAmount", "FRPNumber", "FRPDate", "ReceivedFrom", "TransferDate", _
+                      "Executor", "OutServiceNo", "OutServiceDate", "ReturnNo", _
+                      "ReturnDate", "OutEnvelopeNo", "OutEnvelopeDate", "ExecutionMark", "Status")
     
     For i = 1 To TotalRows
         On Error Resume Next
@@ -477,15 +445,15 @@ Private Function GetFilteredDataFixed(tblData As ListObject, dateFrom As Date, d
         If recordDate > 0 Then
             recordService = CStr(tblData.DataBodyRange.Cells(i, serviceColumnIndex).value)
             
-            If serviceFilter = "Все службы" Or serviceFilter = "" Or recordService = serviceFilter Then
+            If serviceFilter = "All services" Or serviceFilter = "" Or recordService = serviceFilter Then
                 recordStatus = CStr(tblData.DataBodyRange.Cells(i, statusColumnIndex).value)
                 
                 Dim statusMatch As Boolean
                 statusMatch = False
                 
-                If statusFilter = "Все статусы" Or statusFilter = "" Then
+                If statusFilter = "All statuses" Or statusFilter = "" Then
                     statusMatch = True
-                ElseIf statusFilter = "(пустой)" And recordStatus = "" Then
+                ElseIf statusFilter = "(empty)" And recordStatus = "" Then
                     statusMatch = True
                 ElseIf recordStatus = statusFilter Then
                     statusMatch = True
@@ -510,13 +478,13 @@ Private Function GetFilteredDataFixed(tblData As ListObject, dateFrom As Date, d
         End If
     Next i
     
-    Debug.Print "Валидных дат: " & validDates & ", Прошло фильтрацию: " & matchedRecords
+    Debug.Print "Valid dates: " & validDates & ", Passed filter: " & matchedRecords
     
     Set GetFilteredDataFixed = filteredData
 End Function
 
 ' ===============================================
-' ФУНКЦИЯ РАСЧЕТА МЕТРИК KPI
+' KPI METRICS CALCULATION FUNCTION
 ' ===============================================
 
 Private Function CalculateKPIMetricsFixed(filteredData As Collection, tblData As ListObject) As Collection
@@ -554,25 +522,25 @@ Private Function CalculateKPIMetricsFixed(filteredData As Collection, tblData As
     totalInProgressDays = 0
     inProgressRecords = 0
     
-    Debug.Print "=== АНАЛИЗ СТАТУСОВ (ИСПРАВЛЕННЫЙ) ==="
+    Debug.Print "=== STATUS ANALYSIS (FIXED) ==="
     
     For Each record In filteredData
         On Error Resume Next
-        recordStatus = CStr(record.item("Статус"))
+        recordStatus = CStr(record.item("Status"))
         If Err.Number <> 0 Then recordStatus = ""
         Err.Clear
         On Error GoTo 0
         
-        If InStr(UCase(recordStatus), "ПОДТВЕРЖДЕНО") > 0 Then
+        If InStr(UCase(recordStatus), "CONFIRM") > 0 Then
             confirmedDocs = confirmedDocs + 1
-        ElseIf InStr(UCase(recordStatus), "ОТПР") > 0 And InStr(UCase(recordStatus), "ИСХ") > 0 Then
+        ElseIf InStr(UCase(recordStatus), "SENT") > 0 And InStr(UCase(recordStatus), "OUT") > 0 Then
             sentDocs = sentDocs + 1
-        ElseIf recordStatus = "" Or InStr(UCase(recordStatus), "НЕТ") > 0 Then
+        ElseIf recordStatus = "" Or InStr(UCase(recordStatus), "NO ") > 0 Then
             emptyStatusDocs = emptyStatusDocs + 1
         End If
         
         On Error Resume Next
-        recordDate = CDate(record.item("ДатаФРП"))
+        recordDate = CDate(record.item("FRPDate"))
         If Err.Number = 0 And recordDate > 0 Then
             daysDiff = Date - recordDate
             
@@ -580,16 +548,16 @@ Private Function CalculateKPIMetricsFixed(filteredData As Collection, tblData As
                 maxDelayDays = daysDiff
             End If
             
-            If daysDiff > CRITICAL_DELAY_DAYS And Not (InStr(UCase(recordStatus), "ПОДТВЕРЖДЕНО") > 0 Or InStr(UCase(recordStatus), "ОТПР") > 0) Then
+            If daysDiff > CRITICAL_DELAY_DAYS And Not (InStr(UCase(recordStatus), "CONFIRM") > 0 Or InStr(UCase(recordStatus), "SENT") > 0) Then
                 overdueDocs = overdueDocs + 1
             End If
             
-            If InStr(UCase(recordStatus), "ПОДТВЕРЖДЕНО") > 0 Or InStr(UCase(recordStatus), "ОТПР") > 0 Then
+            If InStr(UCase(recordStatus), "CONFIRM") > 0 Or InStr(UCase(recordStatus), "SENT") > 0 Then
                 totalDays = totalDays + daysDiff
                 processedRecords = processedRecords + 1
             End If
             
-            If Not (InStr(UCase(recordStatus), "ПОДТВЕРЖДЕНО") > 0 Or InStr(UCase(recordStatus), "ОТПР") > 0) Then
+            If Not (InStr(UCase(recordStatus), "CONFIRM") > 0 Or InStr(UCase(recordStatus), "SENT") > 0) Then
                 totalInProgressDays = totalInProgressDays + daysDiff
                 inProgressRecords = inProgressRecords + 1
             End If
@@ -636,7 +604,7 @@ Private Function CalculateKPIMetricsFixed(filteredData As Collection, tblData As
 End Function
 
 ' ===============================================
-' ПРОЦЕДУРА ОБНОВЛЕНИЯ KPI БЛОКОВ
+' KPI BLOCKS UPDATE PROCEDURE
 ' ===============================================
 
 Private Sub UpdateKPIBlocks(wsDashboard As Worksheet, metrics As Collection, previousTotal As Long)
@@ -670,26 +638,26 @@ Private Sub UpdateKPIBlocks(wsDashboard As Worksheet, metrics As Collection, pre
     dynamicChange = totalDocs - previousTotal
     If dynamicChange > 0 Then
         dynamicIcon = "?"
-        dynamicText = "+" & dynamicChange & " к предыдущему"
+        dynamicText = "+" & dynamicChange & LocalizationManager.GetText(" vs previous")
     ElseIf dynamicChange < 0 Then
         dynamicIcon = "?"
-        dynamicText = dynamicChange & " к предыдущему"
+        dynamicText = dynamicChange & LocalizationManager.GetText(" vs previous")
     Else
         dynamicIcon = ">"
-        dynamicText = "Без изменений"
+        dynamicText = LocalizationManager.GetText("No changes")
     End If
     wsDashboard.Range("A8").value = dynamicIcon & " " & dynamicText
     
     If avgInProgressDays > 0 Then
-        wsDashboard.Range("I8").value = "Ср. время: " & Format(avgInProgressDays, "0.0") & " дн."
+        wsDashboard.Range("I8").value = LocalizationManager.GetText("Avg. time: ") & Format(avgInProgressDays, "0.0") & LocalizationManager.GetText(" days")
     Else
-        wsDashboard.Range("I8").value = "Ср. время: н/д"
+        wsDashboard.Range("I8").value = LocalizationManager.GetText("Avg. time: ") & LocalizationManager.GetText("N/A")
     End If
     
     If maxDelayDays > 0 Then
-        wsDashboard.Range("M8").value = "Макс. задержка: " & maxDelayDays & " дн."
+        wsDashboard.Range("M8").value = LocalizationManager.GetText("Max delay: ") & maxDelayDays & LocalizationManager.GetText(" days")
     Else
-        wsDashboard.Range("M8").value = "Задержек нет"
+        wsDashboard.Range("M8").value = LocalizationManager.GetText("No delays")
     End If
     
     With wsDashboard.Range("A8,I8,M8")
@@ -726,7 +694,7 @@ Private Sub UpdateKPIBlocks(wsDashboard As Worksheet, metrics As Collection, pre
 End Sub
 
 ' ===============================================
-' ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: БЕЗОПАСНОЕ ПОЛУЧЕНИЕ ЗНАЧЕНИЙ ИЗ КОЛЛЕКЦИИ
+' HELPER FUNCTION: SAFE GET FROM COLLECTION
 ' ===============================================
 
 Private Function GetMetricValue(metrics As Collection, keyName As String) As Variant
@@ -744,77 +712,77 @@ Private Function GetMetricValue(metrics As Collection, keyName As String) As Var
 End Function
 
 ' ===============================================
-' НОВАЯ ПРОЦЕДУРА: ОБНОВЛЕНИЕ ТАБЛИЦ С ФОРМАТИРОВАНИЕМ
+' NEW PROCEDURE: UPDATE TABLES WITH FORMATTING
 ' ===============================================
 
 Private Sub UpdateDataTablesWithFormatting(wsDashboard As Worksheet, filteredData As Collection, tblData As ListObject)
-    Debug.Print "=== ОБНОВЛЕНИЕ ТАБЛИЦ С ФОРМАТИРОВАНИЕМ ==="
+    Debug.Print "=== UPDATING TABLES WITH FORMATTING ==="
     
-    ' КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сначала очищаем области таблиц
+    ' CRITICAL FIX: First clear table areas
     Call ClearTableAreas(wsDashboard)
     
-    ' Создаем заголовки таблиц
+    ' Create table headers
     Call CreateTableHeaders(wsDashboard)
     
-    ' Обновляем таблицы с данными
+    ' Update data tables
     Call UpdateTopServicesTableFormatted(wsDashboard, filteredData)
     Call UpdateProblemDocsTableFormatted(wsDashboard, filteredData)
     Call UpdateChartDataTablesFixed(wsDashboard, filteredData)
     
-    ' Применяем форматирование к таблицам
+    ' Apply formatting
     Call ApplyTableFormatting(wsDashboard)
 End Sub
 
 ' ===============================================
-' ПРОЦЕДУРА ОЧИСТКИ ОБЛАСТЕЙ ТАБЛИЦ
+' CLEAR TABLE AREAS PROCEDURE
 ' ===============================================
 
 Private Sub ClearTableAreas(wsDashboard As Worksheet)
     On Error Resume Next
     
-    ' Очищаем область таблицы топ-служб (A27:F35)
+    ' Clear top services table area (A27:F35)
     wsDashboard.Range("A27:F35").ClearContents
     wsDashboard.Range("A27:F35").Interior.ColorIndex = xlNone
     wsDashboard.Range("A27:F35").Borders.LineStyle = xlNone
     
-    ' Очищаем область таблицы проблемных документов (H27:M35)
+    ' Clear problem docs table area (H27:M35)
     wsDashboard.Range("H27:M35").ClearContents
     wsDashboard.Range("H27:M35").Interior.ColorIndex = xlNone
     wsDashboard.Range("H27:M35").Borders.LineStyle = xlNone
     
-    ' Очищаем скрытые данные для диаграмм
+    ' Clear hidden chart data
     wsDashboard.Range("V4:W8").ClearContents
     wsDashboard.Range("V11:W17").ClearContents
     
     On Error GoTo 0
     
-    Debug.Print "Области таблиц очищены"
+    Debug.Print "Table areas cleared"
 End Sub
 
 ' ===============================================
-' ПРОЦЕДУРА СОЗДАНИЯ ЗАГОЛОВКОВ ТАБЛИЦ
+' CREATE TABLE HEADERS PROCEDURE
 ' ===============================================
 
 Private Sub CreateTableHeaders(wsDashboard As Worksheet)
     On Error Resume Next
     
-    ' Заголовки таблицы топ-служб
-    wsDashboard.Range("A27").value = "№"
-    wsDashboard.Range("B27").value = "СЛУЖБЫ С НАИБОЛЬШЕЙ АКТИВНОСТЬЮ"
-    wsDashboard.Range("C27").value = "Всего"
-    wsDashboard.Range("D27").value = "Завершено"
+    ' Top services headers
+    wsDashboard.Range("A27").value = LocalizationManager.GetText("No.")
+    wsDashboard.Range("B27").value = LocalizationManager.GetText("MOST ACTIVE SERVICES")
+    wsDashboard.Range("C27").value = LocalizationManager.GetText("Total")
+    wsDashboard.Range("D27").value = LocalizationManager.GetText("Completed")
     wsDashboard.Range("E27").value = "%"
-    wsDashboard.Range("F27").value = "Тренд"
+    wsDashboard.Range("F27").value = LocalizationManager.GetText("Trend")
     
-    ' Заголовки таблицы проблемных документов
-    wsDashboard.Range("H27").value = "ДОКУМЕНТЫ, ТРЕБУЮЩИЕ ВНИМАНИЯ"
-    wsDashboard.Range("I27").value = "Служба"
-    wsDashboard.Range("J27").value = "№ Документа"
-    wsDashboard.Range("K27").value = "Дата"
-    wsDashboard.Range("L27").value = "Дней"
-    wsDashboard.Range("M27").value = "Статус"
+    ' Problem docs headers
+    wsDashboard.Range("H27").value = LocalizationManager.GetText("DOCUMENTS REQUIRING ATTENTION")
+    wsDashboard.Range("I27").value = LocalizationManager.GetText("Service")
+    wsDashboard.Range("J27").value = LocalizationManager.GetText("Doc No.")
+    wsDashboard.Range("K27").value = LocalizationManager.GetText("Date")
+    wsDashboard.Range("L27").value = LocalizationManager.GetText("Days")
+    wsDashboard.Range("M27").value = LocalizationManager.GetText("Status")
     
-    ' Форматирование заголовков
+    ' Headers formatting
     With wsDashboard.Range("A27:F27")
         .Font.Bold = True
         .Font.Size = 10
@@ -833,11 +801,11 @@ Private Sub CreateTableHeaders(wsDashboard As Worksheet)
     
     On Error GoTo 0
     
-    Debug.Print "Заголовки таблиц созданы"
+    Debug.Print "Table headers created"
 End Sub
 
 ' ===============================================
-' ИСПРАВЛЕННАЯ ПРОЦЕДУРА ОБНОВЛЕНИЯ ТАБЛИЦЫ ТОП-СЛУЖБ С ФОРМАТИРОВАНИЕМ
+' FIXED UPDATE TOP SERVICES TABLE WITH FORMATTING
 ' ===============================================
 
 Private Sub UpdateTopServicesTableFormatted(wsDashboard As Worksheet, filteredData As Collection)
@@ -854,25 +822,25 @@ Private Sub UpdateTopServicesTableFormatted(wsDashboard As Worksheet, filteredDa
     
     Set serviceStats = CreateObject("Scripting.Dictionary")
     
-    Debug.Print "=== ОБНОВЛЕНИЕ ТАБЛИЦЫ ТОП-СЛУЖБ С ФОРМАТИРОВАНИЕМ ==="
+    Debug.Print "=== UPDATING TOP SERVICES TABLE WITH FORMATTING ==="
     
-    ' Собираем статистику по службам
+    ' Collect service stats
     For Each record In filteredData
         On Error Resume Next
-        serviceName = CStr(record.item("Служба"))
+        serviceName = CStr(record.item("Service"))
         If Err.Number <> 0 Then serviceName = ""
         Err.Clear
         On Error GoTo 0
         
         If serviceName <> "" Then
             On Error Resume Next
-            recordStatus = CStr(record.item("Статус"))
+            recordStatus = CStr(record.item("Status"))
             If Err.Number <> 0 Then recordStatus = ""
             Err.Clear
             On Error GoTo 0
             
             If Not serviceStats.Exists(serviceName) Then
-                If InStr(UCase(recordStatus), "ПОДТВЕРЖДЕНО") > 0 Or InStr(UCase(recordStatus), "ОТПР") > 0 Then
+                If InStr(UCase(recordStatus), "CONFIRM") > 0 Or InStr(UCase(recordStatus), "SENT") > 0 Then
                     serviceStats.Add serviceName, Array(1, 1)
                 Else
                     serviceStats.Add serviceName, Array(1, 0)
@@ -881,7 +849,7 @@ Private Sub UpdateTopServicesTableFormatted(wsDashboard As Worksheet, filteredDa
                 Dim currentData As Variant
                 currentData = serviceStats(serviceName)
                 totalCount = currentData(0) + 1
-                If InStr(UCase(recordStatus), "ПОДТВЕРЖДЕНО") > 0 Or InStr(UCase(recordStatus), "ОТПР") > 0 Then
+                If InStr(UCase(recordStatus), "CONFIRM") > 0 Or InStr(UCase(recordStatus), "SENT") > 0 Then
                     completedCount = currentData(1) + 1
                 Else
                     completedCount = currentData(1)
@@ -891,9 +859,9 @@ Private Sub UpdateTopServicesTableFormatted(wsDashboard As Worksheet, filteredDa
         End If
     Next record
     
-    Debug.Print "Найдено уникальных служб: " & serviceStats.Count
+    Debug.Print "Unique services found: " & serviceStats.Count
     
-    ' Создаем отсортированный список служб
+    ' Create sorted list
     Set sortedServices = New Collection
     For Each serviceKey In serviceStats.Keys
         sortedServices.Add serviceKey
@@ -901,17 +869,17 @@ Private Sub UpdateTopServicesTableFormatted(wsDashboard As Worksheet, filteredDa
     
     topCount = IIf(sortedServices.Count < MAX_TOP_SERVICES, sortedServices.Count, MAX_TOP_SERVICES)
     
-    ' Заполняем таблицу с форматированием
+    ' Fill table with formatting
     For i = 1 To MAX_TOP_SERVICES
         Dim RowIndex As Integer
-        RowIndex = 28 + i - 1  ' Строки 28-32
+        RowIndex = 28 + i - 1  ' Rows 28-32
         
         If i <= topCount Then
             serviceName = sortedServices.item(i)
             Dim serviceData As Variant
             serviceData = serviceStats(serviceName)
             
-            ' КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Заполняем ячейки с проверкой
+            ' CRITICAL FIX: Fill cells safely
             On Error Resume Next
             wsDashboard.Cells(RowIndex, 1).value = i
             wsDashboard.Cells(RowIndex, 2).value = serviceName
@@ -927,7 +895,7 @@ Private Sub UpdateTopServicesTableFormatted(wsDashboard As Worksheet, filteredDa
             wsDashboard.Cells(RowIndex, 6).value = "?"
             On Error GoTo 0
             
-            ' Форматирование строки
+            ' Format row
             With wsDashboard.Range("A" & RowIndex & ":F" & RowIndex)
                 .Font.Size = 9
                 .HorizontalAlignment = xlCenter
@@ -938,18 +906,17 @@ Private Sub UpdateTopServicesTableFormatted(wsDashboard As Worksheet, filteredDa
                 .Borders.Color = RGB(200, 200, 200)
             End With
             
-            Debug.Print "Топ-" & i & ": " & serviceName & " (" & serviceData(0) & "/" & serviceData(1) & ")"
         Else
-            ' Очищаем пустые строки
+            ' Clear empty rows
             wsDashboard.Range("A" & RowIndex & ":F" & RowIndex).ClearContents
         End If
     Next i
     
-    Debug.Print "Таблица топ-служб обновлена с форматированием"
+    Debug.Print "Top services table updated"
 End Sub
 
 ' ===============================================
-' ИСПРАВЛЕННАЯ ПРОЦЕДУРА ОБНОВЛЕНИЯ ТАБЛИЦЫ ПРОБЛЕМНЫХ ДОКУМЕНТОВ С ФОРМАТИРОВАНИЕМ
+' FIXED UPDATE PROBLEM DOCS TABLE WITH FORMATTING
 ' ===============================================
 
 Private Sub UpdateProblemDocsTableFormatted(wsDashboard As Worksheet, filteredData As Collection)
@@ -967,24 +934,24 @@ Private Sub UpdateProblemDocsTableFormatted(wsDashboard As Worksheet, filteredDa
     Set problemDocs = New Collection
     maxProblems = 5
     
-    Debug.Print "=== ОБНОВЛЕНИЕ ТАБЛИЦЫ ПРОБЛЕМНЫХ ДОКУМЕНТОВ С ФОРМАТИРОВАНИЕМ ==="
+    Debug.Print "=== UPDATING PROBLEM DOCS TABLE WITH FORMATTING ==="
     
-    ' Находим проблемные документы
+    ' Find problem docs
     For Each record In filteredData
         On Error Resume Next
-        recordDate = CDate(record.item("ДатаФРП"))
+        recordDate = CDate(record.item("FRPDate"))
         If Err.Number <> 0 Then recordDate = 0
         Err.Clear
         
-        recordStatus = CStr(record.item("Статус"))
+        recordStatus = CStr(record.item("Status"))
         If Err.Number <> 0 Then recordStatus = ""
         Err.Clear
         
-        serviceName = CStr(record.item("Служба"))
+        serviceName = CStr(record.item("Service"))
         If Err.Number <> 0 Then serviceName = ""
         Err.Clear
         
-        docNumber = CStr(record.item("НомерДокумента"))
+        docNumber = CStr(record.item("DocNumber"))
         If Err.Number <> 0 Then docNumber = ""
         Err.Clear
         On Error GoTo 0
@@ -997,13 +964,13 @@ Private Sub UpdateProblemDocsTableFormatted(wsDashboard As Worksheet, filteredDa
             
             If daysDiff > WARNING_DELAY_DAYS And recordStatus = "" Then
                 isProblematic = True
-            ElseIf daysDiff > CRITICAL_DELAY_DAYS And Not (InStr(UCase(recordStatus), "ПОДТВЕРЖДЕНО") > 0 Or InStr(UCase(recordStatus), "ОТПР") > 0) Then
+            ElseIf daysDiff > CRITICAL_DELAY_DAYS And Not (InStr(UCase(recordStatus), "CONFIRM") > 0 Or InStr(UCase(recordStatus), "SENT") > 0) Then
                 isProblematic = True
             End If
             
             If isProblematic Then
                 Set problemRecord = New Collection
-                problemRecord.Add IIf(daysDiff > CRITICAL_DELAY_DAYS, "Критично", "Внимание"), "Type"
+                problemRecord.Add IIf(daysDiff > CRITICAL_DELAY_DAYS, LocalizationManager.GetText("Critical"), LocalizationManager.GetText("Warning")), "Type"
                 problemRecord.Add serviceName, "Service"
                 problemRecord.Add docNumber, "DocNumber"
                 problemRecord.Add recordDate, "Date"
@@ -1017,17 +984,17 @@ Private Sub UpdateProblemDocsTableFormatted(wsDashboard As Worksheet, filteredDa
         End If
     Next record
     
-    Debug.Print "Найдено проблемных документов: " & problemDocs.Count
+    Debug.Print "Problem docs found: " & problemDocs.Count
     
-    ' Заполняем таблицу с форматированием
+    ' Fill table with formatting
     For i = 1 To maxProblems
         Dim RowIndex As Integer
-        RowIndex = 28 + i - 1  ' Строки 28-32
+        RowIndex = 28 + i - 1  ' Rows 28-32
         
         If i <= problemDocs.Count Then
             Set problemRecord = problemDocs.item(i)
             
-            ' КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Заполняем ячейки с проверкой
+            ' CRITICAL FIX: Safe filling
             On Error Resume Next
             wsDashboard.Cells(RowIndex, 8).value = problemRecord.item("Type")
             wsDashboard.Cells(RowIndex, 9).value = problemRecord.item("Service")
@@ -1035,11 +1002,11 @@ Private Sub UpdateProblemDocsTableFormatted(wsDashboard As Worksheet, filteredDa
             wsDashboard.Cells(RowIndex, 11).value = problemRecord.item("Date")
             wsDashboard.Cells(RowIndex, 11).NumberFormat = "dd.mm.yyyy"
             wsDashboard.Cells(RowIndex, 12).value = problemRecord.item("Days")
-            wsDashboard.Cells(RowIndex, 13).value = IIf(problemRecord.item("Status") = "", "Не задан", problemRecord.item("Status"))
+            wsDashboard.Cells(RowIndex, 13).value = IIf(problemRecord.item("Status") = "", LocalizationManager.GetText("Not set"), problemRecord.item("Status"))
             On Error GoTo 0
             
-            ' Условное форматирование по критичности
-            If problemRecord.item("Type") = "Критично" Then
+            ' Conditional formatting by criticality
+            If problemRecord.item("Type") = LocalizationManager.GetText("Critical") Then
                 With wsDashboard.Range("H" & RowIndex & ":M" & RowIndex)
                     .Interior.Color = RGB(255, 200, 200)
                     .Font.Color = RGB(150, 0, 0)
@@ -1052,7 +1019,7 @@ Private Sub UpdateProblemDocsTableFormatted(wsDashboard As Worksheet, filteredDa
                 End With
             End If
             
-            ' Общее форматирование строки
+            ' General formatting
             With wsDashboard.Range("H" & RowIndex & ":M" & RowIndex)
                 .Font.Size = 9
                 .HorizontalAlignment = xlCenter
@@ -1062,24 +1029,23 @@ Private Sub UpdateProblemDocsTableFormatted(wsDashboard As Worksheet, filteredDa
                 .Borders.Color = RGB(200, 200, 200)
             End With
             
-            Debug.Print "Проблемный документ " & i & ": " & problemRecord.item("DocNumber") & " (" & problemRecord.item("Days") & " дней)"
         Else
-            ' Очищаем пустые строки
+            ' Clear empty rows
             wsDashboard.Range("H" & RowIndex & ":M" & RowIndex).ClearContents
         End If
     Next i
     
-    Debug.Print "Таблица проблемных документов обновлена с форматированием"
+    Debug.Print "Problem docs table updated"
 End Sub
 
 ' ===============================================
-' ПРОЦЕДУРА ПРИМЕНЕНИЯ ОБЩЕГО ФОРМАТИРОВАНИЯ ТАБЛИЦ
+' GENERAL TABLE FORMATTING PROCEDURE
 ' ===============================================
 
 Private Sub ApplyTableFormatting(wsDashboard As Worksheet)
     On Error Resume Next
     
-    ' Общее форматирование таблицы топ-служб
+    ' Top services
     With wsDashboard.Range("A27:F32")
         .Font.Name = "Segoe UI"
         .Font.Size = 9
@@ -1088,7 +1054,6 @@ Private Sub ApplyTableFormatting(wsDashboard As Worksheet)
         .Borders.Color = RGB(150, 150, 150)
     End With
     
-    ' Автоширина столбцов таблицы топ-служб
     wsDashboard.Columns("A:A").ColumnWidth = 3
     wsDashboard.Columns("B:B").ColumnWidth = 20
     wsDashboard.Columns("C:C").ColumnWidth = 8
@@ -1096,7 +1061,7 @@ Private Sub ApplyTableFormatting(wsDashboard As Worksheet)
     wsDashboard.Columns("E:E").ColumnWidth = 8
     wsDashboard.Columns("F:F").ColumnWidth = 6
     
-    ' Общее форматирование таблицы проблемных документов
+    ' Problem docs
     With wsDashboard.Range("H27:M32")
         .Font.Name = "Segoe UI"
         .Font.Size = 9
@@ -1105,7 +1070,6 @@ Private Sub ApplyTableFormatting(wsDashboard As Worksheet)
         .Borders.Color = RGB(150, 150, 150)
     End With
     
-    ' Автоширина столбцов таблицы проблемных документов
     wsDashboard.Columns("H:H").ColumnWidth = 12
     wsDashboard.Columns("I:I").ColumnWidth = 15
     wsDashboard.Columns("J:J").ColumnWidth = 12
@@ -1113,17 +1077,15 @@ Private Sub ApplyTableFormatting(wsDashboard As Worksheet)
     wsDashboard.Columns("L:L").ColumnWidth = 6
     wsDashboard.Columns("M:M").ColumnWidth = 12
     
-    ' Вертикальное выравнивание для всех таблиц
+    ' Vertical align
     wsDashboard.Range("A27:F32").VerticalAlignment = xlCenter
     wsDashboard.Range("H27:M32").VerticalAlignment = xlCenter
     
     On Error GoTo 0
-    
-    Debug.Print "Форматирование таблиц применено"
 End Sub
 
 ' ===============================================
-' ПРОЦЕДУРА ОБНОВЛЕНИЯ ДАННЫХ ДЛЯ ДИАГРАММ
+' UPDATE CHART DATA PROCEDURE
 ' ===============================================
 
 Private Sub UpdateChartDataTablesFixed(wsDashboard As Worksheet, filteredData As Collection)
@@ -1136,53 +1098,47 @@ Private Sub UpdateChartDataTablesFixed(wsDashboard As Worksheet, filteredData As
     inProgressCount = 0
     emptyCount = 0
     
-    Debug.Print "=== ПОДГОТОВКА ДАННЫХ ДЛЯ ДИАГРАММ (ИСПРАВЛЕННАЯ) ==="
+    Debug.Print "=== PREPARING CHART DATA (FIXED) ==="
     
     For Each record In filteredData
         On Error Resume Next
-        recordStatus = CStr(record.item("Статус"))
+        recordStatus = CStr(record.item("Status"))
         If Err.Number <> 0 Then recordStatus = ""
         Err.Clear
         On Error GoTo 0
         
-        If InStr(UCase(recordStatus), "ПОДТВЕРЖДЕНО") > 0 Then
+        If InStr(UCase(recordStatus), "CONFIRM") > 0 Then
             confirmedCount = confirmedCount + 1
-        ElseIf InStr(UCase(recordStatus), "ОТПР") > 0 And InStr(UCase(recordStatus), "ИСХ") > 0 Then
+        ElseIf InStr(UCase(recordStatus), "SENT") > 0 And InStr(UCase(recordStatus), "OUT") > 0 Then
             sentCount = sentCount + 1
-        ElseIf recordStatus = "" Or InStr(UCase(recordStatus), "НЕТ") > 0 Then
+        ElseIf recordStatus = "" Or InStr(UCase(recordStatus), "NO ") > 0 Then
             emptyCount = emptyCount + 1
         Else
             inProgressCount = inProgressCount + 1
         End If
     Next record
     
-    Debug.Print "Данные для диаграммы статусов (исправленные):"
-    Debug.Print "- Подтверждено: " & confirmedCount
-    Debug.Print "- Отпр.Исх.: " & sentCount
-    Debug.Print "- В работе: " & inProgressCount
-    Debug.Print "- Без статуса: " & emptyCount
-    
     On Error Resume Next
     wsDashboard.Range("V4:W8").ClearContents
     wsDashboard.Range("V11:W17").ClearContents
     
-    wsDashboard.Range("V4").value = "Статус"
-    wsDashboard.Range("W4").value = "Количество"
+    wsDashboard.Range("V4").value = LocalizationManager.GetText("Status")
+    wsDashboard.Range("W4").value = LocalizationManager.GetText("Count")
     
-    wsDashboard.Range("V5").value = "Подтверждено"
+    wsDashboard.Range("V5").value = LocalizationManager.GetText("Confirmed")
     wsDashboard.Range("W5").value = confirmedCount
     
-    wsDashboard.Range("V6").value = "Отпр.Исх."
+    wsDashboard.Range("V6").value = LocalizationManager.GetText("Sent Out.")
     wsDashboard.Range("W6").value = sentCount
     
-    wsDashboard.Range("V7").value = "В работе"
+    wsDashboard.Range("V7").value = LocalizationManager.GetText("In progress")
     wsDashboard.Range("W7").value = inProgressCount
     
-    wsDashboard.Range("V8").value = "Без статуса"
+    wsDashboard.Range("V8").value = LocalizationManager.GetText("No status")
     wsDashboard.Range("W8").value = emptyCount
     
-    wsDashboard.Range("V11").value = "Служба"
-    wsDashboard.Range("W11").value = "Количество"
+    wsDashboard.Range("V11").value = LocalizationManager.GetText("Service")
+    wsDashboard.Range("W11").value = LocalizationManager.GetText("Count")
     
     Dim i As Integer
     Dim hasServiceData As Boolean
@@ -1199,32 +1155,20 @@ Private Sub UpdateChartDataTablesFixed(wsDashboard As Worksheet, filteredData As
         End If
     Next i
     
-    Debug.Print "Данные для диаграмм подготовлены. Есть данные служб: " & hasServiceData
-    
     On Error GoTo 0
 End Sub
 
 ' ===============================================
-' ПРОЦЕДУРА СОЗДАНИЯ ДИАГРАММ
+' CREATE CHARTS PROCEDURE
 ' ===============================================
 
-Private Sub CreateChartsFixed(wsDashboard As Worksheet, filteredData As Collection)
-    Debug.Print "=== СОЗДАНИЕ ДИАГРАММ (ИСПРАВЛЕННАЯ ВЕРСИЯ) ==="
-    Debug.Print "Количество записей для диаграмм: " & filteredData.Count
-    
-    Debug.Print "Проверка данных в столбце V:"
-    Debug.Print "V4=" & wsDashboard.Range("V4").value & ", W4=" & wsDashboard.Range("W4").value
-    Debug.Print "V5=" & wsDashboard.Range("V5").value & ", W5=" & wsDashboard.Range("W5").value
-    Debug.Print "V6=" & wsDashboard.Range("V6").value & ", W6=" & wsDashboard.Range("W6").value
-    Debug.Print "V7=" & wsDashboard.Range("V7").value & ", W7=" & wsDashboard.Range("W7").value
-    Debug.Print "V8=" & wsDashboard.Range("V8").value & ", W8=" & wsDashboard.Range("W8").value
-    
+Private Sub CreateChartsFixed(wsDashboard As Worksheet)
     Call CreatePieChartFixed(wsDashboard)
     Call CreateColumnChartFixed(wsDashboard)
 End Sub
 
 ' ===============================================
-' СОЗДАНИЕ КРУГОВОЙ ДИАГРАММЫ
+' CREATE PIE CHART
 ' ===============================================
 
 Private Sub CreatePieChartFixed(wsDashboard As Worksheet)
@@ -1232,8 +1176,6 @@ Private Sub CreatePieChartFixed(wsDashboard As Worksheet)
     Dim chartData As Range
     Dim chartObj As ChartObject
     Dim totalValues As Long
-    
-    Debug.Print "Создание круговой диаграммы (исправленная версия)..."
     
     On Error GoTo PieChartError
     
@@ -1244,13 +1186,10 @@ Private Sub CreatePieChartFixed(wsDashboard As Worksheet)
     totalValues = CLng(wsDashboard.Range("W5").value) + CLng(wsDashboard.Range("W6").value) + _
                   CLng(wsDashboard.Range("W7").value) + CLng(wsDashboard.Range("W8").value)
     
-    Debug.Print "Общее количество для круговой диаграммы: " & totalValues
-    
     If totalValues = 0 Then
-        wsDashboard.Range("C15").value = "Нет данных для круговой диаграммы"
+        wsDashboard.Range("C15").value = LocalizationManager.GetText("No data for pie chart")
         wsDashboard.Range("C15").Font.Color = RGB(150, 150, 150)
         wsDashboard.Range("C15").Font.Italic = True
-        Debug.Print "Отменено создание круговой диаграммы - нет данных"
         Exit Sub
     End If
     
@@ -1260,14 +1199,14 @@ Private Sub CreatePieChartFixed(wsDashboard As Worksheet)
     Set chartRange = wsDashboard.Range("A11:G25")
     
     Set chartObj = wsDashboard.ChartObjects.Add(Left:=chartRange.Left + 5, Top:=chartRange.Top + 5, _
-                                               Width:=chartRange.Width - 10, Height:=chartRange.Height - 10)
+                                                Width:=chartRange.Width - 10, Height:=chartRange.Height - 10)
     chartObj.Name = "StatusPieChart"
     
     With chartObj.Chart
         .SetSourceData Source:=chartData, PlotBy:=xlColumns
         .ChartType = xlPie
         .HasTitle = True
-        .ChartTitle.Text = "Распределение по статусам"
+        .ChartTitle.Text = LocalizationManager.GetText("Status Distribution")
         .HasLegend = True
         .Legend.Position = xlLegendPositionRight
         
@@ -1286,17 +1225,15 @@ Private Sub CreatePieChartFixed(wsDashboard As Worksheet)
         On Error GoTo PieChartError
     End With
     
-    Debug.Print "Круговая диаграмма создана успешно"
     Exit Sub
     
 PieChartError:
-    Debug.Print "Ошибка создания круговой диаграммы: " & Err.description
-    wsDashboard.Range("C15").value = "Ошибка диаграммы: " & Err.description
+    wsDashboard.Range("C15").value = LocalizationManager.GetText("Chart error: ") & Err.description
     wsDashboard.Range("C15").Font.Color = RGB(255, 0, 0)
 End Sub
 
 ' ===============================================
-' СОЗДАНИЕ СТОЛБЧАТОЙ ДИАГРАММЫ
+' CREATE COLUMN CHART
 ' ===============================================
 
 Private Sub CreateColumnChartFixed(wsDashboard As Worksheet)
@@ -1305,8 +1242,6 @@ Private Sub CreateColumnChartFixed(wsDashboard As Worksheet)
     Dim chartObj As ChartObject
     Dim hasValidData As Boolean
     Dim i As Integer
-    
-    Debug.Print "Создание столбчатой диаграммы (исправленная версия)..."
     
     On Error GoTo ColumnChartError
     
@@ -1322,13 +1257,10 @@ Private Sub CreateColumnChartFixed(wsDashboard As Worksheet)
         End If
     Next i
     
-    Debug.Print "Есть данные служб для столбчатой диаграммы: " & hasValidData
-    
     If Not hasValidData Then
-        wsDashboard.Range("L15").value = "Нет данных по службам"
+        wsDashboard.Range("L15").value = LocalizationManager.GetText("No service data")
         wsDashboard.Range("L15").Font.Color = RGB(150, 150, 150)
         wsDashboard.Range("L15").Font.Italic = True
-        Debug.Print "Отменено создание столбчатой диаграммы - нет данных"
         Exit Sub
     End If
     
@@ -1338,22 +1270,22 @@ Private Sub CreateColumnChartFixed(wsDashboard As Worksheet)
     Set chartRange = wsDashboard.Range("I11:O25")
     
     Set chartObj = wsDashboard.ChartObjects.Add(Left:=chartRange.Left + 5, Top:=chartRange.Top + 5, _
-                                               Width:=chartRange.Width - 10, Height:=chartRange.Height - 10)
+                                                Width:=chartRange.Width - 10, Height:=chartRange.Height - 10)
     chartObj.Name = "ServiceColumnChart"
     
     With chartObj.Chart
         .SetSourceData Source:=chartData, PlotBy:=xlColumns
         .ChartType = xlColumnClustered
         .HasTitle = True
-        .ChartTitle.Text = "Активность по службам"
+        .ChartTitle.Text = LocalizationManager.GetText("Activity by Services")
         .HasLegend = False
         
         On Error Resume Next
         If .Axes.Count >= 2 Then
             .Axes(xlCategory).HasTitle = True
-            .Axes(xlCategory).AxisTitle.Text = "Службы"
+            .Axes(xlCategory).AxisTitle.Text = LocalizationManager.GetText("Service")
             .Axes(xlValue).HasTitle = True
-            .Axes(xlValue).AxisTitle.Text = "Количество документов"
+            .Axes(xlValue).AxisTitle.Text = LocalizationManager.GetText("Count")
         End If
         
         If .SeriesCollection.Count > 0 Then
@@ -1363,21 +1295,19 @@ Private Sub CreateColumnChartFixed(wsDashboard As Worksheet)
         On Error GoTo ColumnChartError
     End With
     
-    Debug.Print "Столбчатая диаграмма создана успешно"
     Exit Sub
     
 ColumnChartError:
-    Debug.Print "Ошибка создания столбчатой диаграммы: " & Err.description
-    wsDashboard.Range("L15").value = "Ошибка диаграммы: " & Err.description
+    wsDashboard.Range("L15").value = LocalizationManager.GetText("Chart error: ") & Err.description
     wsDashboard.Range("L15").Font.Color = RGB(255, 0, 0)
 End Sub
 
 ' ===============================================
-' ОСТАЛЬНЫЕ ПРОЦЕДУРЫ ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ
+' OTHER PROCEDURES
 ' ===============================================
 
 Private Sub UpdateTrendsData(wsDashboard As Worksheet, filteredData As Collection)
-    ' Пока оставляем пустой
+    ' Empty for now
 End Sub
 
 Private Sub ApplyConditionalFormatting(wsDashboard As Worksheet, metrics As Collection)
@@ -1408,9 +1338,9 @@ Private Sub UpdateParametersPanel(wsDashboard As Worksheet, dateFrom As Date, da
     wsDashboard.Range("Q5").value = Now
     
     If processedRecords > 0 Then
-        wsDashboard.Range("Q6").value = "ОК (" & processedRecords & " записей)"
+        wsDashboard.Range("Q6").value = "OK (" & processedRecords & ")"
     Else
-        wsDashboard.Range("Q6").value = "Нет данных"
+        wsDashboard.Range("Q6").value = "N/A"
     End If
     
     wsDashboard.Range("Q8").value = Format(dateFrom, "dd.mm.yyyy") & " - " & Format(dateTo, "dd.mm.yyyy")
@@ -1421,7 +1351,7 @@ Public Sub StartAutoUpdate()
     Set wsDashboard = CommonUtilities.GetWorksheetSafe("Dashboard")
     
     If Not wsDashboard Is Nothing Then
-        If UCase(CStr(wsDashboard.Range("Q3").value)) = "ВКЛ" Then
+        If UCase(CStr(wsDashboard.Range("Q3").value)) = "ON" Then
             isAutoUpdateEnabled = True
             dashboardTimer = UPDATE_INTERVAL_SECONDS
             Application.OnTime Now + TimeSerial(0, 0, UPDATE_INTERVAL_SECONDS), "DashboardModule.AutoUpdateDashboard"
@@ -1443,8 +1373,6 @@ Public Sub AutoUpdateDashboard()
     End If
 End Sub
 
-' Функции GetWorksheetSafe и GetListObjectSafe перенесены в CommonUtilities.bas
-
 Public Sub RefreshDashboard()
     Call GenerateDashboard
 End Sub
@@ -1454,20 +1382,20 @@ Public Sub ToggleAutoUpdate()
     Set wsDashboard = CommonUtilities.GetWorksheetSafe("Dashboard")
     
     If Not wsDashboard Is Nothing Then
-        If UCase(CStr(wsDashboard.Range("Q3").value)) = "ВКЛ" Then
-            wsDashboard.Range("Q3").value = "Выкл"
+        If UCase(CStr(wsDashboard.Range("Q3").value)) = "ON" Then
+            wsDashboard.Range("Q3").value = "OFF"
             Call StopAutoUpdate
-            MsgBox "Автообновление отключено", vbInformation
+            MsgBox LocalizationManager.GetText("Auto-update disabled"), vbInformation
         Else
-            wsDashboard.Range("Q3").value = "Вкл"
+            wsDashboard.Range("Q3").value = "ON"
             Call StartAutoUpdate
-            MsgBox "Автообновление включено", vbInformation
+            MsgBox LocalizationManager.GetText("Auto-update enabled"), vbInformation
         End If
     End If
 End Sub
 
 Public Sub ExportDashboard()
-    MsgBox "Функция экспорта будет реализована в следующих версиях", vbInformation
+    MsgBox LocalizationManager.GetText("Export function will be implemented in future versions"), vbInformation
 End Sub
 
 Public Sub DiagnoseDashboardData()
@@ -1476,42 +1404,16 @@ Public Sub DiagnoseDashboardData()
     Dim tblData As ListObject
     
     Set wsDashboard = CommonUtilities.GetWorksheetSafe("Dashboard")
-    Set wsData = CommonUtilities.GetWorksheetSafe("ВхИсх")
-    Set tblData = CommonUtilities.GetListObjectSafe(wsData, "ВходящиеИсходящие")
+    Set wsData = CommonUtilities.GetWorksheetSafe("IncOut")
+    Set tblData = CommonUtilities.GetListObjectSafe(wsData, "TableIncOut")
     
-    Debug.Print "=== ДИАГНОСТИКА DASHBOARD ==="
-    Debug.Print "Лист Dashboard найден: " & Not (wsDashboard Is Nothing)
-    Debug.Print "Лист ВхИсх найден: " & Not (wsData Is Nothing)
-    Debug.Print "Таблица найдена: " & Not (tblData Is Nothing)
+    Debug.Print "=== DASHBOARD DIAGNOSTICS ==="
+    Debug.Print "Dashboard sheet found: " & Not (wsDashboard Is Nothing)
+    Debug.Print "IncOut sheet found: " & Not (wsData Is Nothing)
+    Debug.Print "Table found: " & Not (tblData Is Nothing)
     
-    If Not tblData Is Nothing Then
-        Debug.Print "Строк в таблице: " & IIf(tblData.DataBodyRange Is Nothing, 0, tblData.ListRows.Count)
-        Debug.Print "Столбцов в таблице: " & tblData.ListColumns.Count
-        
-        If tblData.ListColumns.Count >= 19 Then
-            Debug.Print "Столбец статуса (19): " & tblData.ListColumns(19).Name
-        End If
-        If tblData.ListColumns.Count >= 8 Then
-            Debug.Print "Столбец даты (8): " & tblData.ListColumns(8).Name
-        End If
-        If tblData.ListColumns.Count >= 2 Then
-            Debug.Print "Столбец службы (2): " & tblData.ListColumns(2).Name
-        End If
-    End If
-    
-    If Not wsDashboard Is Nothing Then
-        Debug.Print "Данные в таблицах:"
-        Debug.Print "A28=" & wsDashboard.Range("A28").value & " (номер строки топ-служб)"
-        Debug.Print "B28=" & wsDashboard.Range("B28").value & " (название службы)"
-        Debug.Print "H28=" & wsDashboard.Range("H28").value & " (тип проблемного документа)"
-        Debug.Print "I28=" & wsDashboard.Range("I28").value & " (служба проблемного документа)"
-    End If
-    
-    MsgBox "Диагностика завершена. Смотрите результаты в окне Immediate (Ctrl+G)", vbInformation
+    MsgBox LocalizationManager.GetText("Dashboard diagnostics completed. Check Immediate window (Ctrl+G)"), vbInformation
 End Sub
-
-
-' В модуле DashboardModule добавить процедуры:
 
 Public Sub AddProvodkaIntegrationControls()
     Dim wsDashboard As Worksheet
@@ -1519,31 +1421,23 @@ Public Sub AddProvodkaIntegrationControls()
     
     If wsDashboard Is Nothing Then Exit Sub
     
-    ' Добавляем кнопки интеграции с 1С
     With wsDashboard
-        .Range("A35").value = "ИНТЕГРАЦИЯ С 1С"
+        .Range("A35").value = LocalizationManager.GetText("1C INTEGRATION")
         .Range("A35").Font.Bold = True
         .Range("A35").Font.Size = 12
         
-        ' Кнопка массовой обработки
-        .Range("A37").value = "Массовая обработка"
-        .Hyperlinks.Add .Range("A37"), "", "ProvodkaIntegrationModule.MassProcessWithFileSelection", , "Автоматическое сопоставление всех записей с выгрузкой 1С"
+        .Range("A37").value = LocalizationManager.GetText("Mass Processing")
+        .Hyperlinks.Add .Range("A37"), "", "ProvodkaIntegrationModule.MassProcessWithFileSelection", , LocalizationManager.GetText("Mass Processing")
         
-        ' Кнопка статистики
-        .Range("C37").value = "Статистика"
-        .Hyperlinks.Add .Range("C37"), "", "ProvodkaIntegrationModule.ShowMatchingStatistics", , "Показать статистику сопоставления"
+        .Range("C37").value = LocalizationManager.GetText("Statistics")
+        .Hyperlinks.Add .Range("C37"), "", "ProvodkaIntegrationModule.ShowMatchingStatistics", , LocalizationManager.GetText("Statistics")
         
-        ' Кнопка очистки
-        .Range("E37").value = "Очистить отметки"
-        .Hyperlinks.Add .Range("E37"), "", "ProvodkaIntegrationModule.ClearAllProvodkaMarks", , "Очистить все отметки об исполнении"
+        .Range("E37").value = LocalizationManager.GetText("Clear Marks")
+        .Hyperlinks.Add .Range("E37"), "", "ProvodkaIntegrationModule.ClearAllProvodkaMarks", , LocalizationManager.GetText("Clear Marks")
         
-        ' Форматирование кнопок
         .Range("A37:E37").Font.Bold = True
         .Range("A37:E37").Interior.Color = RGB(200, 220, 255)
         .Range("A37:E37").Borders.LineStyle = xlContinuous
     End With
 End Sub
-
-
-
 

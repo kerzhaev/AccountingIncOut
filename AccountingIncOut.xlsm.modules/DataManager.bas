@@ -50,13 +50,13 @@ Public Sub SaveCurrentRecord()
     ' Update status
     IsNewRecord = False
     FormDataChanged = False
-    UserFormVhIsh.lblStatusBar.Caption = "Record saved successfully"
+    UserFormVhIsh.lblStatusBar.Caption = LocalizationManager.GetText("Record saved successfully")
     
     Exit Sub
     
 ErrorHandler:
-    MsgBox "Error saving data: " & Err.description, vbCritical, "Save Error"
-    UserFormVhIsh.lblStatusBar.Caption = "Error saving data"
+    MsgBox LocalizationManager.GetText("Error saving data: ") & Err.description, vbCritical, LocalizationManager.GetText("Save Error")
+    UserFormVhIsh.lblStatusBar.Caption = LocalizationManager.GetText("Error saving data")
 End Sub
 
 Public Function ValidateRequiredFields() As Boolean
@@ -67,7 +67,7 @@ Public Function ValidateRequiredFields() As Boolean
         ' Use Value for ComboBox
         ' Service
         If Trim(CStr(.cmbSlujba.value)) = "" Then
-            MsgBox "Field 'Service' is required!", vbExclamation, "Data Validation"
+            MsgBox LocalizationManager.GetText("Field 'Service' is required!"), vbExclamation, LocalizationManager.GetText("Data Validation")
             .cmbSlujba.SetFocus
             ValidateRequiredFields = False
             Exit Function
@@ -75,7 +75,7 @@ Public Function ValidateRequiredFields() As Boolean
         
         ' Document Type (ComboBox) - 4th column
         If Trim(CStr(.cmbVidDoc.value)) = "" Then
-            MsgBox "Field 'Document Type' is required!", vbExclamation, "Data Validation"
+            MsgBox LocalizationManager.GetText("Field 'Document Type' is required!"), vbExclamation, LocalizationManager.GetText("Data Validation")
             .cmbVidDoc.SetFocus
             ValidateRequiredFields = False
             Exit Function
@@ -83,7 +83,7 @@ Public Function ValidateRequiredFields() As Boolean
         
         ' Document Group (Inc./Out.) - 3rd column - cmbVidDocumenta
         If Trim(CStr(.cmbVidDocumenta.value)) = "" Then
-            MsgBox "Field 'Document Group (Inc./Out.)' is required!", vbExclamation, "Data Validation"
+            MsgBox LocalizationManager.GetText("Field 'Document Group (Inc./Out.)' is required!"), vbExclamation, LocalizationManager.GetText("Data Validation")
             .cmbVidDocumenta.SetFocus
             ValidateRequiredFields = False
             Exit Function
@@ -91,7 +91,7 @@ Public Function ValidateRequiredFields() As Boolean
         
         ' Document Number
         If Trim(.txtNomerDoc.Text) = "" Then
-            MsgBox "Field 'Document Number' is required!", vbExclamation, "Data Validation"
+            MsgBox LocalizationManager.GetText("Field 'Document Number' is required!"), vbExclamation, LocalizationManager.GetText("Data Validation")
             .txtNomerDoc.SetFocus
             ValidateRequiredFields = False
             Exit Function
@@ -99,7 +99,7 @@ Public Function ValidateRequiredFields() As Boolean
         
         ' Document Amount
         If Trim(.txtSummaDoc.Text) = "" Then
-            MsgBox "Field 'Document Amount' is required!", vbExclamation, "Data Validation"
+            MsgBox LocalizationManager.GetText("Field 'Document Amount' is required!"), vbExclamation, LocalizationManager.GetText("Data Validation")
             .txtSummaDoc.SetFocus
             ValidateRequiredFields = False
             Exit Function
@@ -107,7 +107,7 @@ Public Function ValidateRequiredFields() As Boolean
         
         ' Check that amount is numeric
         If Not IsNumeric(.txtSummaDoc.Text) Then
-            MsgBox "Field 'Document Amount' must contain a numeric value!", vbExclamation, "Data Validation"
+            MsgBox LocalizationManager.GetText("Field 'Document Amount' must contain a numeric value!"), vbExclamation, LocalizationManager.GetText("Data Validation")
             .txtSummaDoc.SetFocus
             ValidateRequiredFields = False
             Exit Function
@@ -115,7 +115,7 @@ Public Function ValidateRequiredFields() As Boolean
         
         ' Inc.FRP/Out.FRP
         If Trim(.txtVhFRP.Text) = "" Then
-            MsgBox "Field 'Inc.FRP/Out.FRP' is required!", vbExclamation, "Data Validation"
+            MsgBox LocalizationManager.GetText("Field 'Inc.FRP/Out.FRP' is required!"), vbExclamation, LocalizationManager.GetText("Data Validation")
             .txtVhFRP.SetFocus
             ValidateRequiredFields = False
             Exit Function
@@ -123,7 +123,7 @@ Public Function ValidateRequiredFields() As Boolean
         
         ' Date Inc.FRP/Out.FRP
         If Trim(.txtDataVhFRP.Text) = "" Then
-            MsgBox "Field 'Date Inc.FRP/Out.FRP' is required!", vbExclamation, "Data Validation"
+            MsgBox LocalizationManager.GetText("Field 'Date Inc.FRP/Out.FRP' is required!"), vbExclamation, LocalizationManager.GetText("Data Validation")
             .txtDataVhFRP.SetFocus
             ValidateRequiredFields = False
             Exit Function
@@ -138,7 +138,7 @@ Public Function ValidateDates() As Boolean
         ' Check all date fields
         If Trim(.txtDataVhFRP.Text) <> "" Then
             If Not CommonUtilities.IsValidDateFormat(.txtDataVhFRP.Text) Then
-                MsgBox "Enter a valid date in DD.MM.YY format in the 'Date Inc.FRP/Out.FRP' field", vbExclamation, "Data Validation"
+                MsgBox LocalizationManager.GetText("Enter a valid date in DD.MM.YY format in the 'Date Inc.FRP/Out.FRP' field"), vbExclamation, LocalizationManager.GetText("Data Validation")
                 .txtDataVhFRP.SetFocus
                 ValidateDates = False
                 Exit Function
@@ -147,7 +147,7 @@ Public Function ValidateDates() As Boolean
         
         If Trim(.txtDataPeredachi.Text) <> "" Then
             If Not CommonUtilities.IsValidDateFormat(.txtDataPeredachi.Text) Then
-                MsgBox "Enter a valid date in DD.MM.YY format in the 'Date Transferred to Executor' field", vbExclamation, "Data Validation"
+                MsgBox LocalizationManager.GetText("Enter a valid date in DD.MM.YY format in the 'Date Transferred to Executor' field"), vbExclamation, LocalizationManager.GetText("Data Validation")
                 .txtDataPeredachi.SetFocus
                 ValidateDates = False
                 Exit Function
@@ -156,7 +156,7 @@ Public Function ValidateDates() As Boolean
         
         If Trim(.txtDataIshVSlujbu.Text) <> "" Then
             If Not CommonUtilities.IsValidDateFormat(.txtDataIshVSlujbu.Text) Then
-                MsgBox "Enter a valid date in DD.MM.YY format in the 'Out. Date to Service' field", vbExclamation, "Data Validation"
+                MsgBox LocalizationManager.GetText("Enter a valid date in DD.MM.YY format in the 'Out. Date to Service' field"), vbExclamation, LocalizationManager.GetText("Data Validation")
                 .txtDataIshVSlujbu.SetFocus
                 ValidateDates = False
                 Exit Function
@@ -165,7 +165,7 @@ Public Function ValidateDates() As Boolean
         
         If Trim(.txtDataVozvrata.Text) <> "" Then
             If Not CommonUtilities.IsValidDateFormat(.txtDataVozvrata.Text) Then
-                MsgBox "Enter a valid date in DD.MM.YY format in the 'Return Date from Service' field", vbExclamation, "Data Validation"
+                MsgBox LocalizationManager.GetText("Enter a valid date in DD.MM.YY format in the 'Return Date from Service' field"), vbExclamation, LocalizationManager.GetText("Data Validation")
                 .txtDataVozvrata.SetFocus
                 ValidateDates = False
                 Exit Function
@@ -174,7 +174,7 @@ Public Function ValidateDates() As Boolean
         
         If Trim(.txtDataIshKonvert.Text) <> "" Then
             If Not CommonUtilities.IsValidDateFormat(.txtDataIshKonvert.Text) Then
-                MsgBox "Enter a valid date in DD.MM.YY format in the 'Out. Envelope Date' field", vbExclamation, "Data Validation"
+                MsgBox LocalizationManager.GetText("Enter a valid date in DD.MM.YY format in the 'Out. Envelope Date' field"), vbExclamation, LocalizationManager.GetText("Data Validation")
                 .txtDataIshKonvert.SetFocus
                 ValidateDates = False
                 Exit Function
@@ -236,14 +236,14 @@ Public Sub WriteFormDataToTable(tbl As ListObject, RowIndex As Long)
     Exit Sub
     
 WriteError:
-    MsgBox "Error writing data to table: " & Err.description, vbCritical, "Error"
+    MsgBox LocalizationManager.GetText("Error writing data to table: ") & Err.description, vbCritical, LocalizationManager.GetText("Error")
 End Sub
 
 ' Function WriteDateToCell moved to CommonUtilities.bas
 
 Public Sub MarkFormAsChanged()
     FormDataChanged = True
-    Call UpdateStatusBar
+    Call NavigationModule.UpdateStatusBar
 End Sub
 
 Public Function HasUnsavedChanges() As Boolean
@@ -254,11 +254,11 @@ Public Sub CancelChanges()
     If IsNewRecord Then
         Call ClearForm
     Else
-        Call NavigateToRecord(CurrentRecordRow)
+        Call NavigationModule.NavigateToRecord(CurrentRecordRow)
     End If
     
     FormDataChanged = False
-    UserFormVhIsh.lblStatusBar.Caption = "Changes cancelled"
+    UserFormVhIsh.lblStatusBar.Caption = LocalizationManager.GetText("Changes cancelled")
 End Sub
 
 Public Sub ClearForm()
@@ -316,7 +316,7 @@ Public Sub ClearForm()
         .lstSearchResults.Visible = False
     End With
     
-    Call UpdateStatusBar
+    Call NavigationModule.UpdateStatusBar
 End Sub
 
 ' NEW FUNCTION: Duplicate record excluding certain fields
@@ -335,7 +335,7 @@ Public Function DuplicateRecord(sourceRowNumber As Long) As Long
     
     ' Check source row correctness
     If sourceRowNumber < 1 Or sourceRowNumber > tblData.ListRows.Count Then
-        MsgBox "Invalid record number for duplication: " & sourceRowNumber, vbExclamation, "Error"
+        MsgBox LocalizationManager.GetText("Invalid record number for duplication: ") & sourceRowNumber, vbExclamation, LocalizationManager.GetText("Error")
         DuplicateRecord = 0
         Exit Function
     End If
@@ -371,7 +371,7 @@ Public Function DuplicateRecord(sourceRowNumber As Long) As Long
     Exit Function
     
 DuplicateError:
-    MsgBox "Error duplicating record: " & Err.description, vbCritical, "Critical Error"
+    MsgBox LocalizationManager.GetText("Error duplicating record: ") & Err.description, vbCritical, LocalizationManager.GetText("Critical Error")
     DuplicateRecord = 0
     
     ' Try to delete created row on error
@@ -394,23 +394,23 @@ Public Function GetRecordInfo(RowNumber As Long) As String
     Set tblData = wsData.ListObjects("TableIncOut")
     
     If RowNumber < 1 Or RowNumber > tblData.ListRows.Count Then
-        GetRecordInfo = "Invalid record number"
+        GetRecordInfo = LocalizationManager.GetText("Invalid record number")
         Exit Function
     End If
     
     ' Build information string
-    recordInfo = "Record No." & RowNumber & ": "
+    recordInfo = LocalizationManager.GetText("Record No.") & RowNumber & ": "
     recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(RowNumber, 2).value) & " - " ' Service
     recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(RowNumber, 3).value) & " " ' Document Group
     recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(RowNumber, 4).value) & " " ' Document Type
-    recordInfo = recordInfo & "No." & CStr(tblData.DataBodyRange.Cells(RowNumber, 5).value) ' Document Number
+    recordInfo = recordInfo & LocalizationManager.GetText("No.") & CStr(tblData.DataBodyRange.Cells(RowNumber, 5).value) ' Document Number
     
     GetRecordInfo = recordInfo
     
     Exit Function
     
 InfoError:
-    GetRecordInfo = "Error getting record information"
+    GetRecordInfo = LocalizationManager.GetText("Error getting record information")
 End Function
 
 Public Sub SetupGroupBoxes()

@@ -11,8 +11,8 @@ Attribute VB_Exposed = False
 ' APPLICATION EVENT HANDLER CLASS MODULE - AppEventHandler
 ' Purpose: Handling Application events for Excel 2021
 ' State: CREATED TO FIX "Only valid in object module" ERROR
-' Version: 1.0.0
-' Date: 09.08.2025
+' Version: 1.0.1
+' Date: 05.03.2026
 ' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 

@@ -86,17 +86,17 @@ Public Sub GenerateWordLetters()
     
     ' Select Doverennosti file
     FileDovernnosti = Application.GetOpenFilename("Excel Files (*.xlsx),*.xlsx,CSV Files (*.csv),*.csv", , _
-        "Select file with processed Doverennosti")
+        LocalizationManager.GetText("Select file with processed Doverennosti"))
     If FileDovernnosti = "False" Then Exit Sub
     
     ' Select Addresses file
     FileAddresses = Application.GetOpenFilename("Excel Files (*.xlsx),*.xlsx,Excel Macro Files (*.xlsm),*.xlsm,CSV Files (*.csv),*.csv", , _
-        "Select file with correspondent addresses")
+        LocalizationManager.GetText("Select file with correspondent addresses"))
     If FileAddresses = "False" Then Exit Sub
     
     ' Select save folder
     With Application.FileDialog(msoFileDialogFolderPicker)
-        .Title = "Select folder to save letters"
+        .Title = LocalizationManager.GetText("Select folder to save letters")
         .AllowMultiSelect = False
         If .Show = -1 Then
             SaveFolder = .SelectedItems(1)
@@ -109,8 +109,8 @@ Public Sub GenerateWordLetters()
     Dim TemplatePath As String
     TemplatePath = ThisWorkbook.Path & "\LetterTemplate.docx"
     If dir(TemplatePath) = "" Then
-        MsgBox "ERROR: Template not found: " & TemplatePath & vbCrLf & vbCrLf & _
-               "Place the template file in the macro folder.", vbCritical, "Template Not Found"
+        MsgBox LocalizationManager.GetText("ERROR: Template not found: ") & TemplatePath & vbCrLf & vbCrLf & _
+               LocalizationManager.GetText("Place the template file in the macro folder."), vbCritical, LocalizationManager.GetText("Template Not Found")
         Exit Sub
     End If
     
@@ -151,7 +151,7 @@ GenerateError:
     If Not WbDover Is Nothing Then WbDover.Close False
     
     Debug.Print "Letter generation error: " & Err.description
-    MsgBox "Error: " & Err.description, vbCritical
+    MsgBox LocalizationManager.GetText("Error: ") & Err.description, vbCritical
 End Sub
 
 ' =============================================
@@ -178,8 +178,8 @@ Private Function ValidateFileStructure(WbDover As Workbook, WbAddr As Workbook) 
     Next i
     
     If Not AddrSheetFound Then
-        MsgBox "ERROR: 'Addresses' sheet not found in the addresses file!" & vbCrLf & vbCrLf & _
-               "Ensure the sheet is named exactly 'Addresses'", vbCritical, "File Structure Invalid"
+        MsgBox LocalizationManager.GetText("ERROR: 'Addresses' sheet not found in the addresses file!") & vbCrLf & vbCrLf & _
+               LocalizationManager.GetText("Ensure the sheet is named exactly 'Addresses'"), vbCritical, LocalizationManager.GetText("File Structure Invalid")
         Exit Function
     End If
     
@@ -193,22 +193,22 @@ Private Function ValidateFileStructure(WbDover As Workbook, WbAddr As Workbook) 
     If FindColumnByName(WsDover, COL_SEARCH_RESULT) = 0 Then MissingColumns = MissingColumns & "- " & COL_SEARCH_RESULT & vbCrLf
     
     If Len(MissingColumns) > 0 Then
-        MsgBox "ERROR: Missing required columns in Doverennosti file:" & vbCrLf & vbCrLf & _
+        MsgBox LocalizationManager.GetText("ERROR: Missing required columns in Doverennosti file:") & vbCrLf & vbCrLf & _
                MissingColumns & vbCrLf & _
-               "Processing stopped. Check file structure.", vbCritical, "Missing Columns"
+               LocalizationManager.GetText("Processing stopped. Check file structure."), vbCritical, LocalizationManager.GetText("Missing Columns")
         Exit Function
     End If
     
     ' Check columns in Addresses file
     If WsAddr.Cells(1, 1).value = "" Or WsAddr.Cells(1, 2).value = "" Then
-        MsgBox "ERROR: Invalid addresses file structure!" & vbCrLf & vbCrLf & _
-               "Expected columns:" & vbCrLf & _
-               "1. Recipient Name" & vbCrLf & _
-               "2. Street, building, apartment" & vbCrLf & _
-               "3. City/Settlement" & vbCrLf & _
-               "4. District" & vbCrLf & _
-               "5. Region/State" & vbCrLf & _
-               "6. Postal Code", vbCritical, "File Structure Invalid"
+        MsgBox LocalizationManager.GetText("ERROR: Invalid addresses file structure!") & vbCrLf & vbCrLf & _
+               LocalizationManager.GetText("Expected columns:") & vbCrLf & _
+               LocalizationManager.GetText("1. Recipient Name") & vbCrLf & _
+               LocalizationManager.GetText("2. Street, building, apartment") & vbCrLf & _
+               LocalizationManager.GetText("3. City/Settlement") & vbCrLf & _
+               LocalizationManager.GetText("4. District") & vbCrLf & _
+               LocalizationManager.GetText("5. Region/State") & vbCrLf & _
+               LocalizationManager.GetText("6. Postal Code"), vbCritical, LocalizationManager.GetText("File Structure Invalid")
         Exit Function
     End If
     
@@ -249,13 +249,13 @@ Private Sub ProcessWordLetterGeneration(WbDover As Workbook, WbAddr As Workbook,
     Debug.Print "Loaded Addresses: " & (LastRowAddr - 1)
     
     ' Filter unmatched Doverennosti
-    Application.StatusBar = "Filtering unmatched records..."
+    Application.StatusBar = LocalizationManager.GetText("Filtering unmatched records...")
     Call FilterUnmatchedDoverennosti(WsDover, DoverData, UnmatchedDoverennosti, UnmatchedCount)
     
     Debug.Print "Found unmatched Doverennosti: " & UnmatchedCount
     
     If UnmatchedCount = 0 Then
-        MsgBox "No unmatched records found!", vbInformation
+        MsgBox LocalizationManager.GetText("No unmatched records found!"), vbInformation
         Application.StatusBar = False
         Application.ScreenUpdating = True
         Application.DisplayAlerts = True
@@ -263,17 +263,17 @@ Private Sub ProcessWordLetterGeneration(WbDover As Workbook, WbAddr As Workbook,
     End If
     
     ' Group by correspondents
-    Application.StatusBar = "Grouping by correspondents..."
+    Application.StatusBar = LocalizationManager.GetText("Grouping by correspondents...")
     Call GroupByCorrespondents(UnmatchedDoverennosti, UnmatchedCount, CorrespondentGroups, GroupCount)
     
     Debug.Print "Correspondent groups created: " & GroupCount
     
     ' Find addresses
-    Application.StatusBar = "Searching for correspondent addresses..."
+    Application.StatusBar = LocalizationManager.GetText("Searching for correspondent addresses...")
     Call FindCorrespondentAddresses(CorrespondentGroups, GroupCount, AddrData, NotFoundCorrespondents)
     
     ' Create Word documents
-    Application.StatusBar = "Creating Word documents..."
+    Application.StatusBar = LocalizationManager.GetText("Creating Word documents...")
     Call CreateWordDocuments(CorrespondentGroups, GroupCount, SaveFolder, WbDover)
     
     ' Create missing addresses report
@@ -317,7 +317,7 @@ Private Sub FilterUnmatchedDoverennosti(WsDover As Worksheet, DoverData As Varia
     ' Filter records
     For i = 1 To UBound(DoverData, 1)
         If i Mod 50 = 0 Then
-            Application.StatusBar = "Filtering row " & i & " of " & UBound(DoverData, 1)
+            Application.StatusBar = LocalizationManager.GetText("Filtering row ") & i & LocalizationManager.GetText(" of ") & UBound(DoverData, 1)
         End If
         
         SearchValue = ""
@@ -325,7 +325,7 @@ Private Sub FilterUnmatchedDoverennosti(WsDover As Worksheet, DoverData As Varia
             SearchValue = Trim(UCase(CStr(DoverData(i, SearchCol))))
         End If
         
-        If SearchValue = "NOT FOUND" Then
+        If SearchValue = "NOT FOUND" Or SearchValue = LocalizationManager.GetText("NOT FOUND") Then
             ' Check empty required fields
             If FIOCol > 0 And OrganizationCol > 0 And NumberCol > 0 And CorrespondentCol > 0 Then
                 If Trim(CStr(DoverData(i, FIOCol))) <> "" And _
@@ -408,7 +408,7 @@ Private Sub CreateWordDocuments(Groups() As CorrespondentGroup, GroupCount As Lo
     
     For i = 0 To GroupCount - 1
         If Groups(i).AddressFound Then
-            Application.StatusBar = "Creating document " & (i + 1) & " of " & GroupCount & ": " & Groups(i).CorrespondentName
+            Application.StatusBar = LocalizationManager.GetText("Creating document ") & (i + 1) & LocalizationManager.GetText(" of ") & GroupCount & ": " & Groups(i).CorrespondentName
             
             On Error GoTo DocumentError
             
@@ -445,9 +445,9 @@ Private Sub CreateWordDocuments(Groups() As CorrespondentGroup, GroupCount As Lo
 TemplateError:
     On Error Resume Next
     If Not WordApp Is Nothing Then WordApp.Quit
-    MsgBox "ERROR: Template corrupted or unavailable!" & vbCrLf & vbCrLf & _
-           "Check file: " & TemplatePath & vbCrLf & vbCrLf & _
-           "Error: " & Err.description, vbCritical, "Template Issue"
+    MsgBox LocalizationManager.GetText("ERROR: Template corrupted or unavailable!") & vbCrLf & vbCrLf & _
+           LocalizationManager.GetText("Check file: ") & TemplatePath & vbCrLf & vbCrLf & _
+           LocalizationManager.GetText("Error: ") & Err.description, vbCritical, LocalizationManager.GetText("Template Issue")
     Exit Sub
     
 DocumentError:
@@ -526,10 +526,10 @@ Private Sub FillWordDocumentFixed(WordDoc As Object, GroupData As CorrespondentG
             Next CellCol
         Next CellRow
         
-        .cell(1, 1).Range.Text = "Full Name"
-        .cell(1, 2).Range.Text = "Recipient Military Unit"
-        .cell(1, 3).Range.Text = "Power of Attorney No. & Date"
-        .cell(1, 4).Range.Text = "Basis"
+        .cell(1, 1).Range.Text = LocalizationManager.GetText("Full Name")
+        .cell(1, 2).Range.Text = LocalizationManager.GetText("Recipient Military Unit")
+        .cell(1, 3).Range.Text = LocalizationManager.GetText("Power of Attorney No. & Date")
+        .cell(1, 4).Range.Text = LocalizationManager.GetText("Basis")
         
         .Rows(1).Range.Font.Bold = True
         .Rows(1).Shading.BackgroundPatternColor = RGB(230, 230, 230)
@@ -558,13 +558,13 @@ Private Sub FillWordDocumentFixed(WordDoc As Object, GroupData As CorrespondentG
                 
                 Dim DateText As String
                 If .DoverennostDate > DateSerial(1900, 1, 2) Then
-                    DateText = .DoverennostNumber & " from " & Format(.DoverennostDate, "dd.mm.yyyy")
+                    DateText = .DoverennostNumber & LocalizationManager.GetText(" from ") & Format(.DoverennostDate, "dd.mm.yyyy")
                 Else
                     DateText = .DoverennostNumber
                 End If
                 
                 WordTable.cell(RowIndex, 3).Range.Text = DateText
-                WordTable.cell(RowIndex, 4).Range.Text = IIf(Len(.Comment) > 0, .Comment, "Receiving material values")
+                WordTable.cell(RowIndex, 4).Range.Text = IIf(Len(.Comment) > 0, .Comment, LocalizationManager.GetText("Receiving material values"))
             End With
             RowIndex = RowIndex + 1
         Next j
@@ -585,7 +585,7 @@ Private Sub FillWordDocumentFixed(WordDoc As Object, GroupData As CorrespondentG
     
 FillError:
     Debug.Print "  [X] Fill error: " & Err.description
-    MsgBox "Document filling error: " & Err.description, vbCritical
+    MsgBox LocalizationManager.GetText("Document filling error: ") & Err.description, vbCritical
 End Sub
 
 ' =============================================
@@ -848,7 +848,7 @@ Private Sub SortDoverennostiInGroup(ByRef Group As CorrespondentGroup)
     
     For i = 0 To Group.Count - 2
         For j = i + 1 To Group.Count - 1
-            If Val(Group.Doverennosti(i).DoverennostNumber) > Val(Group.Doverennosti(j).DoverennostNumber) Then
+            If val(Group.Doverennosti(i).DoverennostNumber) > val(Group.Doverennosti(j).DoverennostNumber) Then
                 TempDover = Group.Doverennosti(i)
                 Group.Doverennosti(i) = Group.Doverennosti(j)
                 Group.Doverennosti(j) = TempDover
@@ -949,18 +949,18 @@ Private Sub CreateMissingAddressesReport(NotFoundList As String, SaveFolder As S
     FileNum = FreeFile
     Open ReportPath For Output As FileNum
     
-    Print #FileNum, "MISSING CORRESPONDENT ADDRESSES REPORT"
-    Print #FileNum, "Creation Date: " & Format(Now, "dd.mm.yyyy HH:mm:ss")
-    Print #FileNum, "Author: Evgeniy Kerzhaev, FKU ""95 FES"" MO RF"
+    Print #FileNum, LocalizationManager.GetText("MISSING CORRESPONDENT ADDRESSES REPORT")
+    Print #FileNum, LocalizationManager.GetText("Creation Date: ") & Format(Now, "dd.mm.yyyy HH:mm:ss")
+    Print #FileNum, LocalizationManager.GetText("Author: Evgeniy Kerzhaev, FKU ""95 FES"" MO RF")
     Print #FileNum, ""
-    Print #FileNum, "The following correspondents were not found in the addresses file:"
+    Print #FileNum, LocalizationManager.GetText("The following correspondents were not found in the addresses file:")
     Print #FileNum, "======================================================"
     Print #FileNum, ""
     Print #FileNum, NotFoundList
     Print #FileNum, ""
     Print #FileNum, "======================================================"
-    Print #FileNum, "Please add these addresses to the address file"
-    Print #FileNum, "to enable letter generation."
+    Print #FileNum, LocalizationManager.GetText("Please add these addresses to the address file")
+    Print #FileNum, LocalizationManager.GetText("to enable letter generation.")
     
     Close FileNum
 End Sub
@@ -978,18 +978,18 @@ Private Sub ShowGenerationResults(GroupCount As Long, NotFoundList As String, Sa
     
     FoundCount = GroupCount - NotFoundCount
     
-    Message = "=== LETTER GENERATION RESULTS ===" & vbCrLf & vbCrLf & _
-              "Total correspondent groups: " & GroupCount & vbCrLf & _
-              "Word documents created: " & FoundCount & vbCrLf & _
-              "Addresses not found: " & NotFoundCount & vbCrLf & vbCrLf & _
-              "Files saved in: " & SaveFolder & vbCrLf & vbCrLf
+    Message = LocalizationManager.GetText("=== LETTER GENERATION RESULTS ===") & vbCrLf & vbCrLf & _
+              LocalizationManager.GetText("Total correspondent groups: ") & GroupCount & vbCrLf & _
+              LocalizationManager.GetText("Word documents created: ") & FoundCount & vbCrLf & _
+              LocalizationManager.GetText("Addresses not found: ") & NotFoundCount & vbCrLf & vbCrLf & _
+              LocalizationManager.GetText("Files saved in: ") & SaveFolder & vbCrLf & vbCrLf
     
     If NotFoundCount > 0 Then
-        Message = Message & "A missing addresses report has been created." & vbCrLf & _
-                            "Add them to the address file and repeat the procedure." & vbCrLf & vbCrLf
+        Message = Message & LocalizationManager.GetText("A missing addresses report has been created.") & vbCrLf & _
+                            LocalizationManager.GetText("Add them to the address file and repeat the procedure.") & vbCrLf & vbCrLf
     End If
     
-    MsgBox Message, vbInformation, "Generation Completed"
+    MsgBox Message, vbInformation, LocalizationManager.GetText("Generation Completed")
 End Sub
 
 Private Sub DiagnoseBookmarkIssues(WordDoc As Object, BookmarkName As String)
@@ -1005,16 +1005,16 @@ Private Function InitializeLetterNumbering() As Boolean
     
     InitializeLetterNumbering = False
     
-    StartNumber = InputBox("Enter starting letter number:", "Outgoing Letter Number", "1")
+    StartNumber = InputBox(LocalizationManager.GetText("Enter starting letter number:"), LocalizationManager.GetText("Outgoing Letter Number"), "1")
     If StartNumber = "" Then Exit Function
     
-    LetterDateInput = InputBox("Enter letter date (dd.mm.yyyy):", "Outgoing Letter Date", Format(Date, "dd.mm.yyyy"))
+    LetterDateInput = InputBox(LocalizationManager.GetText("Enter letter date (dd.mm.yyyy):"), LocalizationManager.GetText("Outgoing Letter Date"), Format(Date, "dd.mm.yyyy"))
     If LetterDateInput = "" Then Exit Function
     
     On Error Resume Next
     InputLetterDate = CDate(LetterDateInput)
     If Err.Number <> 0 Then
-        MsgBox "Invalid date format! Using current date.", vbExclamation, "Date Error"
+        MsgBox LocalizationManager.GetText("Invalid date format! Using current date."), vbExclamation, LocalizationManager.GetText("Date Error")
         InputLetterDate = Date
     End If
     On Error GoTo InitError
@@ -1028,14 +1028,14 @@ Private Function InitializeLetterNumbering() As Boolean
     Exit Function
     
 InitError:
-    MsgBox "Letter numbering initialization error: " & Err.description, vbCritical
+    MsgBox LocalizationManager.GetText("Letter numbering initialization error: ") & Err.description, vbCritical
     InitializeLetterNumbering = False
 End Function
 
 Private Function FormatLetterDate(ByVal InputDate As Date) As String
     Dim MonthNames As Variant
-    MonthNames = Array("", "January", "February", "March", "April", "May", "June", _
-                       "July", "August", "September", "October", "November", "December")
+    MonthNames = Array("", LocalizationManager.GetText("January"), LocalizationManager.GetText("February"), LocalizationManager.GetText("March"), LocalizationManager.GetText("April"), LocalizationManager.GetText("May"), LocalizationManager.GetText("June"), _
+                       LocalizationManager.GetText("July"), LocalizationManager.GetText("August"), LocalizationManager.GetText("September"), LocalizationManager.GetText("October"), LocalizationManager.GetText("November"), LocalizationManager.GetText("December"))
     
     FormatLetterDate = Day(InputDate) & " " & MonthNames(Month(InputDate)) & " " & Year(InputDate)
 End Function
@@ -1101,7 +1101,7 @@ Private Sub UpdateDoverennostiFile(WbDover As Workbook, GroupData As Corresponde
     OperationNumberCol = FindColumnByName(WsDover, "OPERATION NUMBER")
     
     If OperationDateCol = 0 Or OperationNumberCol = 0 Then
-        MsgBox "ERROR: Operation columns not found in Doverennosti file!", vbCritical, "Update Error"
+        MsgBox LocalizationManager.GetText("ERROR: Operation columns not found in Doverennosti file!"), vbCritical, LocalizationManager.GetText("Update Error")
         Exit Sub
     End If
     
@@ -1120,16 +1120,16 @@ Private Sub UpdateDoverennostiFile(WbDover As Workbook, GroupData As Corresponde
         BackupPath = Replace(WbDover.FullName, ".xlsx", "_updated_" & Format(Now, "ddmmyyyy_hhmmss") & ".xlsx")
         WbDover.SaveAs BackupPath
         
-        MsgBox "WARNING!" & vbCrLf & vbCrLf & _
-               "Original file locked." & vbCrLf & _
-               "Saved as copy:" & vbCrLf & vbCrLf & _
-               BackupPath, vbExclamation, "Saved as copy"
+        MsgBox LocalizationManager.GetText("WARNING!") & vbCrLf & vbCrLf & _
+               LocalizationManager.GetText("Original file locked.") & vbCrLf & _
+               LocalizationManager.GetText("Saved as copy:") & vbCrLf & vbCrLf & _
+               BackupPath, vbExclamation, LocalizationManager.GetText("Saved as copy")
     End If
     On Error GoTo 0
     Exit Sub
     
 UpdateError:
-    MsgBox "CRITICAL ERROR updating Doverennosti file!" & vbCrLf & vbCrLf & _
-           "Error: " & Err.description, vbCritical, "Critical Error"
+    MsgBox LocalizationManager.GetText("CRITICAL ERROR updating Doverennosti file!") & vbCrLf & vbCrLf & _
+           LocalizationManager.GetText("Error: ") & Err.description, vbCritical, LocalizationManager.GetText("Critical Error")
 End Sub
 

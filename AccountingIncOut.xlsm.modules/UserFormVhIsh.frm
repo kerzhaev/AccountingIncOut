@@ -115,13 +115,15 @@ End Sub
 ' ===============================================
 
 Private Sub UserForm_Initialize()
-    ' Resize and center form BEFORE initializing other elements
+    ' Масштабирование и центрирование
     Call ResizeAndCenterForm
+    
+    ' АВТОМАТИЧЕСКИЙ ПЕРЕВОД ВСЕГО ИНТЕРФЕЙСА ФОРМЫ
+    Call LocalizationManager.TranslateForm(Me)
     
     Call InitializeForm
     Call LoadSettings
     Call NavigationModule.UpdateStatusBar
-'   Me.KeyPreview = True
 End Sub
 
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
@@ -181,47 +183,33 @@ Private Sub UserForm_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift
 End Sub
 
 Private Sub InitializeForm()
-    ' Initialize variables
     CurrentRecordRow = 0
     IsNewRecord = True
     FormDataChanged = False
     
-    ' Initialize form elements
     Call LoadComboBoxData
     Call SetupNewComboBoxes
     Call DataManager.ClearForm
     
-    ' Setup search elements
     Me.txtSearch.Text = ""
     Me.lstSearchResults.Clear
     Me.lstSearchResults.Visible = False
-    
-    ' Setup fixed size for lstSearchResults
     Call SetupSearchResultsList
     
-    ' Make sequence number field uneditable
     Me.txtNomerPP.Enabled = False
-    Me.txtNomerPP.BackColor = RGB(240, 240, 240) ' Gray color for disabled field
+    Me.txtNomerPP.BackColor = RGB(240, 240, 240)
     Me.txtNomerPP.Locked = True
     
-    ' Setup order field
     Call SetupNaryadField
     
-    ' Setup status bar
-    Me.lblStatusBar.Caption = "Ready to work"
-    
-    ' Deactivate delete button
     Me.btnDelete.Enabled = False
-    
-    ' UI improvements
     Call SetupFormAppearance
     
-    ' Setup search
     Me.txtSearch.Width = 300
     Me.txtSearch.Height = 24
     
-    ' Search tooltip
-    Me.lblStatusBar.Caption = "Ready to work. Hotkeys: Ctrl+S (save), Ctrl+N (new), Ctrl+F (search)"
+    ' Динамический перевод статуса
+    Me.lblStatusBar.Caption = LocalizationManager.GetText("Ready to work. Hotkeys: Ctrl+S (save), Ctrl+N (new), Ctrl+F (search)")
 End Sub
 
 ' Setup order field (now optional)

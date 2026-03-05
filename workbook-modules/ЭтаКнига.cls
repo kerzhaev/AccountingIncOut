@@ -10,8 +10,8 @@ Attribute VB_Exposed = True
 '==============================================
 ' WORKBOOK MODULE - ThisWorkbook
 ' Purpose: Handling workbook events
-' State: SIMPLIFIED - manual module management
-' Version: 2.0.0
+' State: INTEGRATED WITH LOCALIZATION MANAGER
+' Version: 2.0.1
 '==============================================
 
 Option Explicit
@@ -28,7 +28,7 @@ Private Sub Workbook_Open()
     Call SystemLogger.InitializeLog
     
     ' Log system start
-    Call SystemLogger.LogOperation("SystemStart", "IncOut system started", "SUCCESS", 0)
+    Call SystemLogger.LogOperation("SystemStart", LocalizationManager.GetText("IncOut system started"), "SUCCESS", 0)
     
     ' Open form modelessly
     Load UserFormVhIsh
@@ -63,7 +63,7 @@ Private Sub Workbook_SheetActivate(ByVal Sh As Object)
     On Error Resume Next
     
     If Sh.Name = "IncOut" Then
-        Application.StatusBar = "Table sheet is active. Select a cell and press Ctrl+E to edit."
+        Application.StatusBar = LocalizationManager.GetText("Table sheet is active. Select a cell and press Ctrl+E to edit.")
     End If
     
     On Error GoTo 0
@@ -101,10 +101,10 @@ Private Sub UpdateStatusForSelection(Target As Range)
         Dim displayName As String
         fieldName = TableEventHandler.GetFieldNameByColumn(columnNumber)
         displayName = TableEventHandler.GetFieldDisplayName(fieldName)
-        Application.StatusBar = "Row " & RowNumber & ", Col " & columnNumber & _
-                               " | Ctrl+E to edit | " & displayName
+        Application.StatusBar = LocalizationManager.GetText("Row ") & RowNumber & LocalizationManager.GetText(", Col ") & columnNumber & _
+                               LocalizationManager.GetText(" | Ctrl+E to edit | ") & displayName
     Else
-        Application.StatusBar = "Interactive forms system is active. Select a table cell."
+        Application.StatusBar = LocalizationManager.GetText("Interactive forms system is active. Select a table cell.")
     End If
     
     On Error GoTo 0

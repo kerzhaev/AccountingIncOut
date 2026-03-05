@@ -2,8 +2,8 @@ Attribute VB_Name = "HelperFunctions"
 '==============================================
 ' HELPER FUNCTIONS - HelperFunctions
 ' Purpose: General functions for form operations
-' State: DUPLICATE FUNCTIONS REMOVED - ONLY UNIQUE ONES KEPT
-' Version: 1.4.1
+' State: INTEGRATED WITH LOCALIZATION MANAGER
+' Version: 1.4.2
 ' Date: 10.08.2025
 ' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
@@ -59,10 +59,10 @@ End Sub
 Private Sub SetupNavigationButtons()
     With UserFormVhIsh
         ' Improve navigation button captions
-        .btnFirst.Caption = "|< First"
-        .btnPrevious.Caption = "< Prev"
-        .btnNext.Caption = "Next >"
-        .btnLast.Caption = "Last >|"
+        .btnFirst.Caption = LocalizationManager.GetText("|< First")
+        .btnPrevious.Caption = LocalizationManager.GetText("< Prev")
+        .btnNext.Caption = LocalizationManager.GetText("Next >")
+        .btnLast.Caption = LocalizationManager.GetText("Last >|")
         
         ' Make buttons slightly wider
         .btnFirst.Width = 70
@@ -87,19 +87,19 @@ Public Sub ShowFieldTooltip(fieldName As String)
     
     Select Case fieldName
         Case "txtSummaDoc"
-            tooltip = "Enter document amount in rubles (numbers only)"
+            tooltip = LocalizationManager.GetText("Enter document amount in rubles (numbers only)")
         Case "txtDataVhFRP"
-            tooltip = "Date format: DD.MM.YY (e.g., 15.07.25)"
+            tooltip = LocalizationManager.GetText("Date format: DD.MM.YY (e.g., 15.07.25)")
         Case "cmbSlujba"
-            tooltip = "Select a service from the list or enter a new one"
+            tooltip = LocalizationManager.GetText("Select a service from the list or enter a new one")
         Case "txtVhFRP"
-            tooltip = "Incoming/outgoing FRP document number"
+            tooltip = LocalizationManager.GetText("Incoming/outgoing FRP document number")
         Case "cmbOtKogoPostupil"
-            tooltip = "From whom the document was received or where it was sent"
+            tooltip = LocalizationManager.GetText("From whom the document was received or where it was sent")
         Case "cmbIspolnitel"
-            tooltip = "Select an executor from the list or enter a new one"
+            tooltip = LocalizationManager.GetText("Select an executor from the list or enter a new one")
         Case Else
-            tooltip = "Data entry field"
+            tooltip = LocalizationManager.GetText("Data entry field")
     End Select
     
     UserFormVhIsh.lblStatusBar.Caption = tooltip
@@ -129,28 +129,28 @@ Public Sub ValidateFormData()
         
         ' If transfer date to executor is specified, executor must be selected
         If Trim(.txtDataPeredachi.Text) <> "" And Trim(.cmbIspolnitel.Text) = "" Then
-            MsgBox "If transfer date to executor is specified, executor must be selected!", vbExclamation, "Data Validation"
+            MsgBox LocalizationManager.GetText("If transfer date to executor is specified, executor must be selected!"), vbExclamation, LocalizationManager.GetText("Data Validation")
             .cmbIspolnitel.SetFocus
             IsValid = False
         End If
         
         ' If outgoing number to service is specified, date must be entered
         If Trim(.txtNomerIshVSlujbu.Text) <> "" And Trim(.txtDataIshVSlujbu.Text) = "" Then
-            MsgBox "If outgoing number to service is specified, date must be entered!", vbExclamation, "Data Validation"
+            MsgBox LocalizationManager.GetText("If outgoing number to service is specified, date must be entered!"), vbExclamation, LocalizationManager.GetText("Data Validation")
             .txtDataIshVSlujbu.SetFocus
             IsValid = False
         End If
         
         ' If return number is specified, return date must be entered
         If Trim(.txtNomerVozvrata.Text) <> "" And Trim(.txtDataVozvrata.Text) = "" Then
-            MsgBox "If return number is specified, return date must be entered!", vbExclamation, "Data Validation"
+            MsgBox LocalizationManager.GetText("If return number is specified, return date must be entered!"), vbExclamation, LocalizationManager.GetText("Data Validation")
             .txtDataVozvrata.SetFocus
             IsValid = False
         End If
         
         ' If outgoing envelope number is specified, date must be entered
         If Trim(.txtNomerIshKonvert.Text) <> "" And Trim(.txtDataIshKonvert.Text) = "" Then
-            MsgBox "If outgoing envelope number is specified, date must be entered!", vbExclamation, "Data Validation"
+            MsgBox LocalizationManager.GetText("If outgoing envelope number is specified, date must be entered!"), vbExclamation, LocalizationManager.GetText("Data Validation")
             .txtDataIshKonvert.SetFocus
             IsValid = False
         End If
@@ -178,7 +178,7 @@ Public Sub ClearSearchResults()
         .txtSearch.Text = ""
         .lstSearchResults.Clear
         .lstSearchResults.Visible = False
-        .lblStatusBar.Caption = "Search cleared"
+        .lblStatusBar.Caption = LocalizationManager.GetText("Search cleared")
     End With
 End Sub
 
@@ -209,5 +209,5 @@ Public Sub ResetFormToDefaults()
     Call DataManager.ClearForm
     Call SetupFormAppearance
     
-    UserFormVhIsh.lblStatusBar.Caption = "Form reset to default settings"
+    UserFormVhIsh.lblStatusBar.Caption = LocalizationManager.GetText("Form reset to default settings")
 End Sub

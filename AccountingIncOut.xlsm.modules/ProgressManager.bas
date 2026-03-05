@@ -2,8 +2,8 @@ Attribute VB_Name = "ProgressManager"
 '==============================================
 ' PROGRESS MANAGEMENT MODULE - ProgressManager
 ' Purpose: Displaying progress of long operations
-' State: FIXED - renamed UpdateStatusBar
-' Version: 1.0.1
+' State: INTEGRATED WITH LOCALIZATION MANAGER
+' Version: 1.0.2
 ' Date: 23.08.2025
 ' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
@@ -19,7 +19,7 @@ Public Sub ShowProgress(operationTitle As String, Optional allowCancel As Boolea
     Set ProgressForm = New UserFormProgress
     
     With ProgressForm
-        .Caption = "Executing operation"
+        .Caption = LocalizationManager.GetText("Executing operation")
         .lblOperation.Caption = operationTitle
         .ProgressBar.value = 0
         .btnCancel.Visible = allowCancel
@@ -43,14 +43,14 @@ Public Sub UpdateProgress(CurrentValue As Long, MaxValue As Long, Optional statu
     
     With ProgressForm
         .ProgressBar.value = percentage
-        .lblStatus.Caption = "Completed: " & CurrentValue & " of " & MaxValue & " (" & Format(percentage, "0.0") & "%)"
+        .lblStatus.Caption = LocalizationManager.GetText("Completed: ") & CurrentValue & LocalizationManager.GetText(" of ") & MaxValue & " (" & Format(percentage, "0.0") & "%)"
         
         If statusText <> "" Then
             .lblDetails.Caption = statusText
         End If
         
         ' Update execution time
-        .lblTime.Caption = "Time: " & Format(Timer - StartTime, "0.0") & " sec."
+        .lblTime.Caption = LocalizationManager.GetText("Time: ") & Format(Timer - StartTime, "0.0") & LocalizationManager.GetText(" sec.")
     End With
     
     ' Update Excel status bar
@@ -79,7 +79,7 @@ End Function
 Public Sub CancelOperation()
     operationCancelled = True
     Call HideProgress
-    Application.StatusBar = "Operation cancelled by user"
+    Application.StatusBar = LocalizationManager.GetText("Operation cancelled by user")
 End Sub
 
 ' FIXED: Renamed function for quick status bar update

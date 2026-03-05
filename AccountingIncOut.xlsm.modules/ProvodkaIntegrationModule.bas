@@ -2,8 +2,8 @@ Attribute VB_Name = "ProvodkaIntegrationModule"
 '==============================================
 ' 1C INTEGRATION MODULE - ProvodkaIntegrationModule
 ' Purpose: Automatic matching of 1C postings with IncOut documents
-' State: NEW MODULE FOR 1C EXPORT INTEGRATION
-' Version: 1.0.0
+' State: INTEGRATED WITH LOCALIZATION MANAGER
+' Version: 1.0.1
 ' Date: 21.08.2025
 ' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
@@ -39,12 +39,12 @@ Public Sub MassProcessWithFileSelection()
     ' Select 1C export file
     filePath = Application.GetOpenFilename( _
         "Excel Files (*.xlsx),*.xlsx,CSV Files (*.csv),*.csv,All Files (*.*),*.*", _
-        , "Select 1C export file")
+        , LocalizationManager.GetText("Select 1C export file"))
     
     If filePath = "False" Then Exit Sub
     
     ' Open 1C export file
-    Application.StatusBar = "Opening 1C export file..."
+    Application.StatusBar = LocalizationManager.GetText("Opening 1C export file...")
     Set wb1C = Workbooks.Open(filePath, ReadOnly:=True)
     Set ws1C = wb1C.Worksheets(1) ' First sheet of the file
     
@@ -52,7 +52,7 @@ Public Sub MassProcessWithFileSelection()
     Set wsData = ThisWorkbook.Worksheets("IncOut")
     Set tblData = wsData.ListObjects("TableIncOut")
     
-    Application.StatusBar = "Starting mass processing..."
+    Application.StatusBar = LocalizationManager.GetText("Starting mass processing...")
     Application.ScreenUpdating = False
     
     ' Process each IncOut record
@@ -95,7 +95,7 @@ Public Sub MassProcessWithFileSelection()
         
         ' Update progress every 25 records
         If (ProcessedCount + SkippedCount) Mod 25 = 0 Then
-            Application.StatusBar = "Processed " & (ProcessedCount + SkippedCount) & " of " & tblData.ListRows.Count & " records"
+            Application.StatusBar = LocalizationManager.GetText("Processed ") & (ProcessedCount + SkippedCount) & LocalizationManager.GetText(" of ") & tblData.ListRows.Count & LocalizationManager.GetText(" records")
         End If
         
     Next i
@@ -106,19 +106,19 @@ Public Sub MassProcessWithFileSelection()
     Application.ScreenUpdating = True
     
     ' Show processing results
-    MsgBox "MASS PROCESSING COMPLETED:" & vbCrLf & vbCrLf & _
-           "--- STATISTICS:" & vbCrLf & _
-           "Total records in table: " & tblData.ListRows.Count & vbCrLf & _
-           "Processed (without mark): " & ProcessedCount & vbCrLf & _
-           "Skipped (already filled): " & SkippedCount & vbCrLf & vbCrLf & _
-           "--- RESULTS:" & vbCrLf & _
-           "Found automatically: " & FoundCount & vbCrLf & _
-           "Multiple matches: " & MultipleCount & vbCrLf & _
-           "Not found: " & (ProcessedCount - FoundCount - MultipleCount) & vbCrLf & vbCrLf & _
-           "--- Success rate: " & Format(IIf(ProcessedCount > 0, FoundCount / ProcessedCount, 0), "0.0%"), _
-           vbInformation, "1C Integration Results"
+    MsgBox LocalizationManager.GetText("MASS PROCESSING COMPLETED:") & vbCrLf & vbCrLf & _
+           LocalizationManager.GetText("--- STATISTICS:") & vbCrLf & _
+           LocalizationManager.GetText("Total records in table: ") & tblData.ListRows.Count & vbCrLf & _
+           LocalizationManager.GetText("Processed (without mark): ") & ProcessedCount & vbCrLf & _
+           LocalizationManager.GetText("Skipped (already filled): ") & SkippedCount & vbCrLf & vbCrLf & _
+           LocalizationManager.GetText("--- RESULTS:") & vbCrLf & _
+           LocalizationManager.GetText("Found automatically: ") & FoundCount & vbCrLf & _
+           LocalizationManager.GetText("Multiple matches: ") & MultipleCount & vbCrLf & _
+           LocalizationManager.GetText("Not found: ") & (ProcessedCount - FoundCount - MultipleCount) & vbCrLf & vbCrLf & _
+           LocalizationManager.GetText("--- Success rate: ") & Format(IIf(ProcessedCount > 0, FoundCount / ProcessedCount, 0), "0.0%"), _
+           vbInformation, LocalizationManager.GetText("1C Integration Results")
            
-    Application.StatusBar = "Integration completed. Found " & FoundCount & " matches out of " & ProcessedCount & " records."
+    Application.StatusBar = LocalizationManager.GetText("Integration completed. Found ") & FoundCount & LocalizationManager.GetText(" matches out of ") & ProcessedCount & LocalizationManager.GetText(" records.")
     
     Exit Sub
     
@@ -126,12 +126,12 @@ MassProcessError:
     Application.ScreenUpdating = True
     If Not wb1C Is Nothing Then wb1C.Close False
     
-    MsgBox "Mass processing error:" & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.description & vbCrLf & _
-           "Processed records: " & ProcessedCount, _
-           vbCritical, "Critical Error"
+    MsgBox LocalizationManager.GetText("Mass processing error:") & vbCrLf & _
+           LocalizationManager.GetText("Error: ") & Err.Number & " - " & Err.description & vbCrLf & _
+           LocalizationManager.GetText("Processed records: ") & ProcessedCount, _
+           vbCritical, LocalizationManager.GetText("Critical Error")
            
-    Application.StatusBar = "Mass processing error"
+    Application.StatusBar = LocalizationManager.GetText("Mass processing error")
 End Sub
 
 ' Search for matching posting in 1C export file
@@ -157,7 +157,7 @@ Private Function FindMatchInFile(suma As Double, Correspondent As String, ws1C A
     ' Initialize result
     result.Found = False
     result.MatchCount = 0
-    result.StatusMessage = "Not found"
+    result.StatusMessage = LocalizationManager.GetText("Not found")
     result.candidatesList = ""
     
     ' Determine last row with data
@@ -165,7 +165,7 @@ Private Function FindMatchInFile(suma As Double, Correspondent As String, ws1C A
     
     ' Check data availability
     If LastRow < 2 Then
-        result.StatusMessage = "Export file is empty"
+        result.StatusMessage = LocalizationManager.GetText("Export file is empty")
         FindMatchInFile = result
         Exit Function
     End If
@@ -189,7 +189,7 @@ Private Function FindMatchInFile(suma As Double, Correspondent As String, ws1C A
         If (currentStatus <> "1") And _
            (Abs(currentSuma - suma) < 0.01) And _
            (InStr(UCase(currentCorrespondent), UCase(Correspondent)) > 0) Then
-           
+            
             CandidatesCount = CandidatesCount + 1
             
             ' Save candidate info
@@ -219,17 +219,17 @@ Private Function FindMatchInFile(suma As Double, Correspondent As String, ws1C A
         result.Found = True
         result.ProvodkaNumber = bestCandidate
         result.ProvodkaDate = bestCandidateDate
-        result.StatusMessage = "Single match found"
+        result.StatusMessage = LocalizationManager.GetText("Single match found")
         
     ElseIf CandidatesCount > 1 Then
         result.Found = False ' Requires manual choice
         result.ProvodkaNumber = bestCandidate
         result.ProvodkaDate = bestCandidateDate
-        result.StatusMessage = "Found " & CandidatesCount & " variants (selected by date)"
+        result.StatusMessage = LocalizationManager.GetText("Found ") & CandidatesCount & LocalizationManager.GetText(" variants (selected by date)")
         
     Else
         result.Found = False
-        result.StatusMessage = "No match found"
+        result.StatusMessage = LocalizationManager.GetText("No match found")
     End If
     
     FindMatchInFile = result
@@ -238,7 +238,7 @@ Private Function FindMatchInFile(suma As Double, Correspondent As String, ws1C A
 FindError:
     result.Found = False
     result.MatchCount = 0
-    result.StatusMessage = "Search error: " & Err.description
+    result.StatusMessage = LocalizationManager.GetText("Search error: ") & Err.description
     FindMatchInFile = result
 End Function
 
@@ -262,7 +262,7 @@ Public Sub ProcessSingleRecord(RowIndex As Long)
     
     ' Check row number validity
     If RowIndex < 1 Or RowIndex > tblData.ListRows.Count Then
-        MsgBox "Invalid record number: " & RowIndex, vbExclamation, "Error"
+        MsgBox LocalizationManager.GetText("Invalid record number: ") & RowIndex, vbExclamation, LocalizationManager.GetText("Error")
         Exit Sub
     End If
     
@@ -273,12 +273,12 @@ Public Sub ProcessSingleRecord(RowIndex As Long)
     ' Select 1C export file
     filePath = Application.GetOpenFilename( _
         "Excel Files (*.xlsx),*.xlsx,CSV Files (*.csv),*.csv,All Files (*.*),*.*", _
-        , "Select 1C export file for posting search")
+        , LocalizationManager.GetText("Select 1C export file for posting search"))
     
     If filePath = "False" Then Exit Sub
     
     ' Open 1C export file
-    Application.StatusBar = "Searching for posting in 1C file..."
+    Application.StatusBar = LocalizationManager.GetText("Searching for posting in 1C file...")
     Set wb1C = Workbooks.Open(filePath, ReadOnly:=True)
     Set ws1C = wb1C.Worksheets(1)
     
@@ -293,13 +293,13 @@ Public Sub ProcessSingleRecord(RowIndex As Long)
         ' Automatically fill field
         tblData.DataBodyRange.Cells(RowIndex, 18).value = MatchResult.ProvodkaNumber
         
-        MsgBox "[OK] POSTING FOUND!" & vbCrLf & vbCrLf & _
-               "Posting Number: " & MatchResult.ProvodkaNumber & vbCrLf & _
-               "Posting Date: " & Format(MatchResult.ProvodkaDate, "dd.mm.yyyy") & vbCrLf & _
-               "Amount: " & currentSuma & vbCrLf & _
-               "Correspondent: " & currentCorrespondent & vbCrLf & vbCrLf & _
-               "Posting number written to 'Execution Mark'", _
-               vbInformation, "Posting Search"
+        MsgBox LocalizationManager.GetText("[OK] POSTING FOUND!") & vbCrLf & vbCrLf & _
+               LocalizationManager.GetText("Posting Number: ") & MatchResult.ProvodkaNumber & vbCrLf & _
+               LocalizationManager.GetText("Posting Date: ") & Format(MatchResult.ProvodkaDate, "dd.mm.yyyy") & vbCrLf & _
+               LocalizationManager.GetText("Amount: ") & currentSuma & vbCrLf & _
+               LocalizationManager.GetText("Correspondent: ") & currentCorrespondent & vbCrLf & vbCrLf & _
+               LocalizationManager.GetText("Posting number written to 'Execution Mark'"), _
+               vbInformation, LocalizationManager.GetText("Posting Search")
                
         ' If form is open, update display
         If TableEventHandler.IsFormOpen("UserFormVhIsh") Then
@@ -312,28 +312,28 @@ Public Sub ProcessSingleRecord(RowIndex As Long)
         Call ShowMultipleChoiceDialog(RowIndex, MatchResult, currentSuma, currentCorrespondent)
         
     Else
-        MsgBox "[WARN] POSTING NOT FOUND" & vbCrLf & vbCrLf & _
-               "Search criteria:" & vbCrLf & _
-               "Amount: " & currentSuma & vbCrLf & _
-               "Correspondent: " & currentCorrespondent & vbCrLf & vbCrLf & _
-               "Possible reasons:" & vbCrLf & _
-               "- Document not yet posted in 1C" & vbCrLf & _
-               "- Amount or correspondent name differs" & vbCrLf & _
-               "- Document reversed in 1C", _
-               vbExclamation, "Posting Search"
+        MsgBox LocalizationManager.GetText("[WARN] POSTING NOT FOUND") & vbCrLf & vbCrLf & _
+               LocalizationManager.GetText("Search criteria:") & vbCrLf & _
+               LocalizationManager.GetText("Amount: ") & currentSuma & vbCrLf & _
+               LocalizationManager.GetText("Correspondent: ") & currentCorrespondent & vbCrLf & vbCrLf & _
+               LocalizationManager.GetText("Possible reasons:") & vbCrLf & _
+               LocalizationManager.GetText("- Document not yet posted in 1C") & vbCrLf & _
+               LocalizationManager.GetText("- Amount or correspondent name differs") & vbCrLf & _
+               LocalizationManager.GetText("- Document reversed in 1C"), _
+               vbExclamation, LocalizationManager.GetText("Posting Search")
     End If
     
-    Application.StatusBar = "Posting search completed"
+    Application.StatusBar = LocalizationManager.GetText("Posting search completed")
     Exit Sub
     
 SingleProcessError:
     If Not wb1C Is Nothing Then wb1C.Close False
     
-    MsgBox "Posting search error:" & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.description, _
-           vbCritical, "Error"
+    MsgBox LocalizationManager.GetText("Posting search error:") & vbCrLf & _
+           LocalizationManager.GetText("Error: ") & Err.Number & " - " & Err.description, _
+           vbCritical, LocalizationManager.GetText("Error")
            
-    Application.StatusBar = "Posting search error"
+    Application.StatusBar = LocalizationManager.GetText("Posting search error")
 End Sub
 
 ' Dialog to choose from multiple variants
@@ -342,15 +342,15 @@ Private Sub ShowMultipleChoiceDialog(RowIndex As Long, MatchResult As MatchResul
     Dim selectedProvodka As String
     
     userChoice = InputBox( _
-        "[INFO] MULTIPLE POSTING VARIANTS FOUND:" & vbCrLf & vbCrLf & _
-        "Search criteria:" & vbCrLf & _
-        "Amount: " & suma & vbCrLf & _
-        "Correspondent: " & Correspondent & vbCrLf & vbCrLf & _
-        "Found variants:" & vbCrLf & _
+        LocalizationManager.GetText("[INFO] MULTIPLE POSTING VARIANTS FOUND:") & vbCrLf & vbCrLf & _
+        LocalizationManager.GetText("Search criteria:") & vbCrLf & _
+        LocalizationManager.GetText("Amount: ") & suma & vbCrLf & _
+        LocalizationManager.GetText("Correspondent: ") & Correspondent & vbCrLf & vbCrLf & _
+        LocalizationManager.GetText("Found variants:") & vbCrLf & _
         MatchResult.candidatesList & vbCrLf & vbCrLf & _
-        "Enter posting number to save" & vbCrLf & _
-        "(or leave empty to cancel):", _
-        "Posting Selection", _
+        LocalizationManager.GetText("Enter posting number to save") & vbCrLf & _
+        LocalizationManager.GetText("(or leave empty to cancel):"), _
+        LocalizationManager.GetText("Posting Selection"), _
         MatchResult.ProvodkaNumber)
     
     If Trim(userChoice) <> "" Then
@@ -363,7 +363,7 @@ Private Sub ShowMultipleChoiceDialog(RowIndex As Long, MatchResult As MatchResul
         
         tblData.DataBodyRange.Cells(RowIndex, 18).value = Trim(userChoice)
         
-        MsgBox "[OK] Posting saved: " & Trim(userChoice), vbInformation, "Selection Saved"
+        MsgBox LocalizationManager.GetText("[OK] Posting saved: ") & Trim(userChoice), vbInformation, LocalizationManager.GetText("Selection Saved")
         
         ' Update form if open
         If TableEventHandler.IsFormOpen("UserFormVhIsh") Then
@@ -378,7 +378,7 @@ Public Sub FindProvodkaForCurrentRecord()
     If DataManager.CurrentRecordRow > 0 Then
         Call ProcessSingleRecord(DataManager.CurrentRecordRow)
     Else
-        MsgBox "Select a record in the table or open form with record", vbExclamation, "Posting Search"
+        MsgBox LocalizationManager.GetText("Select a record in the table or open form with record"), vbExclamation, LocalizationManager.GetText("Posting Search")
     End If
 End Sub
 
@@ -405,13 +405,13 @@ Public Sub ShowMatchingStatistics()
         End If
     Next i
     
-    MsgBox "--- 1C MATCHING STATISTICS:" & vbCrLf & vbCrLf & _
-           "Total records in system: " & totalRecords & vbCrLf & _
-           "With execution mark: " & filledRecords & " (" & Format(filledRecords / totalRecords, "0.0%") & ")" & vbCrLf & _
-           "Without execution mark: " & emptyRecords & " (" & Format(emptyRecords / totalRecords, "0.0%") & ")" & vbCrLf & vbCrLf & _
-           "Recommendation: Use 'Mass processing' to" & vbCrLf & _
-           "automatically fill empty marks.", _
-           vbInformation, "Integration Statistics"
+    MsgBox LocalizationManager.GetText("--- 1C MATCHING STATISTICS:") & vbCrLf & vbCrLf & _
+           LocalizationManager.GetText("Total records in system: ") & totalRecords & vbCrLf & _
+           LocalizationManager.GetText("With execution mark: ") & filledRecords & " (" & Format(filledRecords / totalRecords, "0.0%") & ")" & vbCrLf & _
+           LocalizationManager.GetText("Without execution mark: ") & emptyRecords & " (" & Format(emptyRecords / totalRecords, "0.0%") & ")" & vbCrLf & vbCrLf & _
+           LocalizationManager.GetText("Recommendation: Use 'Mass processing' to") & vbCrLf & _
+           LocalizationManager.GetText("automatically fill empty marks."), _
+           vbInformation, LocalizationManager.GetText("Integration Statistics")
 End Sub
 
 ' Clear all execution marks (for reprocessing)
@@ -422,19 +422,19 @@ Public Sub ClearAllProvodkaMarks()
     Dim i As Long
     Dim clearedCount As Long
     
-    response = MsgBox("[WARN] ATTENTION!" & vbCrLf & vbCrLf & _
-                      "You are about to clear ALL execution marks" & vbCrLf & _
-                      "in the TableIncOut table." & vbCrLf & vbCrLf & _
-                      "This action cannot be undone!" & vbCrLf & _
-                      "Continue?", _
-                      vbYesNo + vbExclamation + vbDefaultButton2, "Clear Confirmation")
+    response = MsgBox(LocalizationManager.GetText("[WARN] ATTENTION!") & vbCrLf & vbCrLf & _
+                      LocalizationManager.GetText("You are about to clear ALL execution marks") & vbCrLf & _
+                      LocalizationManager.GetText("in the TableIncOut table.") & vbCrLf & vbCrLf & _
+                      LocalizationManager.GetText("This action cannot be undone!") & vbCrLf & _
+                      LocalizationManager.GetText("Continue?"), _
+                      vbYesNo + vbExclamation + vbDefaultButton2, LocalizationManager.GetText("Clear Confirmation"))
     
     If response = vbNo Then Exit Sub
     
     Set wsData = ThisWorkbook.Worksheets("IncOut")
     Set tblData = wsData.ListObjects("TableIncOut")
     
-    Application.StatusBar = "Clearing execution marks..."
+    Application.StatusBar = LocalizationManager.GetText("Clearing execution marks...")
     
     For i = 1 To tblData.ListRows.Count
         If Trim(CStr(tblData.DataBodyRange.Cells(i, 18).value)) <> "" Then
@@ -443,10 +443,10 @@ Public Sub ClearAllProvodkaMarks()
         End If
     Next i
     
-    MsgBox "[OK] Clearing completed!" & vbCrLf & _
-           "Records cleared: " & clearedCount, _
-           vbInformation, "Clearing Executed"
+    MsgBox LocalizationManager.GetText("[OK] Clearing completed!") & vbCrLf & _
+           LocalizationManager.GetText("Records cleared: ") & clearedCount, _
+           vbInformation, LocalizationManager.GetText("Clearing Executed")
            
-    Application.StatusBar = "Marks clearing completed. Cleared " & clearedCount & " records."
+    Application.StatusBar = LocalizationManager.GetText("Marks clearing completed. Cleared ") & clearedCount & LocalizationManager.GetText(" records.")
 End Sub
 

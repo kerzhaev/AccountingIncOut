@@ -2,8 +2,8 @@ Attribute VB_Name = "SystemLogger"
 '==============================================
 ' LOGGING MODULE - SystemLogger
 ' Purpose: Logging system operations
-' State: STAGE 1 - BASIC INFRASTRUCTURE
-' Version: 1.0.0
+' State: INTEGRATED WITH LOCALIZATION MANAGER
+' Version: 1.0.1
 ' Date: 23.08.2025
 ' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
@@ -28,12 +28,12 @@ CreateLog:
     
     ' Create log headers
     With wsLog
-        .Range("A1").value = "Date/Time"
-        .Range("B1").value = "Operation"
-        .Range("C1").value = "Description"
-        .Range("D1").value = "Status"
-        .Range("E1").value = "Execution Time (sec)"
-        .Range("F1").value = "User"
+        .Range("A1").value = LocalizationManager.GetText("Date/Time")
+        .Range("B1").value = LocalizationManager.GetText("Operation")
+        .Range("C1").value = LocalizationManager.GetText("Description")
+        .Range("D1").value = LocalizationManager.GetText("Status")
+        .Range("E1").value = LocalizationManager.GetText("Execution Time (sec)")
+        .Range("F1").value = LocalizationManager.GetText("User")
         
         .Range("A1:F1").Font.Bold = True
         .Range("A1:F1").Interior.Color = RGB(200, 220, 255)
@@ -134,10 +134,10 @@ Public Sub ShowLogDialog()
         wsLog.Range("A1:F1").AutoFilter
     End If
     
-    MsgBox "Operation log opened." & vbCrLf & _
-           "Use filters to find necessary records." & vbCrLf & _
-           "Press OK to hide the log after viewing.", _
-           vbInformation, "Operation Log"
+    MsgBox LocalizationManager.GetText("Operation log opened.") & vbCrLf & _
+           LocalizationManager.GetText("Use filters to find necessary records.") & vbCrLf & _
+           LocalizationManager.GetText("Press OK to hide the log after viewing."), _
+           vbInformation, LocalizationManager.GetText("Operation Log")
     
     ' Hide sheet back
     wsLog.Visible = xlSheetVeryHidden
@@ -145,7 +145,7 @@ Public Sub ShowLogDialog()
     Exit Sub
     
 ShowLogError:
-    MsgBox "Error opening log: " & Err.description, vbExclamation, "Error"
+    MsgBox LocalizationManager.GetText("Error opening log: ") & Err.description, vbExclamation, LocalizationManager.GetText("Error")
 End Sub
 
 ' Clear log
@@ -153,14 +153,14 @@ Public Sub ClearLog()
     Dim wsLog As Worksheet
     Dim response As VbMsgBoxResult
     
-    response = MsgBox("Clear the entire operation log?" & vbCrLf & _
-                      "This action cannot be undone!", _
-                      vbYesNo + vbExclamation + vbDefaultButton2, "Clear Confirmation")
+    response = MsgBox(LocalizationManager.GetText("Clear the entire operation log?") & vbCrLf & _
+                      LocalizationManager.GetText("This action cannot be undone!"), _
+                      vbYesNo + vbExclamation + vbDefaultButton2, LocalizationManager.GetText("Clear Confirmation"))
     
     If response = vbYes Then
         Set wsLog = ThisWorkbook.Worksheets(LOG_SHEET_NAME)
         wsLog.Range("2:" & wsLog.Rows.Count).ClearContents
-        MsgBox "Operation log cleared.", vbInformation, "Clearing Completed"
+        MsgBox LocalizationManager.GetText("Operation log cleared."), vbInformation, LocalizationManager.GetText("Clearing Completed")
     End If
 End Sub
 

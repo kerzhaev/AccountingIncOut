@@ -2,8 +2,8 @@ Attribute VB_Name = "SearchModule"
 '==============================================
 ' TABLE SEARCH MODULE - SearchModule
 ' Purpose: Implementation of instant search across all table columns
-' State: ADDED AUTOMATIC WIDTH RESIZING BASED ON CONTENT
-' Version: 1.7.2
+' State: INTEGRATED WITH LOCALIZATION MANAGER
+' Version: 1.7.3
 ' Date: 09.08.2025
 ' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
@@ -32,7 +32,7 @@ Public Sub PerformSearch()
         With UserFormVhIsh
             .lstSearchResults.Clear
             .lstSearchResults.Visible = False
-            .lblStatusBar.Caption = "Enter text to search"
+            .lblStatusBar.Caption = LocalizationManager.GetText("Enter text to search")
         End With
         SearchResultsVisible = False
         Exit Sub
@@ -76,7 +76,7 @@ Public Sub PerformSearch()
     Exit Sub
     
 SearchError:
-    UserFormVhIsh.lblStatusBar.Caption = "Search error: " & Err.description
+    UserFormVhIsh.lblStatusBar.Caption = LocalizationManager.GetText("Search error: ") & Err.description
     UserFormVhIsh.lstSearchResults.Visible = False
     SearchResultsVisible = False
 End Sub
@@ -136,38 +136,35 @@ Private Sub AddImprovedSearchResult(rowNum As Long, tbl As ListObject)
     End If
     
     If Trim(docNumberText) <> "" Then
-        ResultText = ResultText & "No." & docNumberText & " "
+        ResultText = ResultText & LocalizationManager.GetText("No.") & docNumberText & " "
     End If
     
     If Trim(amountText) <> "" And amountText <> "0" Then
-        ResultText = ResultText & "(" & amountText & " rub.) "
+        ResultText = ResultText & "(" & amountText & LocalizationManager.GetText(" rub.") & ") "
     End If
     
     If Trim(frpText) <> "" Then
-        ResultText = ResultText & "FRP:" & frpText & " "
+        ResultText = ResultText & LocalizationManager.GetText("FRP:") & frpText & " "
     End If
     
     If Trim(DateText) <> "" Then
-        ResultText = ResultText & "from " & DateText & " "
+        ResultText = ResultText & LocalizationManager.GetText("from ") & DateText & " "
     End If
     
     ' Add fields to the tail of the result:
     If Trim(fromWhomText) <> "" Then
-        ResultText = ResultText & "| From: " & fromWhomText & " "
+        ResultText = ResultText & "| " & LocalizationManager.GetText("From: ") & fromWhomText & " "
     End If
     
     If Trim(executorText) <> "" Then
-        ResultText = ResultText & "| Exec.: " & executorText & " "
+        ResultText = ResultText & "| " & LocalizationManager.GetText("Exec.: ") & executorText & " "
     End If
     
     If Trim(statusText) <> "" Then
-        ResultText = ResultText & "| Status: " & statusText & " "
+        ResultText = ResultText & "| " & LocalizationManager.GetText("Status: ") & statusText & " "
     End If
     
     ' CHANGED: Do not trim string for correct width calculation
-    ' If Len(resultText) > 120 Then
-    '     resultText = Left(resultText, 117) & "..."
-    ' End If
     
     ' Add to list
     With UserFormVhIsh.lstSearchResults
@@ -199,13 +196,13 @@ Private Sub DisplaySearchResults(FoundCount As Integer)
             .lstSearchResults.Height = 120
             
             ' Status bar
-            .lblStatusBar.Caption = "Found: " & FoundCount & " records | " & _
-                                    "Navigation: ^v or click to jump | " & _
-                                    "Search remains active"
+            .lblStatusBar.Caption = LocalizationManager.GetText("Found: ") & FoundCount & LocalizationManager.GetText(" records | ") & _
+                                    LocalizationManager.GetText("Navigation: ^v or click to jump | ") & _
+                                    LocalizationManager.GetText("Search remains active")
         Else
             .lstSearchResults.Visible = False
             SearchResultsVisible = False
-            .lblStatusBar.Caption = "For query '" & .txtSearch.Text & "' nothing found"
+            .lblStatusBar.Caption = LocalizationManager.GetText("For query '") & .txtSearch.Text & LocalizationManager.GetText("' nothing found")
         End If
     End With
 End Sub
@@ -307,15 +304,15 @@ Public Sub SelectSearchResult()
                 selectedRow = CLng(parts(1))
                 
                 ' Jump to the found record
-                Call NavigateToRecord(selectedRow)
+                Call NavigationModule.NavigateToRecord(selectedRow)
                 
                 ' KEY CHANGE: DO NOT clear search and DO NOT hide results!
                 ' Instead, highlight the selected item and update status
                 
                 ' Update status bar with selected record info
-                UserFormVhIsh.lblStatusBar.Caption = "Jump to record No." & selectedRow & " | " & _
-                                                     "Found: " & .ListCount & " records | " & _
-                                                     "Search active: """ & UserFormVhIsh.txtSearch.Text & """"
+                UserFormVhIsh.lblStatusBar.Caption = LocalizationManager.GetText("Jump to record No.") & selectedRow & " | " & _
+                                                     LocalizationManager.GetText("Found: ") & .ListCount & LocalizationManager.GetText(" records | ") & _
+                                                     LocalizationManager.GetText("Search active: """) & UserFormVhIsh.txtSearch.Text & """"
                 
                 ' Visually highlight selected item (remains highlighted)
                 .BackColor = RGB(240, 248, 255) ' Light blue background for active search
@@ -326,7 +323,7 @@ Public Sub SelectSearchResult()
     Exit Sub
     
 SelectError:
-    MsgBox "Error selecting search result: " & Err.description, vbExclamation, "Error"
+    MsgBox LocalizationManager.GetText("Error selecting search result: ") & Err.description, vbExclamation, LocalizationManager.GetText("Error")
 End Sub
 
 ' NEW PROCEDURE: Clear search on user demand
@@ -335,7 +332,7 @@ Public Sub ClearSearch()
         .txtSearch.Text = ""
         .lstSearchResults.Clear
         .lstSearchResults.Visible = False
-        .lblStatusBar.Caption = "Search cleared"
+        .lblStatusBar.Caption = LocalizationManager.GetText("Search cleared")
     End With
     LastSearchText = ""
     SearchResultsVisible = False
@@ -387,12 +384,12 @@ End Function
 Public Function GetSearchInfo() As String
     If IsSearchActive() Then
         With UserFormVhIsh.lstSearchResults
-            GetSearchInfo = "Active search: """ & UserFormVhIsh.txtSearch.Text & """ | " & _
-                            "Found: " & .ListCount & " records | " & _
-                            "Selected: " & (.ListIndex + 1) & " of " & .ListCount
+            GetSearchInfo = LocalizationManager.GetText("Active search: """) & UserFormVhIsh.txtSearch.Text & """ | " & _
+                            LocalizationManager.GetText("Found: ") & .ListCount & LocalizationManager.GetText(" records | ") & _
+                            LocalizationManager.GetText("Selected: ") & (.ListIndex + 1) & LocalizationManager.GetText(" of ") & .ListCount
         End With
     Else
-        GetSearchInfo = "Search inactive"
+        GetSearchInfo = LocalizationManager.GetText("Search inactive")
     End If
 End Function
 

@@ -2,9 +2,9 @@ Attribute VB_Name = "SettingsModule"
 '==============================================
 ' SYSTEM SETTINGS MANAGEMENT MODULE - SettingsModule
 ' Purpose: Saving and loading user settings
-' State: FIXED REFERENCES TO GLOBAL VARIABLES
-' Version: 1.1.0
-' Date: 10.08.2025
+' State: HARMONIZED SHEET NAME, NO LOCALIZATION NEEDED
+' Version: 1.1.1
+' Date: 05.03.2026
 ' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
@@ -72,13 +72,14 @@ Private Function GetSettingsWorksheet() As Worksheet
     
     On Error GoTo CreateSheet
     
-    Set Ws = ThisWorkbook.Worksheets("System_Settings")
+    ' Unified hidden sheet name
+    Set Ws = ThisWorkbook.Worksheets("SystemSettings")
     Set GetSettingsWorksheet = Ws
     Exit Function
     
 CreateSheet:
     Set Ws = ThisWorkbook.Worksheets.Add
-    Ws.Name = "System_Settings"
+    Ws.Name = "SystemSettings"
     Ws.Visible = xlSheetHidden
     Set GetSettingsWorksheet = Ws
 End Function

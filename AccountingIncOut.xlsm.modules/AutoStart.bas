@@ -2,10 +2,8 @@ Attribute VB_Name = "AutoStart"
 '==============================================
 ' SYSTEM AUTOSTART MODULE - AutoStart
 ' Purpose: Automatic system initialization upon workbook opening
-' State: POPUP WINDOWS DISABLED - STATUS BAR AND DEBUG ONLY
-' Version: 2.3.0
-' Date: 10.08.2025
-' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
+' State: INTEGRATED WITH LOCALIZATION MANAGER
+' Version: 2.4.0
 '==============================================
 
 Option Explicit
@@ -20,8 +18,11 @@ Public Sub InitializeSystem()
     ' Reset initialization flag
     SystemInitialized = False
     
-    ' Inform user via status bar (no MsgBox)
-    Application.StatusBar = "Initializing interactive forms system..."
+    ' 0. Initialize Localization FIRST
+    Call LocalizationManager.InitializeLocalization
+    
+    ' Inform user via status bar
+    Application.StatusBar = LocalizationManager.GetText("Initializing interactive forms system...")
     
     ' 1. Initialize table event handler
     Call TableEventHandler.InitializeTableEvents
@@ -40,10 +41,9 @@ Public Sub InitializeSystem()
     ' 5. Set successful initialization flag
     SystemInitialized = True
     
-    ' POPUP WINDOW DISABLED: Status bar only
-    Application.StatusBar = "Interactive forms system is active. Ready to work."
+    ' Status bar only
+    Application.StatusBar = LocalizationManager.GetText("Interactive forms system is active. Ready to work.")
     
-    ' DISABLED: ShowUserInstructions - removed popup instructions
     ' Debug information for developer
     Debug.Print "Interactive forms system successfully initialized"
     
@@ -51,11 +51,11 @@ Public Sub InitializeSystem()
     
 InitError:
     SystemInitialized = False
-    ' KEPT: Critical errors are shown via MsgBox
-    MsgBox "CRITICAL ERROR initializing system!" & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.description, vbCritical, "System Error"
+    ' Critical errors are shown via MsgBox
+    MsgBox LocalizationManager.GetText("CRITICAL ERROR initializing system!") & vbCrLf & _
+           LocalizationManager.GetText("Error: ") & Err.Number & " - " & Err.description, vbCritical, LocalizationManager.GetText("System Error")
     
-    Application.StatusBar = "ERROR initializing system."
+    Application.StatusBar = LocalizationManager.GetText("ERROR initializing system.")
 End Sub
 
 ' Force activation of the context menu
@@ -88,13 +88,15 @@ End Sub
 Public Function CheckContextMenuExists() As Boolean
     Dim contextMenu As CommandBar
     Dim ctrl As CommandBarControl
+    Dim duplicateText As String
     
     On Error GoTo CheckError
     
     Set contextMenu = Application.CommandBars("Cell")
+    duplicateText = LocalizationManager.GetText("Duplicate record")
     
     For Each ctrl In contextMenu.Controls
-        If ctrl.Caption = "Duplicate record" Or InStr(ctrl.Caption, "Duplicate") > 0 Then
+        If ctrl.Caption = duplicateText Or InStr(ctrl.Caption, "Duplicate") > 0 Then
             CheckContextMenuExists = True
             Exit Function
         End If
@@ -107,7 +109,7 @@ CheckError:
     CheckContextMenuExists = False
 End Function
 
-' System state diagnostics (Debug only, no MsgBox)
+' System state diagnostics (Debug only)
 Public Sub DiagnoseSystemState()
     Dim diagResult As String
     
@@ -140,28 +142,21 @@ Public Sub DiagnoseSystemState()
         diagResult = diagResult & "[X] Context menu is NOT active!" & vbCrLf
     End If
     
-    ' POPUP WINDOW DISABLED: Write result to Debug only
     Debug.Print diagResult
 End Sub
 
-' POPUP WINDOW DISABLED: Show instructions to user
-' Public Sub ShowUserInstructions()
-'     ' This procedure is disabled to prevent popups
-'     Debug.Print "Instructions disabled. System ready to work."
-' End Sub
-
-' Manual system initialization (no popup windows)
+' Manual system initialization
 Public Sub ManualInitializeSystem()
-    Application.StatusBar = "Manual system initialization..."
+    Application.StatusBar = LocalizationManager.GetText("Manual system initialization...")
     Call InitializeSystem
-    Application.StatusBar = "Manual initialization completed."
+    Application.StatusBar = LocalizationManager.GetText("Manual initialization completed.")
 End Sub
 
-' POPUP WINDOWS DISABLED: Force context menu reload
+' Force context menu reload
 Public Sub ReloadContextMenu()
     On Error GoTo ReloadError
     
-    Application.StatusBar = "Reloading context menu..."
+    Application.StatusBar = LocalizationManager.GetText("Reloading context menu...")
     
     ' Remove
     Call TableEventHandler.RemoveContextMenuButton
@@ -171,27 +166,27 @@ Public Sub ReloadContextMenu()
     Call TableEventHandler.AddContextMenuButton
     Application.Wait Now + TimeValue("00:00:01")
     
-    ' Check (Status bar only)
+    ' Check
     If CheckContextMenuExists() Then
-        Application.StatusBar = "[OK] Context menu successfully reloaded!"
+        Application.StatusBar = LocalizationManager.GetText("[OK] Context menu successfully reloaded!")
         Debug.Print "Context menu successfully reloaded"
     Else
-        Application.StatusBar = "[X] Error reloading context menu!"
+        Application.StatusBar = LocalizationManager.GetText("[X] Error reloading context menu!")
         Debug.Print "Error reloading context menu"
     End If
     
     Exit Sub
     
 ReloadError:
-    Application.StatusBar = "Reload error: " & Err.description
+    Application.StatusBar = LocalizationManager.GetText("Reload error: ") & Err.description
     Debug.Print "Reload error: " & Err.description
 End Sub
 
-' POPUP WINDOWS DISABLED: Context menu test
+' Context menu test
 Public Sub TestContextMenu()
     Dim result As String
     
-    result = "CONTEXT MENU TEST:" & vbCrLf & vbCrLf
+    result = LocalizationManager.GetText("CONTEXT MENU TEST:") & vbCrLf & vbCrLf
     
     ' Activate sheet
     On Error Resume Next
@@ -200,29 +195,28 @@ Public Sub TestContextMenu()
     
     ' Check if menu exists
     If CheckContextMenuExists() Then
-        result = result & "[OK] Context menu found in the system" & vbCrLf
-        result = result & "Right-click a cell INSIDE the table"
-        Application.StatusBar = "Context menu found - ready to use"
+        result = result & LocalizationManager.GetText("[OK] Context menu found in the system") & vbCrLf
+        result = result & LocalizationManager.GetText("Right-click a cell INSIDE the table")
+        Application.StatusBar = LocalizationManager.GetText("Context menu found - ready to use")
     Else
-        result = result & "[X] Context menu NOT found!" & vbCrLf
-        result = result & "Forcing activation..."
+        result = result & LocalizationManager.GetText("[X] Context menu NOT found!") & vbCrLf
+        result = result & LocalizationManager.GetText("Forcing activation...")
         
         Call ForceActivateContextMenu
         
         If CheckContextMenuExists() Then
-            result = result & vbCrLf & "[OK] Activation successful!"
-            Application.StatusBar = "Context menu activated successfully"
+            result = result & vbCrLf & LocalizationManager.GetText("[OK] Activation successful!")
+            Application.StatusBar = LocalizationManager.GetText("Context menu activated successfully")
         Else
-            result = result & vbCrLf & "[X] Activation failed!"
-            Application.StatusBar = "Error activating context menu"
+            result = result & vbCrLf & LocalizationManager.GetText("[X] Activation failed!")
+            Application.StatusBar = LocalizationManager.GetText("Error activating context menu")
         End If
     End If
     
-    ' POPUP WINDOW DISABLED: Debug and status bar only
     Debug.Print result
 End Sub
 
-' System deactivation (renamed from DeactivateSystem)
+' System deactivation
 Public Sub ShutdownSystem()
     On Error Resume Next
     
@@ -236,7 +230,7 @@ Public Sub ShutdownSystem()
     SystemInitialized = False
     
     ' Update status
-    Application.StatusBar = "Interactive forms system shut down"
+    Application.StatusBar = LocalizationManager.GetText("Interactive forms system shut down")
     Debug.Print "System correctly shut down"
     
     On Error GoTo 0
@@ -244,7 +238,6 @@ End Sub
 
 ' Alternative name for compatibility
 Public Sub DeactivateSystem()
-    ' Call main shutdown procedure
     Call ShutdownSystem
 End Sub
 
@@ -253,7 +246,7 @@ Public Function IsSystemReady() As Boolean
     IsSystemReady = SystemInitialized And CheckContextMenuExists()
 End Function
 
-' POPUP WINDOWS DISABLED: Full diagnostics for user
+' Full diagnostics for user
 Public Sub FullDiagnostic()
     Dim Report As String
     
@@ -290,12 +283,11 @@ Public Sub FullDiagnostic()
     ' 5. Office version
     Report = Report & "Office version: " & Application.Version & vbCrLf
     
-    ' POPUP WINDOW DISABLED: Debug and status bar only
     Debug.Print Report
-    Application.StatusBar = "Diagnostics completed. See results in Debug (Ctrl+G)"
+    Application.StatusBar = LocalizationManager.GetText("Diagnostics completed. See results in Debug (Ctrl+G)")
 End Sub
 
-' Emergency system shutdown (no popup windows)
+' Emergency system shutdown
 Public Sub EmergencyShutdown()
     On Error Resume Next
     
@@ -307,7 +299,7 @@ Public Sub EmergencyShutdown()
     SystemInitialized = False
     
     ' Clear status bar
-    Application.StatusBar = "Emergency system shutdown completed"
+    Application.StatusBar = LocalizationManager.GetText("Emergency system shutdown completed")
     Debug.Print "Emergency system shutdown completed. All resources freed."
     
     On Error GoTo 0
@@ -333,9 +325,6 @@ Public Function SystemIntegrityCheck() As Boolean
         If tbl Is Nothing Then allGood = False
     End If
     
-    ' Check 3: Modules exist
-    ' (If VBA reached this point, modules exist)
-    
     SystemIntegrityCheck = allGood
     Exit Function
     
@@ -343,9 +332,9 @@ IntegrityError:
     SystemIntegrityCheck = False
 End Function
 
-' POPUP WINDOWS DISABLED: Quick system restart
+' Quick system restart
 Public Sub RestartSystem()
-    Application.StatusBar = "Restarting interactive forms system..."
+    Application.StatusBar = LocalizationManager.GetText("Restarting interactive forms system...")
     Debug.Print "System restart initiated"
     
     ' Shutdown current system
@@ -357,7 +346,7 @@ Public Sub RestartSystem()
     ' Start again
     Call InitializeSystem
     
-    Application.StatusBar = "System successfully restarted!"
+    Application.StatusBar = LocalizationManager.GetText("System successfully restarted!")
     Debug.Print "System successfully restarted!"
 End Sub
 

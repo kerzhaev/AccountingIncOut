@@ -11,9 +11,9 @@ Attribute VB_Exposed = False
 ' WORKSHEET EVENT HANDLER CLASS - Class Module WorksheetEventHandler
 ' Purpose: Class for handling worksheet events with a table
 ' Type: Class Module
-' State: ALL DUPLICATE FUNCTIONS REMOVED - ONLY UNIQUE CODE KEPT
-' Version: 1.3.0
-' Date: 10.08.2025
+' State: INTEGRATED WITH LOCALIZATION MANAGER
+' Version: 1.3.1
+' Date: 05.03.2026
 ' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
@@ -46,7 +46,7 @@ Private Sub wsData_SelectionChange(ByVal Target As Range)
     
     ' Check if DataBodyRange exists
     If tblVhIsh.DataBodyRange Is Nothing Then
-        Application.StatusBar = "Table is empty. Add data to work with the system."
+        Application.StatusBar = LocalizationManager.GetText("Table is empty. Add data to work with the system.")
         Exit Sub
     End If
     
@@ -64,12 +64,12 @@ Private Sub wsData_SelectionChange(ByVal Target As Range)
         fieldToActivate = TableEventHandler.GetFieldNameByColumn(columnNumber)
         
         ' Show info in status bar
-        Application.StatusBar = "Row " & RowNumber & ", Col " & columnNumber & _
-                               " | Ctrl+E to edit | " & _
+        Application.StatusBar = LocalizationManager.GetText("Row ") & RowNumber & LocalizationManager.GetText(", Col ") & columnNumber & _
+                               LocalizationManager.GetText(" | Ctrl+E to edit | ") & _
                                TableEventHandler.GetFieldDisplayName(fieldToActivate)
     Else
         ' Reset if clicked outside table
-        Application.StatusBar = "Interactive forms system is active. Select a table cell."
+        Application.StatusBar = LocalizationManager.GetText("Interactive forms system is active. Select a table cell.")
     End If
     
     Exit Sub
@@ -87,7 +87,7 @@ Public Sub OpenFormForSelection()
     
     ' Check if DataBodyRange exists
     If tblVhIsh.DataBodyRange Is Nothing Then
-        MsgBox "Table is empty! Add data to work with the form.", vbExclamation, "Empty Table"
+        MsgBox LocalizationManager.GetText("Table is empty! Add data to work with the form."), vbExclamation, LocalizationManager.GetText("Empty Table")
         Exit Sub
     End If
     
@@ -97,15 +97,15 @@ Public Sub OpenFormForSelection()
     Exit Sub
     
 OpenError:
-    MsgBox "Error opening form: " & Err.description, vbExclamation, "Error"
+    MsgBox LocalizationManager.GetText("Error opening form: ") & Err.description, vbExclamation, LocalizationManager.GetText("Error")
 End Sub
 
 ' Public method to get class info
 Public Function GetClassInfo() As String
     GetClassInfo = "WorksheetEventHandler | " & _
-                  "Sheet: " & IIf(wsData Is Nothing, "NOT SET", wsData.Name) & " | " & _
-                  "Table: " & IIf(tblVhIsh Is Nothing, "NOT FOUND", tblVhIsh.Name) & " | " & _
-                  "Rows: " & IIf(tblVhIsh Is Nothing Or tblVhIsh.DataBodyRange Is Nothing, 0, tblVhIsh.ListRows.Count)
+                  LocalizationManager.GetText("Sheet: ") & IIf(wsData Is Nothing, LocalizationManager.GetText("NOT SET"), wsData.Name) & " | " & _
+                  LocalizationManager.GetText("Table: ") & IIf(tblVhIsh Is Nothing, LocalizationManager.GetText("NOT FOUND"), tblVhIsh.Name) & " | " & _
+                  LocalizationManager.GetText("Rows: ") & IIf(tblVhIsh Is Nothing Or tblVhIsh.DataBodyRange Is Nothing, 0, tblVhIsh.ListRows.Count)
 End Function
 
 ' Method for safe object cleanup

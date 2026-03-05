@@ -2,8 +2,8 @@ Attribute VB_Name = "NavigationModule"
 '==============================================
 ' RECORD NAVIGATION MODULE - NavigationModule
 ' Purpose: Functions for navigating between table records
-' State: DUPLICATE FUNCTIONS AND VARIABLE DECLARATIONS FIXED
-' Version: 1.6.1
+' State: INTEGRATED WITH LOCALIZATION MANAGER
+' Version: 1.6.2
 ' Date: 10.08.2025
 ' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
@@ -31,7 +31,7 @@ Public Sub NavigateToRecord(RowNumber As Long)
     ' Check for unsaved changes
     If DataManager.HasUnsavedChanges() And DataManager.CurrentRecordRow <> RowNumber And DataManager.CurrentRecordRow > 0 Then
         Dim response As VbMsgBoxResult
-        response = MsgBox("Save changes to the current record before navigating?", vbYesNo + vbQuestion, "Unsaved Changes")
+        response = MsgBox(LocalizationManager.GetText("Save changes to the current record before navigating?"), vbYesNo + vbQuestion, LocalizationManager.GetText("Unsaved Changes"))
         If response = vbYes Then
             Call DataManager.SaveCurrentRecord
         End If
@@ -50,7 +50,7 @@ Public Sub NavigateToRecord(RowNumber As Long)
     Exit Sub
     
 NavigationError:
-    MsgBox "Navigation error: " & Err.description, vbCritical, "Error"
+    MsgBox LocalizationManager.GetText("Navigation error: ") & Err.description, vbCritical, LocalizationManager.GetText("Error")
 End Sub
 
 Public Sub NavigateToPrevious()
@@ -101,12 +101,12 @@ Public Sub NavigateToRecordByNumber(recordNumber As Long)
         End If
     Next i
     
-    MsgBox "Record with Seq No " & recordNumber & " not found!", vbExclamation, "Record Search"
+    MsgBox LocalizationManager.GetText("Record with Seq No ") & recordNumber & LocalizationManager.GetText(" not found!"), vbExclamation, LocalizationManager.GetText("Record Search")
     
     Exit Sub
     
 FindError:
-    MsgBox "Error searching for record: " & Err.description, vbExclamation, "Error"
+    MsgBox LocalizationManager.GetText("Error searching for record: ") & Err.description, vbExclamation, LocalizationManager.GetText("Error")
 End Sub
 
 Private Sub UpdateNavigationButtons()
@@ -127,19 +127,19 @@ Private Sub UpdateNavigationButtons()
         ' Update status bar with navigation info
         If tblData.ListRows.Count > 0 Then
             Dim navInfo As String
-            navInfo = "Navigation: "
+            navInfo = LocalizationManager.GetText("Navigation: ")
             
             If DataManager.CurrentRecordRow > 1 Then
-                navInfo = navInfo & "Prev.(" & (DataManager.CurrentRecordRow - 1) & ") "
+                navInfo = navInfo & LocalizationManager.GetText("Prev.(") & (DataManager.CurrentRecordRow - 1) & ") "
             End If
             
-            navInfo = navInfo & "Curr.(" & DataManager.CurrentRecordRow & ") "
+            navInfo = navInfo & LocalizationManager.GetText("Curr.(") & DataManager.CurrentRecordRow & ") "
             
             If DataManager.CurrentRecordRow < tblData.ListRows.Count Then
-                navInfo = navInfo & "Next(" & (DataManager.CurrentRecordRow + 1) & ") "
+                navInfo = navInfo & LocalizationManager.GetText("Next(") & (DataManager.CurrentRecordRow + 1) & ") "
             End If
             
-            navInfo = navInfo & "Last(" & tblData.ListRows.Count & ")"
+            navInfo = navInfo & LocalizationManager.GetText("Last(") & tblData.ListRows.Count & ")"
             
             ' Temporarily show info in status bar
             .lblStatusBar.Caption = navInfo
@@ -169,11 +169,11 @@ Public Sub UpdateStatusBar()
     Set tblData = wsData.ListObjects("TableIncOut")
     
     If DataManager.IsNewRecord Then
-        statusText = "New record"
+        statusText = LocalizationManager.GetText("New record")
     ElseIf tblData.ListRows.Count = 0 Then
-        statusText = "No records in table"
+        statusText = LocalizationManager.GetText("No records in table")
     Else
-        statusText = "Record " & DataManager.CurrentRecordRow & " of " & tblData.ListRows.Count
+        statusText = LocalizationManager.GetText("Record ") & DataManager.CurrentRecordRow & LocalizationManager.GetText(" of ") & tblData.ListRows.Count
         
         ' Add business data info of current record
         If DataManager.CurrentRecordRow > 0 And DataManager.CurrentRecordRow <= tblData.ListRows.Count Then
@@ -183,13 +183,13 @@ Public Sub UpdateStatusBar()
             docNumber = CStr(tblData.DataBodyRange.Cells(DataManager.CurrentRecordRow, 5).value)
             
             If Trim(serviceName) <> "" And Trim(docNumber) <> "" Then
-                statusText = statusText & " | " & serviceName & " | Doc.No." & docNumber
+                statusText = statusText & " | " & serviceName & " | " & LocalizationManager.GetText("Doc.No.") & docNumber
             End If
         End If
     End If
     
     If DataManager.FormDataChanged Then
-        statusText = statusText & " (changed)"
+        statusText = statusText & LocalizationManager.GetText(" (changed)")
     End If
     
     UserFormVhIsh.lblStatusBar.Caption = statusText
@@ -197,7 +197,7 @@ Public Sub UpdateStatusBar()
     Exit Sub
     
 StatusError:
-    UserFormVhIsh.lblStatusBar.Caption = "Status update error"
+    UserFormVhIsh.lblStatusBar.Caption = LocalizationManager.GetText("Status update error")
 End Sub
 
 Public Function GetCurrentRecordInfo() As String
@@ -209,7 +209,7 @@ Public Function GetCurrentRecordInfo() As String
     On Error GoTo InfoError
     
     If DataManager.IsNewRecord Then
-        GetCurrentRecordInfo = "New record"
+        GetCurrentRecordInfo = LocalizationManager.GetText("New record")
         Exit Function
     End If
     
@@ -217,12 +217,12 @@ Public Function GetCurrentRecordInfo() As String
     Set tblData = wsData.ListObjects("TableIncOut")
     
     If DataManager.CurrentRecordRow > 0 And DataManager.CurrentRecordRow <= tblData.ListRows.Count Then
-        recordInfo = "Record No." & DataManager.CurrentRecordRow & ": " & _
+        recordInfo = LocalizationManager.GetText("Record No.") & DataManager.CurrentRecordRow & ": " & _
                      CStr(tblData.DataBodyRange.Cells(DataManager.CurrentRecordRow, 2).value) & " - " & _
-                     CStr(tblData.DataBodyRange.Cells(DataManager.CurrentRecordRow, 4).value) & " No." & _
+                     CStr(tblData.DataBodyRange.Cells(DataManager.CurrentRecordRow, 4).value) & " " & LocalizationManager.GetText("No.") & _
                      CStr(tblData.DataBodyRange.Cells(DataManager.CurrentRecordRow, 5).value)
     Else
-        recordInfo = "Invalid record"
+        recordInfo = LocalizationManager.GetText("Invalid record")
     End If
     
     GetCurrentRecordInfo = recordInfo
@@ -230,7 +230,7 @@ Public Function GetCurrentRecordInfo() As String
     Exit Function
     
 InfoError:
-    GetCurrentRecordInfo = "Error getting record information"
+    GetCurrentRecordInfo = LocalizationManager.GetText("Error getting record information")
 End Function
 
 Public Sub RefreshNavigation()
@@ -293,51 +293,51 @@ Public Sub ShowNavigationSummary()
     Set wsData = ThisWorkbook.Worksheets("IncOut")
     Set tblData = wsData.ListObjects("TableIncOut")
     
-    summaryText = "Records Summary:" & vbCrLf & _
-                  "Total records: " & tblData.ListRows.Count & vbCrLf
+    summaryText = LocalizationManager.GetText("Records Summary:") & vbCrLf & _
+                  LocalizationManager.GetText("Total records: ") & tblData.ListRows.Count & vbCrLf
     
     If tblData.ListRows.Count > 0 Then
         summaryText = summaryText & _
-                      "Current record: " & DataManager.CurrentRecordRow & vbCrLf & _
-                      "First record: 1" & vbCrLf & _
-                      "Last record: " & tblData.ListRows.Count & vbCrLf
+                      LocalizationManager.GetText("Current record: ") & DataManager.CurrentRecordRow & vbCrLf & _
+                      LocalizationManager.GetText("First record: 1") & vbCrLf & _
+                      LocalizationManager.GetText("Last record: ") & tblData.ListRows.Count & vbCrLf
         
         If DataManager.IsNewRecord Then
-            summaryText = summaryText & "Status: New record"
+            summaryText = summaryText & LocalizationManager.GetText("Status: New record")
         Else
-            summaryText = summaryText & "Status: Existing record"
+            summaryText = summaryText & LocalizationManager.GetText("Status: Existing record")
             If DataManager.FormDataChanged Then
-                summaryText = summaryText & " (changed)"
+                summaryText = summaryText & LocalizationManager.GetText(" (changed)")
             End If
         End If
     Else
-        summaryText = summaryText & "Status: Table is empty"
+        summaryText = summaryText & LocalizationManager.GetText("Status: Table is empty")
     End If
     
-    MsgBox summaryText, vbInformation, "Navigation Summary"
+    MsgBox summaryText, vbInformation, LocalizationManager.GetText("Navigation Summary")
     
     Exit Sub
     
 SummaryError:
-    MsgBox "Error getting navigation summary", vbExclamation, "Error"
+    MsgBox LocalizationManager.GetText("Error getting navigation summary"), vbExclamation, LocalizationManager.GetText("Error")
 End Sub
 
 Public Sub ShowNavigationHelp()
     ' Shows navigation help
     Dim helpText As String
     
-    helpText = "Navigation Help:" & vbCrLf & vbCrLf & _
-               "|< First - jump to first record" & vbCrLf & _
-               "< Prev. - jump to previous record" & vbCrLf & _
-               "Next > - jump to next record" & vbCrLf & _
-               "Last >| - jump to last record" & vbCrLf & vbCrLf & _
-               "Hotkeys:" & vbCrLf & _
-               "Ctrl+S - save record" & vbCrLf & _
-               "Ctrl+N - new record" & vbCrLf & _
-               "Ctrl+F - search" & vbCrLf & _
-               "F3 - next search result" & vbCrLf & _
-               "Esc - cancel changes"
+    helpText = LocalizationManager.GetText("Navigation Help:") & vbCrLf & vbCrLf & _
+               LocalizationManager.GetText("|< First - jump to first record") & vbCrLf & _
+               LocalizationManager.GetText("< Prev. - jump to previous record") & vbCrLf & _
+               LocalizationManager.GetText("Next > - jump to next record") & vbCrLf & _
+               LocalizationManager.GetText("Last >| - jump to last record") & vbCrLf & vbCrLf & _
+               LocalizationManager.GetText("Hotkeys:") & vbCrLf & _
+               LocalizationManager.GetText("Ctrl+S - save record") & vbCrLf & _
+               LocalizationManager.GetText("Ctrl+N - new record") & vbCrLf & _
+               LocalizationManager.GetText("Ctrl+F - search") & vbCrLf & _
+               LocalizationManager.GetText("F3 - next search result") & vbCrLf & _
+               LocalizationManager.GetText("Esc - cancel changes")
     
-    MsgBox helpText, vbInformation, "Navigation Help"
+    MsgBox helpText, vbInformation, LocalizationManager.GetText("Navigation Help")
 End Sub
 

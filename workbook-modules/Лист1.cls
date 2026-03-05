@@ -10,9 +10,9 @@ Attribute VB_Exposed = True
 '==============================================
 ' WORKSHEET CODE FOR "IncOut" SHEET - click event handling
 ' Purpose: Handling cell click events for interactive form work
-' State: FIXED "Type mismatch" ERROR - REMOVED INCORRECT MODULE CHECKS
-' Version: 2.1.0
-' Date: 09.08.2025
+' State: INTEGRATED WITH LOCALIZATION MANAGER
+' Version: 2.1.1
+' Date: 05.03.2026
 ' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
 '==============================================
 
@@ -52,7 +52,7 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
     Call TableEventHandler.OpenFormForSpecificCell(Target)
     
     ' Update status bar
-    Application.StatusBar = "Double click processed - opening edit form"
+    Application.StatusBar = LocalizationManager.GetText("Double click processed - opening edit form")
     
     Exit Sub
     
@@ -88,7 +88,7 @@ Private Sub Worksheet_BeforeRightClick(ByVal Target As Range, Cancel As Boolean)
                 Call TableEventHandler.AddContextMenuButton
                 
                 ' Update status bar
-                Application.StatusBar = "Right click on row " & rightClickRow & ", col " & rightClickColumn & " - context menu shown"
+                Application.StatusBar = LocalizationManager.GetText("Right click on row ") & rightClickRow & LocalizationManager.GetText(", col ") & rightClickColumn & LocalizationManager.GetText(" - context menu shown")
                 
                 ' Do not cancel - allow menu to show
                 Cancel = False
@@ -129,7 +129,7 @@ Private Sub Worksheet_Activate()
     Call TableEventHandler.AddContextMenuButton
     
     ' Update status bar
-    Application.StatusBar = "IncOut sheet activated - interactive forms system ready to work"
+    Application.StatusBar = LocalizationManager.GetText("IncOut sheet activated - interactive forms system ready to work")
     
     Exit Sub
     
@@ -149,7 +149,7 @@ Private Sub Worksheet_Deactivate()
     rightClickColumn = 0
     
     ' Update status bar
-    Application.StatusBar = "IncOut sheet deactivated"
+    Application.StatusBar = LocalizationManager.GetText("IncOut sheet deactivated")
     
     Exit Sub
     
@@ -176,7 +176,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                 ' E.g., auto-updating related fields
                 
                 ' Update status bar
-                Application.StatusBar = "Table data changed - changes saved automatically"
+                Application.StatusBar = LocalizationManager.GetText("Table data changed - changes saved automatically")
             End If
         End If
     End If
@@ -190,9 +190,9 @@ End Sub
 ' Function to get info about last right click
 Public Function GetLastRightClickInfo() As String
     If rightClickRow > 0 And rightClickColumn > 0 Then
-        GetLastRightClickInfo = "Row: " & rightClickRow & ", Col: " & rightClickColumn
+        GetLastRightClickInfo = LocalizationManager.GetText("Row: ") & rightClickRow & LocalizationManager.GetText(", Col: ") & rightClickColumn
     Else
-        GetLastRightClickInfo = "No right click information"
+        GetLastRightClickInfo = LocalizationManager.GetText("No right click information")
     End If
 End Function
 
@@ -225,7 +225,7 @@ Public Sub SelectTableCell(RowNumber As Long, columnNumber As Long)
                     Set targetCell = tblData.DataBodyRange.Cells(RowNumber, columnNumber)
                     targetCell.Select
                     
-                    Application.StatusBar = "Cell selected: row " & RowNumber & ", col " & columnNumber
+                    Application.StatusBar = LocalizationManager.GetText("Cell selected: row ") & RowNumber & LocalizationManager.GetText(", col ") & columnNumber
                 End If
             End If
         End If
@@ -288,10 +288,10 @@ Public Function ValidateTableStructure() As Boolean
     
     ' Check columns count
     If tblData.ListColumns.Count <> expectedColumns Then
-        MsgBox "Invalid table structure!" & vbCrLf & _
-               "Expected columns: " & expectedColumns & vbCrLf & _
-               "Found columns: " & tblData.ListColumns.Count, _
-               vbExclamation, "Table Structure Error"
+        MsgBox LocalizationManager.GetText("Invalid table structure!") & vbCrLf & _
+               LocalizationManager.GetText("Expected columns: ") & expectedColumns & vbCrLf & _
+               LocalizationManager.GetText("Found columns: ") & tblData.ListColumns.Count, _
+               vbExclamation, LocalizationManager.GetText("Table Structure Error")
         ValidateTableStructure = False
         Exit Function
     End If
@@ -311,38 +311,38 @@ Public Sub ShowWorksheetEventInfo()
     
     On Error GoTo InfoError
     
-    info = "EVENTS INFO FOR 'IncOut' SHEET:" & vbCrLf & vbCrLf
+    info = LocalizationManager.GetText("EVENTS INFO FOR 'IncOut' SHEET:") & vbCrLf & vbCrLf
     
     ' Table info
     Set tblData = Me.ListObjects("TableIncOut")
     If Not tblData Is Nothing Then
-        info = info & "Table found: " & tblData.Name & vbCrLf
-        info = info & "Columns: " & tblData.ListColumns.Count & vbCrLf
-        info = info & "Data rows: " & IIf(tblData.DataBodyRange Is Nothing, 0, tblData.ListRows.Count) & vbCrLf
+        info = info & LocalizationManager.GetText("Table found: ") & tblData.Name & vbCrLf
+        info = info & LocalizationManager.GetText("Columns: ") & tblData.ListColumns.Count & vbCrLf
+        info = info & LocalizationManager.GetText("Data rows: ") & IIf(tblData.DataBodyRange Is Nothing, 0, tblData.ListRows.Count) & vbCrLf
     Else
-        info = info & "Table NOT found!" & vbCrLf
+        info = info & LocalizationManager.GetText("Table NOT found!") & vbCrLf
     End If
     
     info = info & vbCrLf
     
     ' Last right click info
-    info = info & "Last right click: " & GetLastRightClickInfo() & vbCrLf
-    info = info & "Click in table: " & IIf(IsLastRightClickInTable(), "YES", "NO") & vbCrLf
+    info = info & LocalizationManager.GetText("Last right click: ") & GetLastRightClickInfo() & vbCrLf
+    info = info & LocalizationManager.GetText("Click in table: ") & IIf(IsLastRightClickInTable(), LocalizationManager.GetText("YES"), LocalizationManager.GetText("NO")) & vbCrLf
     
     info = info & vbCrLf
     
     ' Current selection info
     Dim CurrentRow As Long, currentCol As Long
     Call GetCurrentTableSelection(CurrentRow, currentCol)
-    info = info & "Current table selection: row " & CurrentRow & ", col " & currentCol & vbCrLf
+    info = info & LocalizationManager.GetText("Current table selection: row ") & CurrentRow & LocalizationManager.GetText(", col ") & currentCol & vbCrLf
     
-    info = info & vbCrLf & "Table validation status: " & IIf(ValidateTableStructure(), "VALID", "ERROR")
+    info = info & vbCrLf & LocalizationManager.GetText("Table validation status: ") & IIf(ValidateTableStructure(), LocalizationManager.GetText("VALID"), LocalizationManager.GetText("ERROR"))
     
-    MsgBox info, vbInformation, "Worksheet Events Diagnostics"
+    MsgBox info, vbInformation, LocalizationManager.GetText("Worksheet Events Diagnostics")
     
     Exit Sub
     
 InfoError:
-    MsgBox "Error getting events info: " & Err.description, vbExclamation, "Error"
+    MsgBox LocalizationManager.GetText("Error getting events info: ") & Err.description, vbExclamation, LocalizationManager.GetText("Error")
 End Sub
 
