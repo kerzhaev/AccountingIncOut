@@ -18,7 +18,7 @@ Public Sub SaveSettings()
     
     With wsSettings
         .Cells(1, 1).value = "CurrentRecordRow"
-        .Cells(1, 2).value = DataManager.CurrentRecordRow
+        .Cells(1, 2).value = RecordOperations.CurrentRecordRow
         
         .Cells(2, 1).value = "FormTop"
         .Cells(2, 2).value = UserFormVhIsh.Top
@@ -40,7 +40,7 @@ Public Sub LoadSettings()
     
     With wsSettings
         If .Cells(1, 2).value <> "" Then
-            DataManager.CurrentRecordRow = .Cells(1, 2).value
+            RecordOperations.CurrentRecordRow = .Cells(1, 2).value
         End If
         
         If .Cells(2, 2).value <> "" Then
@@ -53,18 +53,18 @@ Public Sub LoadSettings()
     End With
     
     ' Load last record
-    If DataManager.CurrentRecordRow > 0 Then
-        Call NavigationModule.NavigateToRecord(DataManager.CurrentRecordRow)
+    If RecordOperations.CurrentRecordRow > 0 Then
+        Call RecordOperations.NavigateToRecord(RecordOperations.CurrentRecordRow)
     Else
-        Call DataManager.ClearForm
+        Call RecordOperations.ClearForm
     End If
     
     Exit Sub
     
 DefaultSettings:
-    DataManager.CurrentRecordRow = 0
-    DataManager.IsNewRecord = True
-    DataManager.FormDataChanged = False
+    RecordOperations.CurrentRecordRow = 0
+    RecordOperations.IsNewRecord = True
+    RecordOperations.FormDataChanged = False
 End Sub
 
 Private Function GetSettingsWorksheet() As Worksheet

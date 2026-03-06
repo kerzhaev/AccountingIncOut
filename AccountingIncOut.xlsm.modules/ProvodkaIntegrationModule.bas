@@ -375,8 +375,8 @@ End Sub
 
 ' Search posting for current record from form
 Public Sub FindProvodkaForCurrentRecord()
-    If DataManager.CurrentRecordRow > 0 Then
-        Call ProcessSingleRecord(DataManager.CurrentRecordRow)
+    If RecordOperations.CurrentRecordRow > 0 Then
+        Call ProcessSingleRecord(RecordOperations.CurrentRecordRow)
     Else
         MsgBox LocalizationManager.GetText("Select a record in the table or open form with record"), vbExclamation, LocalizationManager.GetText("Posting Search")
     End If

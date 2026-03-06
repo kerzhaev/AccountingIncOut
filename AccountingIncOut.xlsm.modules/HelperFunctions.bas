@@ -157,7 +157,7 @@ Public Sub ValidateFormData()
     End With
     
     If Not IsValid Then
-        DataManager.FormDataChanged = True
+        RecordOperations.FormDataChanged = True
     End If
 End Sub
 
@@ -202,11 +202,11 @@ End Function
 
 Public Sub ResetFormToDefaults()
     ' Reset form to default settings
-    DataManager.CurrentRecordRow = 0
-    DataManager.IsNewRecord = True
-    DataManager.FormDataChanged = False
+    RecordOperations.CurrentRecordRow = 0
+    RecordOperations.IsNewRecord = True
+    RecordOperations.FormDataChanged = False
     
-    Call DataManager.ClearForm
+    Call RecordOperations.ClearForm
     Call SetupFormAppearance
     
     UserFormVhIsh.lblStatusBar.Caption = LocalizationManager.GetText("Form reset to default settings")

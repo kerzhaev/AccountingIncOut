@@ -45,8 +45,8 @@ Private Sub btnClearMarks_Click()
     Call ProvodkaIntegrationModule.ClearAllProvodkaMarks
     
     ' Update current record in form
-    If DataManager.CurrentRecordRow > 0 Then
-        Call Me.LoadRecordToForm(DataManager.CurrentRecordRow)
+    If RecordOperations.CurrentRecordRow > 0 Then
+        Call Me.LoadRecordToForm(RecordOperations.CurrentRecordRow)
     End If
 End Sub
 
@@ -85,8 +85,8 @@ Private Sub btnMassCheck_Click()
     Me.btnMassCheck.Enabled = True
     
     ' If current record is open, update its display
-    If DataManager.CurrentRecordRow > 0 Then
-        Call Me.LoadRecordToForm(DataManager.CurrentRecordRow)
+    If RecordOperations.CurrentRecordRow > 0 Then
+        Call Me.LoadRecordToForm(RecordOperations.CurrentRecordRow)
     End If
     
     ' Update status
@@ -123,7 +123,7 @@ Private Sub UserForm_Initialize()
     
     Call InitializeForm
     Call LoadSettings
-    Call NavigationModule.UpdateStatusBar
+    Call RecordOperations.UpdateStatusBar
 End Sub
 
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
@@ -158,7 +158,7 @@ Private Sub UserForm_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift
             Case vbKeyS ' Ctrl+S = Save
                 Call SaveCurrentRecord
             Case vbKeyN ' Ctrl+N = New record
-                Call DataManager.ClearForm
+                Call RecordOperations.ClearForm
             Case vbKeyF ' Ctrl+F = Focus on search
                 Me.txtSearch.SetFocus
         End Select
@@ -189,7 +189,7 @@ Private Sub InitializeForm()
     
     Call LoadComboBoxData
     Call SetupNewComboBoxes
-    Call DataManager.ClearForm
+    Call RecordOperations.ClearForm
     
     Me.txtSearch.Text = ""
     Me.lstSearchResults.Clear
@@ -236,7 +236,7 @@ Private Sub SetupNewComboBoxes()
     ' Setup cmbStatusPodtverjdenie
     With Me.cmbStatusPodtverjdenie
         .Clear
-        .Style = fmStyleDropDownList
+        .Style = fmStyleDropDownCombo
         .MatchRequired = False
         .AddItem ""
         .AddItem "Confirmed"
@@ -415,7 +415,7 @@ Private Sub btnCancel_Click()
 End Sub
 
 Private Sub btnClear_Click()
-    Call DataManager.ClearForm
+    Call RecordOperations.ClearForm
 End Sub
 
 Private Sub btnNew_Click()
@@ -432,7 +432,7 @@ Private Sub btnNew_Click()
         End Select
     End If
     
-    Call DataManager.ClearForm
+    Call RecordOperations.ClearForm
     Me.lblStatusBar.Caption = "Creating new record"
 End Sub
 
@@ -781,7 +781,7 @@ Private Sub SaveCurrentRecord()
     End If
     
     ' Date validation
-    If Not DataManager.ValidateDates() Then
+    If Not RecordOperations.ValidateDates() Then
         Exit Sub
     End If
     
@@ -1008,7 +1008,7 @@ Public Sub LoadRecordToForm(RowIndex As Long)
     
 LoadError:
     MsgBox "Error loading record: " & Err.description, vbExclamation, "Error"
-    Call DataManager.ClearForm
+    Call RecordOperations.ClearForm
 End Sub
 
 ' ===============================================
@@ -1021,7 +1021,7 @@ End Function
 
 Private Sub CancelChanges()
     If IsNewRecord Then
-        Call DataManager.ClearForm
+        Call RecordOperations.ClearForm
     Else
         Call NavigateToRecord(CurrentRecordRow)
     End If
@@ -1074,7 +1074,7 @@ End Sub
 
 Private Sub MarkFormAsChanged()
     FormDataChanged = True
-    Call NavigationModule.UpdateStatusBar
+    Call RecordOperations.UpdateStatusBar
 End Sub
 
 ' ===============================================
@@ -1127,7 +1127,7 @@ Private Sub LoadSettings()
     If CurrentRecordRow > 0 Then
         Call NavigateToRecord(CurrentRecordRow)
     Else
-        Call DataManager.ClearForm
+        Call RecordOperations.ClearForm
     End If
     
     Exit Sub
