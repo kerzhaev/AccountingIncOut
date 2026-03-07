@@ -106,6 +106,7 @@ Public Sub ProcessDoverennostMatching()
 ProcessError:
     On Error Resume Next
     If Not WbOperations Is Nothing Then WbOperations.Close False
+    On Error GoTo 0
     If Not WbDoverennosti Is Nothing Then WbDoverennosti.Close False
     
     Debug.Print "Error: " & Err.description
@@ -170,6 +171,7 @@ Public Sub ProcessDoverennostMasterMatching()
 ProcessError:
     On Error Resume Next
     If Not WbOperations Is Nothing Then WbOperations.Close False
+    On Error GoTo 0
     If Not WbPeriod Is Nothing Then WbPeriod.Close False
     If Not WbMaster Is Nothing Then WbMaster.Close False
     Application.StatusBar = False
@@ -687,13 +689,16 @@ Private Function FindPatternInText(TextToSearch As String, Patterns() As String,
         On Error Resume Next
         Set Matches = RegEx.Execute(TextToSearch)
         
-        If Matches.Count > 0 Then
-            Set Match = Matches(0)
-            MatchedPattern = Patterns(i)
-            MatchedText = Match.value
-            
-            FindPatternInText = True
-            Exit Function
+        If Err.Number = 0 And Not Matches Is Nothing Then
+            If Matches.Count > 0 Then
+                Set Match = Matches(0)
+                MatchedPattern = Patterns(i)
+                MatchedText = Match.Value
+                
+                On Error GoTo 0
+                FindPatternInText = True
+                Exit Function
+            End If
         End If
         On Error GoTo 0
     Next i
@@ -1845,17 +1850,19 @@ Private Sub ExtractDateCandidates(Text As String, ByRef DateCandidates() As Date
     With RegEx
         .IgnoreCase = True
         .Global = True
-        .Pattern = "\d{1,2}\.\d{1,2}\.(?:\d{4}|\d{2})(?:\s*y\.?)?"
+        .Pattern = "\d{1,2}\.\d{1,2}\.(?:\d{4}|\d{2})(?:\s*y\.?|\s*\.?)?"
     End With
     
     On Error Resume Next
     Set Matches = RegEx.Execute(Text)
     
-    If Matches.Count > 0 Then
-        For i = 0 To Matches.Count - 1
-            Set Match = Matches(i)
-            Call AddDateCandidate(DateCandidates, Count, Match.value, Match.FirstIndex + 1, Match.Length)
-        Next i
+    If Err.Number = 0 And Not Matches Is Nothing Then
+        If Matches.Count > 0 Then
+            For i = 0 To Matches.Count - 1
+                Set Match = Matches(i)
+                Call AddDateCandidate(DateCandidates, Count, Match.Value, Match.FirstIndex + 1, Match.Length)
+            Next i
+        End If
     End If
     On Error GoTo 0
 End Sub
