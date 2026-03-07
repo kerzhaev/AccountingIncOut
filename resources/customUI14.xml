@@ -1,4 +1,4 @@
-<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui">
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="RibbonCallbacks.RibbonOnLoad">
   <ribbon>
     <tabs>
       <tab id="tabUchetVhIsh" label="IncOut" insertAfterMso="TabData">
@@ -6,6 +6,7 @@
         <group id="grpProcessing" label="Data Processing">
           <button id="btnMassProcess" 
                   label="📊 Mass Processing" 
+                  imageMso="DatabaseUpdate"
                   size="large" 
                   onAction="RibbonCallbacks.btnMassProcess_Click"
                   screentip="Mass processing of records"
@@ -15,6 +16,7 @@
           
           <button id="btnMatchDoverennosti" 
                   label="🔗 Match Doverennosti" 
+                  imageMso="FindDialog"
                   size="large" 
                   onAction="RibbonCallbacks.btnMatchDoverennosti_Click"
                   screentip="Doverennosti Matching"
@@ -24,6 +26,7 @@
         <group id="grpAnalysis" label="Analysis and Reports">
           <button id="btnStatistics" 
                   label="📈 Statistics" 
+                  imageMso="ChartInsert"
                   size="normal" 
                   onAction="RibbonCallbacks.btnStatistics_Click"
                   screentip="Integration Statistics"
@@ -31,6 +34,7 @@
           
           <button id="btnAnalyzeOperations" 
                   label="🔍 Analyze Operations" 
+                  imageMso="DataConsolidate"
                   size="normal" 
                   onAction="RibbonCallbacks.btnAnalyzeOperations_Click"
                   screentip="Operations Analysis"
@@ -38,6 +42,7 @@
           
           <button id="btnShowLog" 
                   label="📋 Log" 
+                  imageMso="ReviewReviewPane"
                   size="normal" 
                   onAction="RibbonCallbacks.btnShowLog_Click"
                   screentip="Operation Log"
@@ -47,6 +52,7 @@
           
           <button id="btnGenerateWordLetters" 
                   label="📝 Doverennosti Letters" 
+                  imageMso="WordDocument"
                   size="large" 
                   onAction="RibbonCallbacks.btnGenerateWordLetters_Click"
                   screentip="Generate Letters"
@@ -57,6 +63,7 @@
         <group id="grpManagement" label="Management">
           <button id="btnSettings" 
                   label="⚙️ Settings" 
+                  imageMso="ControlPanel"
                   size="normal" 
                   onAction="RibbonCallbacks.btnSettings_Click"
                   screentip="System Settings"
@@ -64,6 +71,7 @@
           
           <button id="btnClearMarks" 
                   label="🗑️ Clear Marks" 
+                  imageMso="Clear"
                   size="normal" 
                   onAction="RibbonCallbacks.btnClearMarks_Click"
                   screentip="Clear Marks"
@@ -73,6 +81,7 @@
           
           <button id="btnBackupManager" 
                   label="💾 Backups" 
+                  imageMso="DatabaseBackup"
                   size="normal" 
                   onAction="RibbonCallbacks.btnBackupManager_Click"
                   screentip="Backup Manager"
@@ -80,6 +89,7 @@
           
           <button id="btnHelp" 
                   label="❓ Help" 
+                  imageMso="Help"
                   size="normal" 
                   onAction="RibbonCallbacks.btnHelp_Click"
                   screentip="Help"
