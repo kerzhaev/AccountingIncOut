@@ -37,6 +37,9 @@ End Sub
 Public Sub UpdateProgress(CurrentValue As Long, MaxValue As Long, Optional statusText As String = "")
     Dim percentage As Double
     
+    ' гюыхрю нр декемхъ мю мнкэ:
+    If MaxValue <= 0 Then MaxValue = 1
+    
     If ProgressForm Is Nothing Then Exit Sub
     
     percentage = (CurrentValue / MaxValue) * 100

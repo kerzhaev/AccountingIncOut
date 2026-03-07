@@ -254,6 +254,12 @@ Private Sub ShowSystemHelp()
     MsgBox helpText, vbInformation, LocalizationManager.GetText("IncOut System Help")
 End Sub
 
+' Command: Analyze Operations
+Public Sub btnAnalyzeOperations_Click(control As IRibbonControl)
+    ' Вызываем уже существующую логику сбора статистики (анализа)
+    Call ProvodkaIntegrationModule.ShowMatchingStatistics
+    Call SystemLogger.LogOperation("Analyze", LocalizationManager.GetText("Analysis operations shown"), "INFO", 0)
+End Sub
 ' Command to refresh ribbon
 Public Sub RefreshRibbon()
     If Not ribMain Is Nothing Then

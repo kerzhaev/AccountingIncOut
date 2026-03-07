@@ -929,9 +929,12 @@ End Function
 Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
     Dim result As ParsedNaryad
     Dim UpperText As String
-    Dim DocumentTypes As Variant
     Dim i As Long
     Dim FoundType As String
+    Dim FoundKeyword As String ' Само найденное слово (на русском)
+    
+    Dim wsDict As Worksheet
+    Dim tbl As ListObject
     
     result.OriginalText = Text
     result.IsValid = False
@@ -941,14 +944,40 @@ Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
     
     UpperText = UCase(Text)
     
-    DocumentTypes = Array("ORDER", "CHT", "CERTIFICATE", "ALLOTMENT", "ORDER-REQUEST", "REQUEST ORDER", "TELEGRAM")
+    ' Пытаемся получить данные из умной таблицы справочника
+    On Error Resume Next
+    Set wsDict = ThisWorkbook.Worksheets("Dictionaries")
+    Set tbl = wsDict.ListObjects("TableSearchKeywords")
+    On Error GoTo SubstringParseError
     
-    For i = 0 To UBound(DocumentTypes)
-        If InStr(1, UpperText, CStr(DocumentTypes(i))) > 0 Then
-            FoundType = CStr(DocumentTypes(i))
-            Exit For
-        End If
-    Next i
+    If Not tbl Is Nothing And tbl.ListRows.Count > 0 Then
+        ' Поиск ключевых слов по словарю (без хардкода)
+        For i = 1 To tbl.ListRows.Count
+            Dim keyword As String
+            Dim sysCode As String
+            
+            ' Читаем русское слово (колонка 1) и системный код (колонка 2)
+            keyword = UCase(Trim(CStr(tbl.DataBodyRange.Cells(i, 1).value)))
+            sysCode = Trim(CStr(tbl.DataBodyRange.Cells(i, 2).value))
+            
+            If keyword <> "" And InStr(1, UpperText, keyword) > 0 Then
+                FoundKeyword = keyword
+                FoundType = sysCode
+                Exit For
+            End If
+        Next i
+    Else
+        ' Fallback (если таблицу случайно удалили, используем базовые английские слова)
+        Dim DefaultTypes As Variant
+        DefaultTypes = Array("ORDER", "CHT", "CERTIFICATE", "ALLOTMENT", "ORDER-REQUEST", "REQUEST ORDER", "TELEGRAM")
+        For i = 0 To UBound(DefaultTypes)
+            If InStr(1, UpperText, CStr(DefaultTypes(i))) > 0 Then
+                FoundKeyword = CStr(DefaultTypes(i))
+                FoundType = CStr(DefaultTypes(i))
+                Exit For
+            End If
+        Next i
+    End If
     
     If FoundType = "" Then
         result.MatchDetails = LocalizationManager.GetText("No keywords found")
@@ -956,8 +985,11 @@ Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
         Exit Function
     End If
     
+    ' Сохраняем системный тип (ORDER), чтобы логика маршрутизации продолжала работать
     result.DocumentType = FoundType
-    result.DocumentNumber = ExtractSubstringNumber(Text, FoundType)
+    
+    ' ВАЖНО: Для парсинга номера передаем именно найденное слово (наряд), а не системный код (ORDER)
+    result.DocumentNumber = ExtractSubstringNumber(Text, FoundKeyword)
     result.DocumentDate = ExtractSubstringDate(Text)
     
     If result.DocumentNumber <> "" And result.DocumentDate <> "" Then

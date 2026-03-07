@@ -36,10 +36,12 @@ End Sub
 Private Sub App_WindowActivate(ByVal wb As Workbook, ByVal Wn As Window)
     On Error Resume Next
     
-    ' Activate hotkeys on Excel window activation
-    Application.OnKey "^+m", "TableEventHandler.ShowActionMenuExcel2021"  ' Ctrl+Shift+M
-    Application.OnKey "^d", "TableEventHandler.DuplicateCurrentRecord"     ' Ctrl+D
-    Application.OnKey "^e", "TableEventHandler.OpenFormForCurrentSelection" ' Ctrl+E
+    If wb.Name = ThisWorkbook.Name Then
+        ' Activate hotkeys on Excel window activation
+        Application.OnKey "^+m", "TableEventHandler.ShowActionMenuExcel2021"  ' Ctrl+Shift+M
+        Application.OnKey "^d", "TableEventHandler.DuplicateCurrentRecord"     ' Ctrl+D
+        Application.OnKey "^e", "TableEventHandler.OpenFormForCurrentSelection" ' Ctrl+E
+    End If
     
     On Error GoTo 0
 End Sub
@@ -48,10 +50,12 @@ End Sub
 Private Sub App_WindowDeactivate(ByVal wb As Workbook, ByVal Wn As Window)
     On Error Resume Next
     
-    ' Reset hotkeys on deactivation
-    Application.OnKey "^+m"  ' Reset Ctrl+Shift+M
-    Application.OnKey "^d"   ' Reset Ctrl+D
-    Application.OnKey "^e"   ' Reset Ctrl+E
+    If wb.Name = ThisWorkbook.Name Then
+        ' Reset hotkeys on deactivation
+        Application.OnKey "^+m"  ' Reset Ctrl+Shift+M
+        Application.OnKey "^d"   ' Reset Ctrl+D
+        Application.OnKey "^e"   ' Reset Ctrl+E
+    End If
     
     On Error GoTo 0
 End Sub

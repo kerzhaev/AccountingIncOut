@@ -69,6 +69,7 @@
 - [x] Переименование системных листов и главной таблицы (IncOut, SystemSettings, Dictionaries, TableIncOut)
 - [x] Внедрение Localization Management System: отделение строк интерфейса от логики (21 модуль переведен на вызовы `GetText()`)
 - [x] Консолидация модулей и снижение технического долга: объединение DataManager, NavigationModule и SearchModule в единый модуль RecordOperations.bas
+- [x] Изоляция событий уровня приложения (Application Events) от других книг Excel: жесткая проверка ThisWorkbook.Name в AppEventHandler.cls
 - [ ] Рефакторинг для улучшения производительности
 - [ ] Оптимизация работы с большими объемами данных
 - [ ] Улучшение обработки ошибок и восстановления после сбоев

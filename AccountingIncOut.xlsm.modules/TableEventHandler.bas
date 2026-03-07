@@ -155,7 +155,7 @@ Public Sub AddContextMenuButton()
         .FaceId = 1219
         .Tag = "CustomProvodka_VhIsh_2025"
     End With
-    contextMenu.Reset
+    
     Exit Sub
 MenuError:
 End Sub

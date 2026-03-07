@@ -13,6 +13,7 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+
 '==============================================
 ' FORM MANAGEMENT MODULE "IncOut" - UserFormVhIsh
 ' Purpose: Fully functional form for adding, editing, and searching records
