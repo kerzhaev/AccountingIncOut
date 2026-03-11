@@ -14,6 +14,8 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 
+
+
 '==============================================
 ' FORM MANAGEMENT MODULE "IncOut" - UserFormVhIsh
 ' Purpose: Fully functional form for adding, editing, and searching records
@@ -24,6 +26,8 @@ Attribute VB_Exposed = False
 '==============================================
 
 Option Explicit
+
+' PATCH_MARK_2026_03_11_2318_AUTOCOMPLETE_IMPORT_READY
 
 ' API declarations for working with screen resolution
 #If VBA7 Then
@@ -40,6 +44,17 @@ Private Const SM_CYSCREEN As Long = 1
 Private CurrentRecordRow As Long
 Private IsNewRecord As Boolean
 Private FormDataChanged As Boolean
+Private IsComboFilterBusy As Boolean
+Private ServiceItems As Variant
+Private DocTypeItems As Variant
+Private ExecutorItems As Variant
+
+Public Sub SetFormRecordState(ByVal rowNumber As Long, ByVal newRecord As Boolean, Optional ByVal changed As Boolean = False)
+    CurrentRecordRow = rowNumber
+    IsNewRecord = newRecord
+    FormDataChanged = changed
+End Sub
+
 
 ' Button to clear all execution marks
 Private Sub btnClearMarks_Click()
@@ -269,13 +284,14 @@ Private Sub LoadComboBoxData()
     On Error GoTo 0
     
     ' Load services
-    Call LoadComboData(Me.cmbSlujba, wsSettings, "A:A", "Services")
+    Call LoadComboData(Me.cmbSlujba, wsSettings, "A:A", "Services", "Службы")
     
     ' Load document types to cmbVidDoc (4th column)
-    Call LoadComboData(Me.cmbVidDoc, wsSettings, "C:C", "Document Types")
+    Call LoadComboData(Me.cmbVidDoc, wsSettings, "C:C", "Document Types", "Виды документов")
     
     ' Load executors
-    Call LoadComboData(Me.cmbIspolnitel, wsSettings, "E:E", "Executors")
+    Call LoadComboData(Me.cmbIspolnitel, wsSettings, "E:E", "Executors", "Исполнители")
+    Call CacheComboSources
     
     ' Load data for cmbOtKogoPostupil autocomplete
     Call LoadAutoCompleteData
@@ -329,6 +345,7 @@ Private Sub LoadAutoCompleteData()
         .Clear
         .Style = fmStyleDropDownCombo
         .MatchRequired = False
+        .MatchEntry = fmMatchEntryComplete
         
         Dim item As Variant
         For Each item In uniqueValues
@@ -350,37 +367,150 @@ LoadAutoError:
     End If
 End Sub
 
-Private Sub LoadComboData(ComboBox As ComboBox, Ws As Worksheet, columnRange As String, headerText As String)
-    Dim cell As Range
+Private Sub CacheComboSources()
+    ServiceItems = GetComboItems(Me.cmbSlujba)
+    DocTypeItems = GetComboItems(Me.cmbVidDoc)
+    ExecutorItems = GetComboItems(Me.cmbIspolnitel)
+End Sub
+
+Private Function GetComboItems(TargetCombo As MSForms.ComboBox) As Variant
+    Dim Result() As String
+    Dim i As Long
+
+    If TargetCombo.ListCount = 0 Then
+        GetComboItems = Empty
+        Exit Function
+    End If
+
+    ReDim Result(0 To TargetCombo.ListCount - 1)
+
+    For i = 0 To TargetCombo.ListCount - 1
+        Result(i) = CStr(TargetCombo.List(i))
+    Next i
+
+    GetComboItems = Result
+End Function
+
+Private Sub ResetComboList(TargetCombo As MSForms.ComboBox, SourceItems As Variant)
+    Dim i As Long
+    Dim CurrentText As String
+
+    If IsEmpty(SourceItems) Then Exit Sub
+
+    CurrentText = TargetCombo.Text
+
+    IsComboFilterBusy = True
+    TargetCombo.Clear
+
+    For i = LBound(SourceItems) To UBound(SourceItems)
+        TargetCombo.AddItem CStr(SourceItems(i))
+    Next i
+
+    TargetCombo.Text = CurrentText
+    TargetCombo.SelStart = Len(CurrentText)
+    TargetCombo.SelLength = 0
+    IsComboFilterBusy = False
+End Sub
+
+Private Sub FilterComboByText(TargetCombo As MSForms.ComboBox, SourceItems As Variant)
+    Dim SearchText As String
+    Dim FirstPrefixMatch As String
+    Dim ItemText As String
+    Dim i As Long
+
+    If IsComboFilterBusy Then Exit Sub
+    If IsEmpty(SourceItems) Then Exit Sub
+
+    SearchText = TargetCombo.Text
+
+    IsComboFilterBusy = True
+    TargetCombo.Clear
+
+    For i = LBound(SourceItems) To UBound(SourceItems)
+        ItemText = CStr(SourceItems(i))
+
+        If SearchText = "" Or InStr(1, ItemText, SearchText, vbTextCompare) > 0 Then
+            TargetCombo.AddItem ItemText
+
+            If FirstPrefixMatch = "" Then
+                If LCase$(Left$(ItemText, Len(SearchText))) = LCase$(SearchText) Then
+                    FirstPrefixMatch = ItemText
+                End If
+            End If
+        End If
+    Next i
+
+    If SearchText = "" Then
+        TargetCombo.Text = ""
+        TargetCombo.SelStart = 0
+        TargetCombo.SelLength = 0
+    ElseIf FirstPrefixMatch <> "" Then
+        TargetCombo.Text = FirstPrefixMatch
+        TargetCombo.SelStart = Len(SearchText)
+        TargetCombo.SelLength = Len(FirstPrefixMatch) - Len(SearchText)
+    Else
+        TargetCombo.Text = SearchText
+        TargetCombo.SelStart = Len(SearchText)
+        TargetCombo.SelLength = 0
+    End If
+
+    If TargetCombo.ListCount > 0 Then
+        TargetCombo.DropDown
+    End If
+
+    IsComboFilterBusy = False
+End Sub
+
+Private Sub HandleComboKeyUp(TargetCombo As MSForms.ComboBox, SourceItems As Variant, ByVal KeyCode As MSForms.ReturnInteger)
+    Select Case KeyCode
+        Case vbKeyUp, vbKeyDown, vbKeyReturn, vbKeyEscape, vbKeyTab
+            Exit Sub
+        Case vbKeyDelete, vbKeyBack
+            Call FilterComboByText(TargetCombo, SourceItems)
+        Case Else
+            Call FilterComboByText(TargetCombo, SourceItems)
+    End Select
+End Sub
+
+Private Function FindHeaderCell(SourceSheet As Worksheet, SourceColumn As String, PrimaryHeader As String, Optional SecondaryHeader As String = "") As Range
+    Set FindHeaderCell = SourceSheet.Range(SourceColumn).Find(PrimaryHeader, LookIn:=xlValues, LookAt:=xlWhole)
+
+    If FindHeaderCell Is Nothing And SecondaryHeader <> "" Then
+        Set FindHeaderCell = SourceSheet.Range(SourceColumn).Find(SecondaryHeader, LookIn:=xlValues, LookAt:=xlWhole)
+    End If
+End Function
+
+Private Sub LoadComboData(TargetCombo As MSForms.ComboBox, SourceSheet As Worksheet, SourceColumn As String, PrimaryHeader As String, Optional SecondaryHeader As String = "")
+    Dim HeaderCell As Range
+    Dim CurrentCell As Range
     Dim StartRow As Long
-    
+
     On Error GoTo LoadError
-    
-    With ComboBox
+
+    With TargetCombo
         .Style = fmStyleDropDownCombo
         .MatchRequired = False
         .Clear
     End With
-    
-    ' Find row with header
-    Set cell = Ws.Range(columnRange).Find(headerText, LookIn:=xlValues, LookAt:=xlWhole)
-    If Not cell Is Nothing Then
-        StartRow = cell.Row + 1
-        
-        ' Load data, skipping empty cells
-        Set cell = Ws.Cells(StartRow, cell.Column)
-        Do While cell.value <> "" And cell.Row <= Ws.UsedRange.Rows.Count + Ws.UsedRange.Row
-            ComboBox.AddItem cell.value
-            Set cell = cell.Offset(1, 0)
-        Loop
+
+    Set HeaderCell = FindHeaderCell(SourceSheet, SourceColumn, PrimaryHeader, SecondaryHeader)
+    If HeaderCell Is Nothing Then
+        Exit Sub
     End If
-    
-    ComboBox.ListIndex = -1
-    
+
+    StartRow = HeaderCell.Row + 1
+    Set CurrentCell = SourceSheet.Cells(StartRow, HeaderCell.Column)
+
+    Do While Trim(CStr(CurrentCell.Value)) <> ""
+        TargetCombo.AddItem CStr(CurrentCell.Value)
+        Set CurrentCell = CurrentCell.Offset(1, 0)
+    Loop
+
+    TargetCombo.ListIndex = -1
     Exit Sub
-    
+
 LoadError:
-    ' Simply skip data loading errors
+    TargetCombo.Clear
 End Sub
 
 ' ===============================================
@@ -559,15 +689,42 @@ Private Sub cmbStatusPodtverjdenie_Change()
 End Sub
 
 Private Sub cmbSlujba_Change()
+    If IsComboFilterBusy Then Exit Sub
     Call MarkFormAsChanged
 End Sub
 
 Private Sub cmbVidDoc_Change()
+    If IsComboFilterBusy Then Exit Sub
     Call MarkFormAsChanged
 End Sub
 
 Private Sub cmbIspolnitel_Change()
+    If IsComboFilterBusy Then Exit Sub
     Call MarkFormAsChanged
+End Sub
+
+Private Sub cmbSlujba_KeyUp(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+    Call HandleComboKeyUp(Me.cmbSlujba, ServiceItems, KeyCode)
+End Sub
+
+Private Sub cmbVidDoc_KeyUp(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+    Call HandleComboKeyUp(Me.cmbVidDoc, DocTypeItems, KeyCode)
+End Sub
+
+Private Sub cmbIspolnitel_KeyUp(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+    Call HandleComboKeyUp(Me.cmbIspolnitel, ExecutorItems, KeyCode)
+End Sub
+
+Private Sub cmbSlujba_DropButtonClick()
+    Call ResetComboList(Me.cmbSlujba, ServiceItems)
+End Sub
+
+Private Sub cmbVidDoc_DropButtonClick()
+    Call ResetComboList(Me.cmbVidDoc, DocTypeItems)
+End Sub
+
+Private Sub cmbIspolnitel_DropButtonClick()
+    Call ResetComboList(Me.cmbIspolnitel, ExecutorItems)
 End Sub
 
 ' Change order field with highlight update
@@ -775,53 +932,54 @@ Private Sub SaveCurrentRecord()
     Dim tblData As ListObject
     Dim newRow As ListRow
     Dim targetRowIndex As Long
-    
-    ' Conditional required fields check
+
     If Not ValidateRequiredFieldsConditional() Then
         Exit Sub
     End If
-    
-    ' Date validation
+
     If Not RecordOperations.ValidateDates() Then
         Exit Sub
     End If
-    
+
     On Error GoTo ErrorHandler
-    
+
     Set wsData = ThisWorkbook.Worksheets("IncOut")
     Set tblData = wsData.ListObjects("TableIncOut")
-    
+
     If IsNewRecord Then
         Set newRow = tblData.ListRows.Add
         targetRowIndex = newRow.Index
         CurrentRecordRow = targetRowIndex
-        
+
         Me.txtNomerPP.Text = CStr(targetRowIndex)
-        Me.lblStatusBar.Caption = "Creating new record No." & targetRowIndex
+        Me.lblStatusBar.Caption = "Creating new record No. " & targetRowIndex
     Else
         If CurrentRecordRow < 1 Or CurrentRecordRow > tblData.ListRows.Count Then
-            MsgBox "Error: invalid record number to update!", vbCritical, "Save Error"
+            MsgBox "Error: invalid record number to update.", vbCritical, "Save Error"
             Exit Sub
         End If
-        
+
         targetRowIndex = CurrentRecordRow
-        Me.lblStatusBar.Caption = "Updating existing record No." & targetRowIndex
+        Me.lblStatusBar.Caption = "Updating record No. " & targetRowIndex
     End If
-    
-    ' Save data to specified table row
+
     Call WriteFormDataToTable(tblData, targetRowIndex)
-    
-    ' Update status
+
     IsNewRecord = False
     FormDataChanged = False
-    Me.lblStatusBar.Caption = "Record No." & targetRowIndex & " saved successfully"
-    
+
+    RecordOperations.CurrentRecordRow = targetRowIndex
+    RecordOperations.IsNewRecord = False
+    RecordOperations.FormDataChanged = False
+
+    Me.lblStatusBar.Caption = "Record No. " & targetRowIndex & " saved successfully"
+
     If targetRowIndex = tblData.ListRows.Count Then
         Call LoadAutoCompleteData
     End If
-    
+
     Exit Sub
-    
+
 ErrorHandler:
     MsgBox "Error saving data: " & Err.description, vbCritical, "Save Error"
     Me.lblStatusBar.Caption = "Data save error"
@@ -1032,10 +1190,10 @@ Private Sub CancelChanges()
 End Sub
 
 ' Methods for working with form from table
-Public Sub ShowFromTable(RowNumber As Long, fieldName As String)
-    Call Me.LoadRecordToForm(RowNumber)
+Public Sub ShowFromTable(rowNumber As Long, fieldName As String)
+    Call Me.LoadRecordToForm(rowNumber)
     
-    CurrentRecordRow = RowNumber
+    CurrentRecordRow = rowNumber
     IsNewRecord = False
     FormDataChanged = False
     
@@ -1043,7 +1201,7 @@ Public Sub ShowFromTable(RowNumber As Long, fieldName As String)
     
     Application.OnTime Now + TimeValue("00:00:01"), "'SetFieldFocus """ & fieldName & """'"
     
-    Me.lblStatusBar.Caption = "Opened from table | Record No." & RowNumber & " | Field: " & TableEventHandler.GetFieldDisplayName(fieldName)
+    Me.lblStatusBar.Caption = "Opened from table | Record No." & rowNumber & " | Field: " & TableEventHandler.GetFieldDisplayName(fieldName)
 End Sub
 
 Public Sub SetFieldFocus(fieldName As String)
