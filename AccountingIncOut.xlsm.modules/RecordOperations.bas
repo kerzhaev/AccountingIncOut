@@ -207,22 +207,22 @@ Public Sub ClearForm()
     IsNewRecord = True
     CurrentRecordRow = 0
     FormDataChanged = False
-    
+
     Dim wsData As Worksheet
     Dim tblData As ListObject
     Dim nextNumber As Long
-    
+
     On Error Resume Next
     Set wsData = ThisWorkbook.Worksheets("IncOut")
     Set tblData = wsData.ListObjects("TableIncOut")
-    
+
     If Not wsData Is Nothing And Not tblData Is Nothing Then
         nextNumber = tblData.ListRows.Count + 1
     Else
         nextNumber = 1
     End If
     On Error GoTo 0
-    
+
     With UserFormVhIsh
         .txtNomerPP.Text = CStr(nextNumber)
         .cmbVidDocumenta.value = ""
@@ -247,10 +247,12 @@ Public Sub ClearForm()
         .txtSearch.Text = ""
         .lstSearchResults.Clear
         .lstSearchResults.Visible = False
+        .SetFormRecordState 0, True, False
     End With
-    
+
     Call UpdateStatusBar
 End Sub
+
 
 Public Function DuplicateRecord(sourceRowNumber As Long) As Long
     Dim wsData As Worksheet, tblData As ListObject
@@ -289,7 +291,7 @@ DuplicateError:
     On Error GoTo 0
 End Function
 
-Public Function GetRecordInfo(RowNumber As Long) As String
+Public Function GetRecordInfo(rowNumber As Long) As String
     Dim wsData As Worksheet, tblData As ListObject
     Dim recordInfo As String
     
@@ -297,16 +299,16 @@ Public Function GetRecordInfo(RowNumber As Long) As String
     Set wsData = ThisWorkbook.Worksheets("IncOut")
     Set tblData = wsData.ListObjects("TableIncOut")
     
-    If RowNumber < 1 Or RowNumber > tblData.ListRows.Count Then
+    If rowNumber < 1 Or rowNumber > tblData.ListRows.Count Then
         GetRecordInfo = LocalizationManager.GetText("Invalid record number")
         Exit Function
     End If
     
-    recordInfo = LocalizationManager.GetText("Record No.") & RowNumber & ": "
-    recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(RowNumber, 2).value) & " - "
-    recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(RowNumber, 3).value) & " "
-    recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(RowNumber, 4).value) & " "
-    recordInfo = recordInfo & LocalizationManager.GetText("No.") & CStr(tblData.DataBodyRange.Cells(RowNumber, 5).value)
+    recordInfo = LocalizationManager.GetText("Record No.") & rowNumber & ": "
+    recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(rowNumber, 2).value) & " - "
+    recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(rowNumber, 3).value) & " "
+    recordInfo = recordInfo & CStr(tblData.DataBodyRange.Cells(rowNumber, 4).value) & " "
+    recordInfo = recordInfo & LocalizationManager.GetText("No.") & CStr(tblData.DataBodyRange.Cells(rowNumber, 5).value)
     
     GetRecordInfo = recordInfo
     Exit Function
@@ -317,7 +319,7 @@ End Function
 Public Sub SetupGroupBoxes()
 End Sub
 
-Public Function CanDuplicateRecord(RowNumber As Long) As Boolean
+Public Function CanDuplicateRecord(rowNumber As Long) As Boolean
     Dim wsData As Worksheet, tblData As ListObject
     On Error GoTo CannotDuplicate
     Set wsData = ThisWorkbook.Worksheets("IncOut")
@@ -325,7 +327,7 @@ Public Function CanDuplicateRecord(RowNumber As Long) As Boolean
     
     If tblData Is Nothing Then Exit Function
     If tblData.DataBodyRange Is Nothing Then Exit Function
-    If RowNumber < 1 Or RowNumber > tblData.ListRows.Count Then Exit Function
+    If rowNumber < 1 Or rowNumber > tblData.ListRows.Count Then Exit Function
     
     CanDuplicateRecord = True
     Exit Function
@@ -337,7 +339,7 @@ End Function
 ' 2. ¡ÀŒ  Õ¿¬»√¿÷»» (NAVIGATION)
 ' =====================================================================
 
-Public Sub NavigateToRecord(RowNumber As Long)
+Public Sub NavigateToRecord(rowNumber As Long)
     Dim wsData As Worksheet
     Dim tblData As ListObject
     
@@ -350,19 +352,19 @@ Public Sub NavigateToRecord(RowNumber As Long)
         Exit Sub
     End If
     
-    If RowNumber < 1 Then RowNumber = 1
-    If RowNumber > tblData.ListRows.Count Then RowNumber = tblData.ListRows.Count
+    If rowNumber < 1 Then rowNumber = 1
+    If rowNumber > tblData.ListRows.Count Then rowNumber = tblData.ListRows.Count
     
-    If HasUnsavedChanges() And CurrentRecordRow <> RowNumber And CurrentRecordRow > 0 Then
+    If HasUnsavedChanges() And CurrentRecordRow <> rowNumber And CurrentRecordRow > 0 Then
         If MsgBox(LocalizationManager.GetText("Save changes to the current record before navigating?"), vbYesNo + vbQuestion, LocalizationManager.GetText("Unsaved Changes")) = vbYes Then
             Call SaveCurrentRecord
         End If
     End If
     
-    CurrentRecordRow = RowNumber
+    CurrentRecordRow = rowNumber
     IsNewRecord = False
     
-    Call UserFormVhIsh.LoadRecordToForm(RowNumber)
+    Call UserFormVhIsh.LoadRecordToForm(rowNumber)
     Call UpdateNavigationButtons
     Call UpdateStatusBar
     
