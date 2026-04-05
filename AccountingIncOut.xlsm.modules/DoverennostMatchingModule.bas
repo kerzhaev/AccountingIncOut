@@ -350,7 +350,7 @@ NextIteration:
     ' === 3RD PASS: UNIVERSAL DOCUMENTS ===
     If Pass2Count > 0 Then
         Debug.Print "=== 3RD PASS: UNIVERSAL DOCUMENTS ==="
-        Pass3Found = ProcessThirdPass(WsDover, FilteredOperData, Pass2NotFound, Pass2NotFoundData, Pass2Count, Pass3ByType)
+        Pass3Found = ProcessThirdPass(WsDover, FilteredOperData, Pass2NotFound, Pass2NotFoundData, Pass2Count, CorrespondentColumn, Pass3ByType)
         Debug.Print "3rd pass found: " & Pass3Found
     End If
     
@@ -1586,11 +1586,12 @@ ErrorHandler:
     CreateDateVariants = Variants
 End Function
 
-Private Function ProcessThirdPass(WsDover As Worksheet, OperData As Variant, NotFoundRows() As Long, NotFoundData() As ParsedNaryad, NotFoundCount As Long, ByRef Pass3ByType() As Long) As Long
+Private Function ProcessThirdPass(WsDover As Worksheet, OperData As Variant, NotFoundRows() As Long, NotFoundData() As ParsedNaryad, NotFoundCount As Long, CorrespondentColumn As Long, ByRef Pass3ByType() As Long) As Long
     Dim i As Long
     Dim ThirdPassFound As Long
     Dim MatchResult As MatchResult
     Dim UniversalDoc As ParsedNaryad
+    Dim DoverCorrespondent As String
     
     ThirdPassFound = 0
     
@@ -1598,12 +1599,17 @@ Private Function ProcessThirdPass(WsDover As Worksheet, OperData As Variant, Not
         UniversalDoc = ParseUniversalDocument(NotFoundData(i).OriginalText)
         
         If UniversalDoc.IsValid Then
-            MatchResult = FindByUniversalDocument(UniversalDoc, OperData)
+            DoverCorrespondent = ""
+            If CorrespondentColumn > 0 Then
+                DoverCorrespondent = Trim$(CStr(WsDover.Cells(NotFoundRows(i), CorrespondentColumn).value))
+            End If
+            
+            MatchResult = FindByUniversalDocument(UniversalDoc, OperData, DoverCorrespondent)
             MatchResult.PassNumber = 3
             
             If MatchResult.FoundMatch Then
                 ThirdPassFound = ThirdPassFound + 1
-                MatchResult.MatchDetails = LocalizationManager.GetText("3rd pass: ") & UniversalDoc.DocumentType & " No " & UniversalDoc.DocumentNumber
+                MatchResult.MatchDetails = LocalizationManager.GetText("3rd pass: ") & MatchResult.MatchDetails
                 
                 Select Case UCase(UniversalDoc.DocumentType)
                     Case "ALLOTMENT": Pass3ByType(0) = Pass3ByType(0) + 1
@@ -1665,47 +1671,67 @@ Private Function ParseUniversalDocument(Text As String) As ParsedNaryad
     ParseUniversalDocument = result
 End Function
 
-Private Function FindByUniversalDocument(UniversalDoc As ParsedNaryad, OperData As Variant) As MatchResult
+Private Function FindByUniversalDocument(UniversalDoc As ParsedNaryad, OperData As Variant, DoverCorrespondent As String) As MatchResult
     Dim result As MatchResult
     Dim i As Long
     Dim OperComment As String
+    Dim OperCorrespondent As String
+    Dim NumberScore As Double
+    Dim DateScore As Double
+    Dim TypeScore As Double
+    Dim SupplierScore As Double
+    Dim TotalScore As Double
+    Dim BestScore As Double
+    Dim SecondScore As Double
+    Dim BestNumberScore As Double
+    Dim BestDateScore As Double
+    Dim BestTypeScore As Double
+    Dim BestSupplierScore As Double
     
     result.FoundMatch = False
     result.MatchScore = 0
+    BestScore = -1
+    SecondScore = 0
     
     For i = 1 To UBound(OperData, 1)
         OperComment = Trim(CStr(OperData(i, 9)))
+        OperCorrespondent = Trim$(CStr(OperData(i, 6)))
         
         If OperComment <> "" Then
-            Dim HasNumber As Boolean, HasDate As Boolean
+            NumberScore = CheckNumberInComment(OperComment, UniversalDoc.DocumentNumber)
+            DateScore = EvaluateDateSignal(OperComment, UniversalDoc.DocumentDate)
             
-            HasNumber = (InStr(1, OperComment, UniversalDoc.DocumentNumber, vbTextCompare) > 0)
-            HasDate = (InStr(1, OperComment, UniversalDoc.DocumentDate, vbTextCompare) > 0)
-            
-            If Not HasDate Then
-                Dim ShortDate As String
-                ShortDate = ConvertToShortDate(UniversalDoc.DocumentDate)
-                If ShortDate <> "" Then
-                    HasDate = (InStr(1, OperComment, ShortDate, vbTextCompare) > 0)
-                End If
-            End If
-            
-            If HasNumber And HasDate Then
-                result.FoundMatch = True
-                result.MatchScore = 100
-                result.OperationRow = i + 1
-                result.OperationNumber = Trim(CStr(OperData(i, 3)))
-                result.MatchDetails = LocalizationManager.GetText("found ") & UniversalDoc.DocumentType
+            If NumberScore > 0 And DateScore > 0 Then
+                TypeScore = CheckDocumentTypeMatch(OperComment, UniversalDoc.DocumentType)
+                SupplierScore = EvaluateSupplierSignal(OperCorrespondent, DoverCorrespondent)
+                TotalScore = NumberScore + DateScore + TypeScore + SupplierScore
                 
-                On Error Resume Next
-                result.OperationDate = CDate(OperData(i, 2))
-                On Error GoTo 0
-                Exit For
+                If TotalScore > BestScore Then
+                    SecondScore = BestScore
+                    BestScore = TotalScore
+                    result.OperationRow = i + 1
+                    result.OperationNumber = Trim$(CStr(OperData(i, 3)))
+                    result.OperationDate = 0
+                    
+                    On Error Resume Next
+                    result.OperationDate = CDate(OperData(i, 2))
+                    On Error GoTo 0
+                    BestNumberScore = NumberScore
+                    BestDateScore = DateScore
+                    BestTypeScore = TypeScore
+                    BestSupplierScore = SupplierScore
+                ElseIf TotalScore > SecondScore Then
+                    SecondScore = TotalScore
+                End If
             End If
         End If
     Next i
     
-    If Not result.FoundMatch Then
+    If BestScore >= 65 Then
+        result.FoundMatch = True
+        result.MatchScore = NormalizeReviewScore(BestScore)
+        result.MatchDetails = BuildThirdPassDetails(UniversalDoc.DocumentType, BestNumberScore, BestDateScore, BestTypeScore, BestSupplierScore, CalculateCandidateGap(BestScore, SecondScore))
+    Else
         result.MatchDetails = LocalizationManager.GetText("number or date not found")
     End If
     
@@ -2440,9 +2466,22 @@ Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As
     Dim i As Long
     Dim OperComment As String, OperSupplier As String
     Dim DoverService As String
+    Dim DateScore As Double
+    Dim NumberScore As Double
+    Dim SupplierScore As Double
+    Dim ServiceScore As Double
+    Dim TotalScore As Double
+    Dim BestScore As Double
+    Dim SecondScore As Double
+    Dim BestNumberScore As Double
+    Dim BestDateScore As Double
+    Dim BestSupplierScore As Double
+    Dim BestServiceScore As Double
     
     result.FoundMatch = False
     result.MatchScore = 0
+    BestScore = -1
+    SecondScore = 0
     
     DoverService = ExtractServiceFromComment(DoverData.OriginalText)
     
@@ -2451,26 +2490,39 @@ Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As
         OperSupplier = Trim(CStr(OperData(i, 6)))
         
         If OperComment <> "" And OperSupplier <> "" Then
-            Dim MatchScore As Double
-            Dim MatchDetails As String
-            MatchScore = AnalyzeSupplierServiceMatch(OperComment, OperSupplier, DoverData.DocumentNumber, DoverSupplier, DoverService, MatchDetails)
+            NumberScore = CheckNumberInComment(OperComment, DoverData.DocumentNumber)
+            DateScore = EvaluateDateSignal(OperComment, DoverData.DocumentDate)
+            SupplierScore = EvaluateSupplierSignal(OperSupplier, DoverSupplier)
+            ServiceScore = EvaluateServiceSignal(OperComment, DoverService)
+            TotalScore = NumberScore + DateScore + SupplierScore + ServiceScore
             
-            If MatchScore >= 60 Then
-                result.FoundMatch = True
-                result.MatchScore = MatchScore
-                result.OperationRow = i + 1
-                result.OperationNumber = Trim(CStr(OperData(i, 3)))
-                result.MatchDetails = MatchDetails & " | 1C: " & OperComment
-                
-                On Error Resume Next
-                result.OperationDate = CDate(OperData(i, 2))
-                On Error GoTo 0
-                Exit For
+            If NumberScore > 0 And (DateScore > 0 Or SupplierScore >= 25 Or ServiceScore > 0) Then
+                If TotalScore > BestScore Then
+                    SecondScore = BestScore
+                    BestScore = TotalScore
+                    BestNumberScore = NumberScore
+                    BestDateScore = DateScore
+                    BestSupplierScore = SupplierScore
+                    BestServiceScore = ServiceScore
+                    result.OperationRow = i + 1
+                    result.OperationNumber = Trim$(CStr(OperData(i, 3)))
+                    result.OperationDate = 0
+                    
+                    On Error Resume Next
+                    result.OperationDate = CDate(OperData(i, 2))
+                    On Error GoTo 0
+                ElseIf TotalScore > SecondScore Then
+                    SecondScore = TotalScore
+                End If
             End If
         End If
     Next i
     
-    If Not result.FoundMatch Then
+    If BestScore >= 70 Then
+        result.FoundMatch = True
+        result.MatchScore = NormalizeReviewScore(BestScore)
+        result.MatchDetails = BuildSecondPassDetails(BestNumberScore, BestDateScore, BestSupplierScore, BestServiceScore, CalculateCandidateGap(BestScore, SecondScore))
+    Else
         result.MatchDetails = LocalizationManager.GetText("supplier+service mismatch")
     End If
     
@@ -2487,20 +2539,114 @@ Private Function AnalyzeSupplierServiceMatch(OperComment As String, OperSupplier
     NumberScore = CheckNumberInComment(OperComment, DoverNumber)
     TotalScore = TotalScore + NumberScore
     
-    SupplierScore = CheckSupplierMatch(OperSupplier, DoverSupplier)
+    SupplierScore = EvaluateSupplierSignal(OperSupplier, DoverSupplier)
     TotalScore = TotalScore + SupplierScore
     
     If DoverService <> "" Then
-        ServiceScore = CheckServiceInComment(OperComment, DoverService)
+        ServiceScore = EvaluateServiceSignal(OperComment, DoverService)
         TotalScore = TotalScore + ServiceScore
     End If
     
-    MatchDetails = "num:" & Format(NumberScore, "0") & "% supplier:" & Format(SupplierScore, "0") & "%"
+    MatchDetails = "num:" & Format(NumberScore, "0") & " supplier:" & Format(SupplierScore, "0")
     If DoverService <> "" Then
-        MatchDetails = MatchDetails & " service:" & Format(ServiceScore, "0") & "%"
+        MatchDetails = MatchDetails & " service:" & Format(ServiceScore, "0")
     End If
     
     AnalyzeSupplierServiceMatch = TotalScore
+End Function
+
+Private Function EvaluateDateSignal(OperComment As String, TargetDate As String) As Double
+    If TargetDate <> "" And CheckDateInComment(OperComment, TargetDate) Then
+        EvaluateDateSignal = 25
+    End If
+End Function
+
+Private Function EvaluateSupplierSignal(OperSupplier As String, DoverSupplier As String) As Double
+    Dim CleanOper As String
+    Dim CleanDover As String
+
+    CleanOper = Trim$(CleanCorrespondentName(OperSupplier))
+    CleanDover = Trim$(CleanCorrespondentName(DoverSupplier))
+
+    If CleanOper = "" Or CleanDover = "" Then Exit Function
+
+    If StrComp(CleanOper, CleanDover, vbTextCompare) = 0 Then
+        EvaluateSupplierSignal = 25
+        Exit Function
+    End If
+
+    If InStr(1, CleanOper, CleanDover, vbTextCompare) > 0 Or InStr(1, CleanDover, CleanOper, vbTextCompare) > 0 Then
+        EvaluateSupplierSignal = 10
+    End If
+End Function
+
+Private Function EvaluateServiceSignal(OperComment As String, DoverService As String) As Double
+    If DoverService <> "" Then
+        If InStr(1, UCase$(OperComment), UCase$(DoverService), vbTextCompare) > 0 Then
+            EvaluateServiceSignal = 10
+        End If
+    End If
+End Function
+
+Private Function CheckDocumentTypeMatch(OperComment As String, ExpectedType As String) As Double
+    Dim FoundKeyword As String
+    Dim FoundType As String
+
+    If FindKeywordInSearchTable(OperComment, FoundKeyword, FoundType) Then
+        If UCase$(FoundType) = UCase$(ExpectedType) Then
+            CheckDocumentTypeMatch = 15
+            Exit Function
+        End If
+    End If
+
+    If InStr(1, UCase$(OperComment), UCase$(ExpectedType), vbTextCompare) > 0 Then
+        CheckDocumentTypeMatch = 10
+    End If
+End Function
+
+Private Function CalculateCandidateGap(ByVal BestScore As Double, ByVal SecondScore As Double) As Double
+    If BestScore <= 0 Then Exit Function
+    If SecondScore < 0 Then SecondScore = 0
+    CalculateCandidateGap = BestScore - SecondScore
+End Function
+
+Private Function NormalizeReviewScore(ByVal RawScore As Double) As Double
+    If RawScore >= 100 Then
+        NormalizeReviewScore = 95
+    Else
+        NormalizeReviewScore = RawScore
+    End If
+End Function
+
+Private Function BuildSecondPassDetails(ByVal NumberScore As Double, ByVal DateScore As Double, ByVal SupplierScore As Double, ByVal ServiceScore As Double, ByVal ScoreGap As Double) As String
+    BuildSecondPassDetails = "num:" & Format(NumberScore, "0") & _
+        " date:" & Format(DateScore, "0") & _
+        " supplier:" & Format(SupplierScore, "0") & _
+        " service:" & Format(ServiceScore, "0")
+
+    If ScoreGap > 0 Then
+        BuildSecondPassDetails = BuildSecondPassDetails & " gap:" & Format(ScoreGap, "0")
+    End If
+
+    If ScoreGap > 0 And ScoreGap < 10 Then
+        BuildSecondPassDetails = BuildSecondPassDetails & " ambiguous"
+    End If
+End Function
+
+Private Function BuildThirdPassDetails(ByVal DocumentType As String, ByVal NumberScore As Double, ByVal DateScore As Double, ByVal TypeScore As Double, ByVal SupplierScore As Double, ByVal ScoreGap As Double) As String
+    BuildThirdPassDetails = DocumentType & _
+        " num:" & Format(NumberScore, "0") & _
+        " date:" & Format(DateScore, "0") & _
+        " type:" & Format(TypeScore, "0") & _
+        " supplier:" & Format(SupplierScore, "0")
+
+    If ScoreGap > 0 Then
+        BuildThirdPassDetails = BuildThirdPassDetails & " gap:" & Format(ScoreGap, "0")
+    End If
+
+    If ScoreGap > 0 And ScoreGap < 10 Then
+        BuildThirdPassDetails = BuildThirdPassDetails & " ambiguous"
+    End If
 End Function
 
 Private Function ExtractServiceFromComment(Comment As String) As String
