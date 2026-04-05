@@ -1619,6 +1619,9 @@ Private Function ProcessThirdPass(WsDover As Worksheet, OperData As Variant, Not
                 End Select
                 
                 Call WriteThreePassResult(WsDover, NotFoundRows(i), MatchResult)
+            ElseIf MatchResult.MatchDetails <> "" And MatchResult.MatchDetails <> LocalizationManager.GetText("number or date not found") Then
+                MatchResult.MatchDetails = LocalizationManager.GetText("3rd pass: ") & MatchResult.MatchDetails
+                Call WriteThreePassResult(WsDover, NotFoundRows(i), MatchResult)
             End If
         End If
     Next i
@@ -1659,11 +1662,17 @@ Private Function ParseUniversalDocument(Text As String) As ParsedNaryad
     
     result.DocumentType = FoundType
     result.DocumentNumber = ExtractSubstringNumber(Text, IIf(FoundKeyword <> "", FoundKeyword, FoundType))
+    If result.DocumentNumber = "" Then
+        result.DocumentNumber = ExtractStandaloneDocumentNumber(Text, IIf(FoundKeyword <> "", FoundKeyword, FoundType))
+    End If
     result.DocumentDate = ExtractSubstringDate(Text)
     
     If result.DocumentNumber <> "" And result.DocumentDate <> "" Then
         result.IsValid = True
         result.MatchDetails = LocalizationManager.GetText("3rd pass: success")
+    ElseIf result.DocumentNumber <> "" Then
+        result.IsValid = True
+        result.MatchDetails = "no-date document"
     Else
         result.MatchDetails = LocalizationManager.GetText("3rd pass: no number or date")
     End If
@@ -1687,6 +1696,7 @@ Private Function FindByUniversalDocument(UniversalDoc As ParsedNaryad, OperData 
     Dim BestDateScore As Double
     Dim BestTypeScore As Double
     Dim BestSupplierScore As Double
+    Dim NoDateCandidateCount As Long
     
     result.FoundMatch = False
     result.MatchScore = 0
@@ -1699,11 +1709,15 @@ Private Function FindByUniversalDocument(UniversalDoc As ParsedNaryad, OperData 
         
         If OperComment <> "" Then
             NumberScore = CheckNumberInComment(OperComment, UniversalDoc.DocumentNumber)
-            DateScore = EvaluateDateSignal(OperComment, UniversalDoc.DocumentDate)
+            TypeScore = CheckDocumentTypeMatch(OperComment, UniversalDoc.DocumentType)
+            SupplierScore = EvaluateSupplierSignal(OperCorrespondent, DoverCorrespondent)
+            DateScore = 0
             
-            If NumberScore > 0 And DateScore > 0 Then
-                TypeScore = CheckDocumentTypeMatch(OperComment, UniversalDoc.DocumentType)
-                SupplierScore = EvaluateSupplierSignal(OperCorrespondent, DoverCorrespondent)
+            If UniversalDoc.DocumentDate <> "" Then
+                DateScore = EvaluateDateSignal(OperComment, UniversalDoc.DocumentDate)
+            End If
+            
+            If NumberScore > 0 And UniversalDoc.DocumentDate <> "" And DateScore > 0 Then
                 TotalScore = NumberScore + DateScore + TypeScore + SupplierScore
                 
                 If TotalScore > BestScore Then
@@ -1723,14 +1737,43 @@ Private Function FindByUniversalDocument(UniversalDoc As ParsedNaryad, OperData 
                 ElseIf TotalScore > SecondScore Then
                     SecondScore = TotalScore
                 End If
+            ElseIf UniversalDoc.DocumentDate = "" And NumberScore >= 40 And TypeScore > 0 And Not IsWeakDocumentNumber(UniversalDoc.DocumentNumber) Then
+                NoDateCandidateCount = NoDateCandidateCount + 1
+                TotalScore = NumberScore + TypeScore + SupplierScore
+                
+                If TotalScore > BestScore Then
+                    SecondScore = BestScore
+                    BestScore = TotalScore
+                    result.OperationRow = i + 1
+                    result.OperationNumber = Trim$(CStr(OperData(i, 3)))
+                    result.OperationDate = 0
+                    
+                    On Error Resume Next
+                    result.OperationDate = CDate(OperData(i, 2))
+                    On Error GoTo 0
+                    BestNumberScore = NumberScore
+                    BestDateScore = 0
+                    BestTypeScore = TypeScore
+                    BestSupplierScore = SupplierScore
+                ElseIf TotalScore > SecondScore Then
+                    SecondScore = TotalScore
+                End If
             End If
         End If
     Next i
     
-    If BestScore >= 65 Then
+    If UniversalDoc.DocumentDate <> "" And BestScore >= 65 Then
         result.FoundMatch = True
         result.MatchScore = NormalizeReviewScore(BestScore)
         result.MatchDetails = BuildThirdPassDetails(UniversalDoc.DocumentType, BestNumberScore, BestDateScore, BestTypeScore, BestSupplierScore, CalculateCandidateGap(BestScore, SecondScore))
+    ElseIf UniversalDoc.DocumentDate = "" And NoDateCandidateCount = 1 And BestScore >= 55 Then
+        result.FoundMatch = True
+        result.MatchScore = 45
+        result.MatchDetails = BuildNoDateCandidateDetails(UniversalDoc.DocumentType, BestNumberScore, BestTypeScore, BestSupplierScore)
+    ElseIf UniversalDoc.DocumentDate = "" And NoDateCandidateCount > 0 Then
+        result.MatchDetails = BuildNoDateQueueDetails(UniversalDoc.DocumentType, NoDateCandidateCount)
+    ElseIf UniversalDoc.DocumentDate = "" Then
+        result.MatchDetails = BuildNoDateQueueDetails(UniversalDoc.DocumentType, 0)
     Else
         result.MatchDetails = LocalizationManager.GetText("number or date not found")
     End If
@@ -2447,9 +2490,13 @@ Private Function ProcessSecondPassWithSupplierService(WsDover As Worksheet, Oper
         If MatchResult.FoundMatch Then
             SecondPassFound = SecondPassFound + 1
             MatchResult.MatchDetails = LocalizationManager.GetText("2nd pass (") & Format(MatchResult.MatchScore, "0") & "%): " & MatchResult.MatchDetails
-            
             Call WriteThreePassResult(WsDover, NotFoundRows(i), MatchResult)
         Else
+            If MatchResult.MatchDetails <> "" And MatchResult.MatchDetails <> LocalizationManager.GetText("supplier+service mismatch") Then
+                MatchResult.MatchDetails = LocalizationManager.GetText("2nd pass: ") & MatchResult.MatchDetails
+                Call WriteThreePassResult(WsDover, NotFoundRows(i), MatchResult)
+            End If
+
             Pass2Count = Pass2Count + 1
             ReDim Preserve Pass2NotFound(Pass2Count - 1)
             ReDim Preserve Pass2NotFoundData(Pass2Count - 1)
@@ -2482,6 +2529,7 @@ Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As
     Dim NumberOnlyOperationNumber As String
     Dim NumberOnlyOperationDate As Date
     Dim NumberOnlyScore As Double
+    Dim WeakExactCandidateCount As Long
     
     result.FoundMatch = False
     result.MatchScore = 0
@@ -2500,6 +2548,10 @@ Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As
             SupplierScore = EvaluateSupplierSignal(OperSupplier, DoverSupplier)
             ServiceScore = EvaluateServiceSignal(OperComment, DoverService)
             TotalScore = NumberScore + DateScore + SupplierScore + ServiceScore
+
+            If NumberScore >= 40 And IsWeakDocumentNumber(DoverData.DocumentNumber) Then
+                WeakExactCandidateCount = WeakExactCandidateCount + 1
+            End If
             
             If NumberScore >= 40 And DateScore = 0 And SupplierScore = 0 And ServiceScore = 0 And Not IsWeakDocumentNumber(DoverData.DocumentNumber) Then
                 NumberOnlyCount = NumberOnlyCount + 1
@@ -2549,6 +2601,8 @@ Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As
         result.OperationNumber = NumberOnlyOperationNumber
         result.OperationDate = NumberOnlyOperationDate
         result.MatchDetails = BuildNumberOnlyFallbackDetails(NumberOnlyScore)
+    ElseIf WeakExactCandidateCount > 0 And IsWeakDocumentNumber(DoverData.DocumentNumber) Then
+        result.MatchDetails = BuildWeakCandidateQueueDetails(WeakExactCandidateCount, DoverData.DocumentNumber)
     Else
         result.MatchDetails = LocalizationManager.GetText("supplier+service mismatch")
     End If
@@ -2773,6 +2827,36 @@ Private Function NormalizeDocumentNumberForMatch(ByVal InputText As String) As S
     NormalizeDocumentNumberForMatch = Trim$(result)
 End Function
 
+Private Function ExtractStandaloneDocumentNumber(ByVal Text As String, ByVal DocumentKeyword As String) As String
+    Dim TypePos As Long
+    Dim TailText As String
+    Dim Candidate As String
+    Dim i As Long
+    Dim CurrentChar As String
+
+    If Trim$(Text) = "" Or Trim$(DocumentKeyword) = "" Then Exit Function
+
+    TypePos = InStr(1, UCase$(Text), UCase$(DocumentKeyword), vbTextCompare)
+    If TypePos = 0 Then Exit Function
+
+    TailText = Mid$(Text, TypePos + Len(DocumentKeyword))
+    TailText = StripLocalizedNumberPrefix(TailText)
+    TailText = Trim$(TailText)
+
+    For i = 1 To Len(TailText)
+        CurrentChar = Mid$(TailText, i, 1)
+        If (CurrentChar >= "0" And CurrentChar <= "9") Or _
+           (UCase$(CurrentChar) >= "A" And UCase$(CurrentChar) <= "Z") Or _
+           CurrentChar = "/" Or CurrentChar = "-" Or CurrentChar = " " Then
+            Candidate = Candidate & CurrentChar
+        ElseIf Candidate <> "" Then
+            Exit For
+        End If
+    Next i
+
+    ExtractStandaloneDocumentNumber = NormalizeDocumentNumberForMatch(Candidate)
+End Function
+
 Private Function IsWeakDocumentNumber(ByVal DocumentNumber As String) As Boolean
     Dim NormalizedNumber As String
     Dim DigitsOnly As String
@@ -2804,6 +2888,21 @@ End Function
 
 Private Function BuildNumberOnlyFallbackDetails(ByVal NumberScore As Double) As String
     BuildNumberOnlyFallbackDetails = "num:" & Format(NumberScore, "0") & " weak number-only candidate"
+End Function
+
+Private Function BuildWeakCandidateQueueDetails(ByVal CandidateCount As Long, ByVal DocumentNumber As String) As String
+    BuildWeakCandidateQueueDetails = "weak candidates:" & Format(CandidateCount, "0") & " num:" & NormalizeDocumentNumberForMatch(DocumentNumber)
+End Function
+
+Private Function BuildNoDateCandidateDetails(ByVal DocumentType As String, ByVal NumberScore As Double, ByVal TypeScore As Double, ByVal SupplierScore As Double) As String
+    BuildNoDateCandidateDetails = "no-date " & LCase$(DocumentType) & _
+        " num:" & Format(NumberScore, "0") & _
+        " type:" & Format(TypeScore, "0") & _
+        " supplier:" & Format(SupplierScore, "0")
+End Function
+
+Private Function BuildNoDateQueueDetails(ByVal DocumentType As String, ByVal CandidateCount As Long) As String
+    BuildNoDateQueueDetails = "no-date " & LCase$(DocumentType) & " candidates:" & Format(CandidateCount, "0")
 End Function
 
 Private Function CheckSupplierMatch(OperSupplier As String, DoverSupplier As String) As Double
@@ -2912,5 +3011,8 @@ Public Sub QuickTest(TestNumber As String, TestDate As String, TestComment As St
         Debug.Print "  [X] NOT FOUND"
     End If
 End Sub
+
+
+
 
 
