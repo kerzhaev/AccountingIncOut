@@ -693,7 +693,7 @@ Private Function FindPatternInText(TextToSearch As String, Patterns() As String,
             If Matches.Count > 0 Then
                 Set Match = Matches(0)
                 MatchedPattern = Patterns(i)
-                MatchedText = Match.Value
+                MatchedText = Match.value
                 
                 On Error GoTo 0
                 FindPatternInText = True
@@ -772,6 +772,7 @@ Private Function ExtractAllNumberDatePairs(Text As String) As NumberDatePair()
     Dim UpperText As String
     Dim SearchPos As Long
     Dim OtPos As Long
+    Dim FromTokenLength As Long
     
     UpperText = UCase(Text)
     PairCount = 0
@@ -780,18 +781,7 @@ Private Function ExtractAllNumberDatePairs(Text As String) As NumberDatePair()
     SearchPos = 1
     
     Do
-        OtPos = InStr(SearchPos, UpperText, " FROM ")
-        If OtPos = 0 Then
-            OtPos = InStr(SearchPos, UpperText, "FROM ")
-            If OtPos > 0 And OtPos = SearchPos Then
-                ' Valid
-            ElseIf OtPos > 0 Then
-                If OtPos > 1 And Mid(UpperText, OtPos - 1, 1) <> " " Then
-                    OtPos = 0
-                End If
-            End If
-        End If
-        
+        OtPos = FindFromTokenPosition(UpperText, SearchPos, FromTokenLength)
         If OtPos = 0 Then Exit Do
         
         Dim NumberBefore As String
@@ -809,12 +799,96 @@ Private Function ExtractAllNumberDatePairs(Text As String) As NumberDatePair()
             If PairCount >= 10 Then Exit Do
         End If
         
-        SearchPos = OtPos + 4
+        SearchPos = OtPos + IIf(FromTokenLength > 0, FromTokenLength, 1)
         
     Loop
     
     ReDim Preserve Pairs(0 To IIf(PairCount > 0, PairCount - 1, 0))
     ExtractAllNumberDatePairs = Pairs
+End Function
+
+
+Private Function GetLocalizedToken(ByVal key As String, Optional ByVal fallbackValue As String = "") As String
+    Dim tokenValue As String
+
+    tokenValue = Trim(CStr(LocalizationManager.GetText(key, fallbackValue)))
+
+    If tokenValue = "" Then
+        If fallbackValue <> "" Then
+            tokenValue = fallbackValue
+        Else
+            tokenValue = key
+        End If
+    End If
+
+    GetLocalizedToken = tokenValue
+End Function
+
+Private Function FindWordTokenPosition(ByVal SourceText As String, ByVal TokenText As String, Optional ByVal StartPos As Long = 1, Optional ByRef TokenLength As Long = 0) As Long
+    Dim normalizedToken As String
+    Dim paddedSource As String
+    Dim paddedToken As String
+    Dim pos As Long
+
+    normalizedToken = UCase$(Trim$(TokenText))
+    If normalizedToken = "" Then Exit Function
+
+    paddedSource = " " & SourceText & " "
+    paddedToken = " " & normalizedToken & " "
+
+    pos = InStr(StartPos, paddedSource, paddedToken, vbTextCompare)
+    If pos > 0 Then
+        TokenLength = Len(normalizedToken)
+        FindWordTokenPosition = pos
+    End If
+End Function
+
+Private Function FindFromTokenPosition(ByVal UpperText As String, Optional ByVal StartPos As Long = 1, Optional ByRef TokenLength As Long = 0) As Long
+    Dim fromToken As String
+    Dim pos As Long
+
+    pos = FindWordTokenPosition(UpperText, "FROM", StartPos, TokenLength)
+    If pos > 0 Then
+        FindFromTokenPosition = pos
+        Exit Function
+    End If
+
+    fromToken = GetLocalizedToken("from", "from")
+    pos = FindWordTokenPosition(UpperText, fromToken, StartPos, TokenLength)
+    If pos > 0 Then
+        FindFromTokenPosition = pos
+        Exit Function
+    End If
+
+    fromToken = GetLocalizedToken("from ", "from")
+    pos = FindWordTokenPosition(UpperText, fromToken, StartPos, TokenLength)
+    If pos > 0 Then
+        FindFromTokenPosition = pos
+    End If
+End Function
+
+Private Function StripLocalizedNumberPrefix(ByVal InputText As String) As String
+    Dim result As String
+    Dim prefixValue As String
+
+    result = Trim$(InputText)
+
+    prefixValue = GetLocalizedToken("No.", "No.")
+    If prefixValue <> "" Then
+        result = Replace(result, prefixValue, "", 1, -1, vbTextCompare)
+    End If
+
+    prefixValue = GetLocalizedToken("No", "No")
+    If prefixValue <> "" Then
+        result = Replace(result, prefixValue, "", 1, -1, vbTextCompare)
+    End If
+
+    result = Replace(result, "No.", "", 1, -1, vbTextCompare)
+    result = Replace(result, "No", "", 1, -1, vbTextCompare)
+    result = Replace(result, "#", "")
+    result = Trim$(result)
+
+    StripLocalizedNumberPrefix = result
 End Function
 
 Private Function ExtractNumberBeforeOt(Text As String, OtPos As Long) As String
@@ -857,9 +931,7 @@ Private Function ExtractNumberBeforeOt(Text As String, OtPos As Long) As String
         End If
     Next j
     
-    CleanNumber = Replace(CleanNumber, "No.", "")
-    CleanNumber = Replace(CleanNumber, "#", "")
-    CleanNumber = Trim(CleanNumber)
+    CleanNumber = StripLocalizedNumberPrefix(CleanNumber)
     
     Do While InStr(CleanNumber, "  ") > 0
         CleanNumber = Replace(CleanNumber, "  ", " ")
@@ -896,15 +968,18 @@ Private Function ExtractDateAfterOt(Text As String, OtPos As Long) As String
     Dim i As Long
     Dim Char As String
     Dim UpperText As String
+    Dim FromTokenLength As Long
     
     On Error GoTo ErrorHandler
     
     UpperText = UCase(Text)
     
-    DateStart = OtPos + 4
-    If Mid(UpperText, OtPos, 6) = " FROM " Then
-        DateStart = OtPos + 6
+    FromTokenLength = 0
+    If OtPos > 0 Then
+        Call FindFromTokenPosition(UpperText, OtPos, FromTokenLength)
     End If
+    
+    DateStart = OtPos + IIf(FromTokenLength > 0, FromTokenLength, 4)
     
     Do While DateStart <= Len(Text) And Mid(Text, DateStart, 1) = " "
         DateStart = DateStart + 1
@@ -936,7 +1011,7 @@ Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
     Dim UpperText As String
     Dim i As Long
     Dim FoundType As String
-    Dim FoundKeyword As String ' Само найденное слово (на русском)
+    Dim FoundKeyword As String ' пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
     
     Dim wsDict As Worksheet
     Dim tbl As ListObject
@@ -949,19 +1024,19 @@ Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
     
     UpperText = UCase(Text)
     
-    ' Пытаемся получить данные из умной таблицы справочника
+    ' пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     On Error Resume Next
     Set wsDict = ThisWorkbook.Worksheets("Dictionaries")
     Set tbl = wsDict.ListObjects("TableSearchKeywords")
     On Error GoTo SubstringParseError
     
     If Not tbl Is Nothing And tbl.ListRows.Count > 0 Then
-        ' Поиск ключевых слов по словарю (без хардкода)
+        ' пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
         For i = 1 To tbl.ListRows.Count
             Dim keyword As String
             Dim sysCode As String
             
-            ' Читаем русское слово (колонка 1) и системный код (колонка 2)
+            ' пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ 1) пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ 2)
             keyword = UCase(Trim(CStr(tbl.DataBodyRange.Cells(i, 1).value)))
             sysCode = Trim(CStr(tbl.DataBodyRange.Cells(i, 2).value))
             
@@ -972,7 +1047,7 @@ Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
             End If
         Next i
     Else
-        ' Fallback (если таблицу случайно удалили, используем базовые английские слова)
+        ' Fallback (пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ)
         Dim DefaultTypes As Variant
         DefaultTypes = Array("ORDER", "CHT", "CERTIFICATE", "ALLOTMENT", "ORDER-REQUEST", "REQUEST ORDER", "TELEGRAM")
         For i = 0 To UBound(DefaultTypes)
@@ -990,10 +1065,10 @@ Private Function ParseNaryadForSubstring(Text As String) As ParsedNaryad
         Exit Function
     End If
     
-    ' Сохраняем системный тип (ORDER), чтобы логика маршрутизации продолжала работать
+    ' пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ (ORDER), пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     result.DocumentType = FoundType
     
-    ' ВАЖНО: Для парсинга номера передаем именно найденное слово (наряд), а не системный код (ORDER)
+    ' пїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ), пїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ (ORDER)
     result.DocumentNumber = ExtractSubstringNumber(Text, FoundKeyword)
     result.DocumentDate = ExtractSubstringDate(Text)
     
@@ -1013,11 +1088,66 @@ SubstringParseError:
     ParseNaryadForSubstring = result
 End Function
 
+
+Private Function FindKeywordInSearchTable(ByVal Text As String, ByRef FoundKeyword As String, ByRef FoundType As String, Optional ByVal AllowedTypes As Variant) As Boolean
+    Dim wsDict As Worksheet
+    Dim tbl As ListObject
+    Dim i As Long
+    Dim keyword As String
+    Dim sysCode As String
+    Dim UpperText As String
+    Dim hasTypeFilter As Boolean
+
+    On Error GoTo SafeExit
+
+    UpperText = UCase$(Text)
+    hasTypeFilter = IsArray(AllowedTypes)
+
+    Set wsDict = CommonUtilities.GetWorksheetSafe("Dictionaries")
+    If wsDict Is Nothing Then GoTo SafeExit
+
+    Set tbl = CommonUtilities.GetListObjectSafe(wsDict, "TableSearchKeywords")
+    If tbl Is Nothing Then GoTo SafeExit
+    If tbl.ListRows.Count = 0 Or tbl.DataBodyRange Is Nothing Then GoTo SafeExit
+
+    For i = 1 To tbl.ListRows.Count
+        keyword = UCase$(Trim$(CStr(tbl.DataBodyRange.Cells(i, 1).value)))
+        sysCode = UCase$(Trim$(CStr(tbl.DataBodyRange.Cells(i, 2).value)))
+
+        If keyword <> "" And sysCode <> "" Then
+            If (Not hasTypeFilter) Or ValueExistsInArray(sysCode, AllowedTypes) Then
+                If InStr(1, UpperText, keyword, vbTextCompare) > 0 Then
+                    FoundKeyword = keyword
+                    FoundType = sysCode
+                    FindKeywordInSearchTable = True
+                    Exit Function
+                End If
+            End If
+        End If
+    Next i
+
+SafeExit:
+End Function
+
+Private Function ValueExistsInArray(ByVal valueToFind As String, ByVal valuesArray As Variant) As Boolean
+    Dim i As Long
+
+    If Not IsArray(valuesArray) Then Exit Function
+
+    For i = LBound(valuesArray) To UBound(valuesArray)
+        If UCase$(Trim$(CStr(valuesArray(i)))) = UCase$(Trim$(valueToFind)) Then
+            ValueExistsInArray = True
+            Exit Function
+        End If
+    Next i
+End Function
+
 Private Function ExtractSubstringNumber(Text As String, DocumentType As String) As String
     Dim UpperText As String
     Dim TypePos As Long
     Dim FromPos As Long
     Dim BetweenText As String
+    Dim FromTokenLength As Long
     
     UpperText = UCase(Text)
     
@@ -1027,15 +1157,11 @@ Private Function ExtractSubstringNumber(Text As String, DocumentType As String) 
         Exit Function
     End If
     
-    FromPos = InStr(TypePos, UpperText, " FROM ")
-    If FromPos = 0 Then FromPos = InStr(TypePos, UpperText, "FROM ")
+    FromPos = FindFromTokenPosition(UpperText, TypePos, FromTokenLength)
     
     If FromPos > 0 Then
         BetweenText = Trim(Mid(Text, TypePos + Len(DocumentType), FromPos - TypePos - Len(DocumentType)))
-        
-        BetweenText = Replace(BetweenText, "No.", "")
-        BetweenText = Replace(BetweenText, "#", "")
-        BetweenText = Trim(BetweenText)
+        BetweenText = StripLocalizedNumberPrefix(BetweenText)
         
         If BetweenText <> "" Then
             ExtractSubstringNumber = BetweenText
@@ -1052,15 +1178,14 @@ Private Function ExtractSubstringDate(Text As String) As String
     Dim DateStart As Long
     Dim DateStr As String
     Dim i As Long, Char As String
+    Dim FromTokenLength As Long
     
     UpperText = UCase(Text)
     
-    FromPos = InStr(UpperText, " FROM ")
-    If FromPos = 0 Then FromPos = InStr(UpperText, "FROM ")
+    FromPos = FindFromTokenPosition(UpperText, 1, FromTokenLength)
     
     If FromPos > 0 Then
-        DateStart = FromPos + 5
-        If Mid(UpperText, FromPos, 6) = " FROM " Then DateStart = FromPos + 6
+        DateStart = FromPos + IIf(FromTokenLength > 0, FromTokenLength, 4)
         
         Do While DateStart <= Len(Text) And Mid(Text, DateStart, 1) = " "
             DateStart = DateStart + 1
@@ -1120,19 +1245,103 @@ NormalizeError:
     NormalizeDateForSubstring = DateStr
 End Function
 
+
+Private Function GetHeaderAliasCandidates() As Variant
+    Dim aliasValues As Collection
+    Set aliasValues = New Collection
+
+    Call AddAliasValue(aliasValues, "CORRESPONDENT")
+    Call AddAliasValue(aliasValues, GetLocalizedToken("CORRESPONDENT", "CORRESPONDENT"))
+    Call AddAliasValue(aliasValues, "RECEIVED FROM")
+    Call AddAliasValue(aliasValues, GetLocalizedToken("RECEIVED FROM", "RECEIVED FROM"))
+    Call AddAliasValue(aliasValues, GetLocalizedToken("Received From", "Received From"))
+    Call AddAliasValue(aliasValues, "ADDRESSEE")
+    Call AddAliasValue(aliasValues, GetLocalizedToken("ADDRESSEE", "ADDRESSEE"))
+    Call AddAliasValue(aliasValues, GetLocalizedToken("Addressee", "Addressee"))
+    Call AddAliasValue(aliasValues, "SUPPLIER")
+    Call AddAliasValue(aliasValues, GetLocalizedToken("SUPPLIER", "SUPPLIER"))
+    Call AddAliasValue(aliasValues, GetLocalizedToken("Supplier", "Supplier"))
+
+    GetHeaderAliasCandidates = CollectionToUpperArray(aliasValues)
+End Function
+
+Private Sub AddAliasValue(ByRef targetValues As Collection, ByVal aliasValue As String)
+    Dim normalizedValue As String
+    Dim itemValue As Variant
+
+    normalizedValue = UCase$(Trim$(aliasValue))
+    If normalizedValue = "" Then Exit Sub
+
+    For Each itemValue In targetValues
+        If CStr(itemValue) = normalizedValue Then Exit Sub
+    Next itemValue
+
+    targetValues.Add normalizedValue
+End Sub
+
+Private Function CollectionToUpperArray(ByVal sourceValues As Collection) As Variant
+    Dim result() As String
+    Dim i As Long
+
+    If sourceValues.Count = 0 Then
+        CollectionToUpperArray = Array()
+        Exit Function
+    End If
+
+    ReDim result(0 To sourceValues.Count - 1)
+    For i = 1 To sourceValues.Count
+        result(i - 1) = CStr(sourceValues(i))
+    Next i
+
+    CollectionToUpperArray = result
+End Function
+
+Private Function GetDictionaryItemsByHeader(ByVal headerText As String) As Variant
+    Dim wsDict As Worksheet
+    Dim headerCell As Range
+    Dim currentCell As Range
+    Dim result() As String
+    Dim itemCount As Long
+
+    Set wsDict = CommonUtilities.GetWorksheetSafe("Dictionaries")
+    If wsDict Is Nothing Then
+        GetDictionaryItemsByHeader = Empty
+        Exit Function
+    End If
+
+    Set headerCell = wsDict.Cells.Find(What:=headerText, After:=wsDict.Cells(1, 1), LookIn:=xlValues, LookAt:=xlWhole, MatchCase:=False)
+    If headerCell Is Nothing Then
+        GetDictionaryItemsByHeader = Empty
+        Exit Function
+    End If
+
+    Set currentCell = wsDict.Cells(headerCell.Row + 1, headerCell.Column)
+    Do While Trim$(CStr(currentCell.value)) <> ""
+        ReDim Preserve result(0 To itemCount)
+        result(itemCount) = Trim$(CStr(currentCell.value))
+        itemCount = itemCount + 1
+        Set currentCell = currentCell.Offset(1, 0)
+    Loop
+
+    If itemCount = 0 Then
+        GetDictionaryItemsByHeader = Empty
+    Else
+        GetDictionaryItemsByHeader = result
+    End If
+End Function
+
 Private Function FindCorrespondentColumn(Ws As Worksheet) As Long
     Dim i As Long
-    Dim HeaderNames As Variant
     Dim HeaderValue As String
+    Dim HeaderNames As Variant
+    Dim j As Long
     
-    HeaderNames = Array("CORRESPONDENT", "RECEIVED FROM", "ADDRESSEE", "SUPPLIER")
-    
+    HeaderNames = GetHeaderAliasCandidates()
     FindCorrespondentColumn = 0
     
     For i = 1 To 20
         HeaderValue = Trim(UCase(CStr(Ws.Cells(1, i).value)))
-        Dim j As Long
-        For j = 0 To UBound(HeaderNames)
+        For j = LBound(HeaderNames) To UBound(HeaderNames)
             If HeaderValue = CStr(HeaderNames(j)) Then
                 FindCorrespondentColumn = i
                 Exit Function
@@ -1416,6 +1625,7 @@ Private Function ParseUniversalDocument(Text As String) As ParsedNaryad
     Dim DocumentTypes(3) As String
     Dim i As Long
     Dim FoundType As String
+    Dim FoundKeyword As String
     
     result.OriginalText = Text
     result.IsValid = False
@@ -1425,12 +1635,15 @@ Private Function ParseUniversalDocument(Text As String) As ParsedNaryad
     DocumentTypes(2) = "CERTIFICATE"
     DocumentTypes(3) = "REQUEST"
     
-    For i = 0 To UBound(DocumentTypes)
-        If InStr(1, UCase(Text), DocumentTypes(i)) > 0 Then
-            FoundType = DocumentTypes(i)
-            Exit For
-        End If
-    Next i
+    If Not FindKeywordInSearchTable(Text, FoundKeyword, FoundType, DocumentTypes) Then
+        For i = 0 To UBound(DocumentTypes)
+            If InStr(1, UCase(Text), DocumentTypes(i), vbTextCompare) > 0 Then
+                FoundKeyword = DocumentTypes(i)
+                FoundType = DocumentTypes(i)
+                Exit For
+            End If
+        Next i
+    End If
     
     If FoundType = "" Then
         result.MatchDetails = LocalizationManager.GetText("Document type not found")
@@ -1439,7 +1652,7 @@ Private Function ParseUniversalDocument(Text As String) As ParsedNaryad
     End If
     
     result.DocumentType = FoundType
-    result.DocumentNumber = ExtractSubstringNumber(Text, FoundType)
+    result.DocumentNumber = ExtractSubstringNumber(Text, IIf(FoundKeyword <> "", FoundKeyword, FoundType))
     result.DocumentDate = ExtractSubstringDate(Text)
     
     If result.DocumentNumber <> "" And result.DocumentDate <> "" Then
@@ -1860,7 +2073,7 @@ Private Sub ExtractDateCandidates(Text As String, ByRef DateCandidates() As Date
         If Matches.Count > 0 Then
             For i = 0 To Matches.Count - 1
                 Set Match = Matches(i)
-                Call AddDateCandidate(DateCandidates, Count, Match.Value, Match.FirstIndex + 1, Match.Length)
+                Call AddDateCandidate(DateCandidates, Count, Match.value, Match.FirstIndex + 1, Match.Length)
             Next i
         End If
     End If
@@ -2275,28 +2488,43 @@ Private Function AnalyzeSupplierServiceMatch(OperComment As String, OperSupplier
 End Function
 
 Private Function ExtractServiceFromComment(Comment As String) As String
-    Dim Words() As String
-    Dim FirstWord As String
     Dim KnownServices As Variant
+    Dim DictionaryServices As Variant
     Dim i As Long
+    Dim candidate As String
+    Dim bestMatch As String
+    Dim commentUpper As String
     
     ExtractServiceFromComment = ""
+    If Trim$(Comment) = "" Then Exit Function
     
-    If Trim(Comment) = "" Then Exit Function
+    commentUpper = UCase$(Trim$(Comment))
+    DictionaryServices = GetDictionaryItemsByHeader("Services")
     
-    Words = Split(Trim(Comment), " ")
-    If UBound(Words) >= 0 Then
-        FirstWord = UCase(Trim(Words(0)))
-        
-        KnownServices = Array("MS", "VS", "PS", "TS", "IS", "SS", "AS", "GSM", "RTS", "VVS", "VMF", "RVSN")
-        
-        For i = 0 To UBound(KnownServices)
-            If FirstWord = CStr(KnownServices(i)) Then
-                ExtractServiceFromComment = FirstWord
-                Exit Function
+    If IsArray(DictionaryServices) Then
+        For i = LBound(DictionaryServices) To UBound(DictionaryServices)
+            candidate = Trim$(CStr(DictionaryServices(i)))
+            If candidate <> "" Then
+                If InStr(1, commentUpper, UCase$(candidate), vbTextCompare) > 0 Then
+                    If Len(candidate) > Len(bestMatch) Then bestMatch = candidate
+                End If
             End If
         Next i
     End If
+    
+    If bestMatch <> "" Then
+        ExtractServiceFromComment = bestMatch
+        Exit Function
+    End If
+    
+    KnownServices = Array("MS", "VS", "PS", "TS", "IS", "SS", "AS", "GSM", "RTS", "VVS", "VMF", "RVSN")
+    For i = 0 To UBound(KnownServices)
+        candidate = CStr(KnownServices(i))
+        If InStr(1, commentUpper, candidate, vbTextCompare) > 0 Then
+            ExtractServiceFromComment = candidate
+            Exit Function
+        End If
+    Next i
 End Function
 
 Private Function CheckNumberInComment(OperComment As String, DoverNumber As String) As Double
@@ -2419,4 +2647,5 @@ Public Sub QuickTest(TestNumber As String, TestDate As String, TestComment As St
         Debug.Print "  [X] NOT FOUND"
     End If
 End Sub
+
 
