@@ -950,7 +950,7 @@ Private Function ExtractNumberBeforeOt(Text As String, OtPos As Long) As String
         Next i
         
         If HasValidChar Then
-            ExtractNumberBeforeOt = CleanNumber
+            ExtractNumberBeforeOt = NormalizeDocumentNumberForMatch(CleanNumber)
             Exit Function
         End If
     End If
@@ -1164,7 +1164,7 @@ Private Function ExtractSubstringNumber(Text As String, DocumentType As String) 
         BetweenText = StripLocalizedNumberPrefix(BetweenText)
         
         If BetweenText <> "" Then
-            ExtractSubstringNumber = BetweenText
+            ExtractSubstringNumber = NormalizeDocumentNumberForMatch(BetweenText)
             Exit Function
         End If
     End If
@@ -1392,7 +1392,7 @@ Private Function FindBySubstringEnhanced(DoverData As ParsedNaryad, OperArray As
         OperCorrespondent = Trim(CStr(OperArray(i, 6)))
         
         If OperComment <> "" Then
-            HasNumber = (InStr(1, OperComment, DoverData.DocumentNumber, vbTextCompare) > 0)
+            HasNumber = (CheckNumberInComment(OperComment, DoverData.DocumentNumber) >= 40)
             HasDate = (InStr(1, OperComment, DoverData.DocumentDate, vbTextCompare) > 0)
             
             If Not HasDate Then
@@ -2477,6 +2477,11 @@ Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As
     Dim BestDateScore As Double
     Dim BestSupplierScore As Double
     Dim BestServiceScore As Double
+    Dim NumberOnlyCount As Long
+    Dim NumberOnlyRow As Long
+    Dim NumberOnlyOperationNumber As String
+    Dim NumberOnlyOperationDate As Date
+    Dim NumberOnlyScore As Double
     
     result.FoundMatch = False
     result.MatchScore = 0
@@ -2489,13 +2494,28 @@ Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As
         OperComment = Trim(CStr(OperData(i, 9)))
         OperSupplier = Trim(CStr(OperData(i, 6)))
         
-        If OperComment <> "" And OperSupplier <> "" Then
+        If OperComment <> "" Then
             NumberScore = CheckNumberInComment(OperComment, DoverData.DocumentNumber)
             DateScore = EvaluateDateSignal(OperComment, DoverData.DocumentDate)
             SupplierScore = EvaluateSupplierSignal(OperSupplier, DoverSupplier)
             ServiceScore = EvaluateServiceSignal(OperComment, DoverService)
             TotalScore = NumberScore + DateScore + SupplierScore + ServiceScore
             
+            If NumberScore >= 40 And DateScore = 0 And SupplierScore = 0 And ServiceScore = 0 And Not IsWeakDocumentNumber(DoverData.DocumentNumber) Then
+                NumberOnlyCount = NumberOnlyCount + 1
+                If NumberOnlyCount = 1 Then
+                    NumberOnlyRow = i + 1
+                    NumberOnlyOperationNumber = Trim$(CStr(OperData(i, 3)))
+                    NumberOnlyOperationDate = 0
+
+                    On Error Resume Next
+                    NumberOnlyOperationDate = CDate(OperData(i, 2))
+                    On Error GoTo 0
+
+                    NumberOnlyScore = NumberScore
+                End If
+            End If
+
             If NumberScore > 0 And (DateScore > 0 Or SupplierScore >= 25 Or ServiceScore > 0) Then
                 If TotalScore > BestScore Then
                     SecondScore = BestScore
@@ -2522,6 +2542,13 @@ Private Function FindBySupplierAndService(DoverData As ParsedNaryad, OperData As
         result.FoundMatch = True
         result.MatchScore = NormalizeReviewScore(BestScore)
         result.MatchDetails = BuildSecondPassDetails(BestNumberScore, BestDateScore, BestSupplierScore, BestServiceScore, CalculateCandidateGap(BestScore, SecondScore))
+    ElseIf NumberOnlyCount = 1 Then
+        result.FoundMatch = True
+        result.MatchScore = 45
+        result.OperationRow = NumberOnlyRow
+        result.OperationNumber = NumberOnlyOperationNumber
+        result.OperationDate = NumberOnlyOperationDate
+        result.MatchDetails = BuildNumberOnlyFallbackDetails(NumberOnlyScore)
     Else
         result.MatchDetails = LocalizationManager.GetText("supplier+service mismatch")
     End If
@@ -2690,17 +2717,93 @@ Private Function ExtractServiceFromComment(Comment As String) As String
 End Function
 
 Private Function CheckNumberInComment(OperComment As String, DoverNumber As String) As Double
+    Dim NormalizedComment As String
+    Dim NormalizedNumber As String
     Dim Score As Double
     
     Score = 0
+    NormalizedComment = NormalizeDocumentNumberForMatch(OperComment)
+    NormalizedNumber = NormalizeDocumentNumberForMatch(DoverNumber)
     
-    If InStr(1, OperComment, DoverNumber, vbTextCompare) > 0 Then
+    If NormalizedNumber = "" Or NormalizedComment = "" Then
+        CheckNumberInComment = 0
+        Exit Function
+    End If
+
+    If InStr(1, NormalizedComment, NormalizedNumber, vbTextCompare) > 0 Then
         Score = 40
-    ElseIf InStr(DoverNumber, "/") > 0 Or InStr(DoverNumber, "-") > 0 Then
-        Score = CheckPartialNumberMatch(OperComment, DoverNumber)
+    ElseIf InStr(NormalizedNumber, "/") > 0 Or InStr(NormalizedNumber, "-") > 0 Then
+        Score = CheckPartialNumberMatch(NormalizedComment, NormalizedNumber)
     End If
     
     CheckNumberInComment = Score
+End Function
+
+Private Function NormalizeDocumentNumberForMatch(ByVal InputText As String) As String
+    Dim result As String
+
+    result = UCase$(Trim$(InputText))
+    If result = "" Then Exit Function
+
+    result = Replace(result, vbCr, " ")
+    result = Replace(result, vbLf, " ")
+    result = Replace(result, vbTab, " ")
+    result = Replace(result, ChrW(8470), " ")
+    result = Replace(result, "#", " ")
+    result = Replace(result, ChrW(8211), "-")
+    result = Replace(result, ChrW(8212), "-")
+    result = Replace(result, ChrW(8722), "-")
+
+    Do While InStr(result, " /") > 0
+        result = Replace(result, " /", "/")
+    Loop
+    Do While InStr(result, "/ ") > 0
+        result = Replace(result, "/ ", "/")
+    Loop
+    Do While InStr(result, " -") > 0
+        result = Replace(result, " -", "-")
+    Loop
+    Do While InStr(result, "- ") > 0
+        result = Replace(result, "- ", "-")
+    Loop
+    Do While InStr(result, "  ") > 0
+        result = Replace(result, "  ", " ")
+    Loop
+
+    NormalizeDocumentNumberForMatch = Trim$(result)
+End Function
+
+Private Function IsWeakDocumentNumber(ByVal DocumentNumber As String) As Boolean
+    Dim NormalizedNumber As String
+    Dim DigitsOnly As String
+    Dim i As Long
+    Dim CurrentChar As String
+
+    NormalizedNumber = NormalizeDocumentNumberForMatch(DocumentNumber)
+    If NormalizedNumber = "" Then
+        IsWeakDocumentNumber = True
+        Exit Function
+    End If
+
+    For i = 1 To Len(NormalizedNumber)
+        CurrentChar = Mid$(NormalizedNumber, i, 1)
+        If CurrentChar >= "0" And CurrentChar <= "9" Then
+            DigitsOnly = DigitsOnly & CurrentChar
+        End If
+    Next i
+
+    If Len(DigitsOnly) <= 2 And InStr(NormalizedNumber, "/") = 0 And InStr(NormalizedNumber, "-") = 0 Then
+        IsWeakDocumentNumber = True
+        Exit Function
+    End If
+
+    If Len(DigitsOnly) <= 3 And Len(NormalizedNumber) <= 4 Then
+        IsWeakDocumentNumber = True
+    End If
+End Function
+
+Private Function BuildNumberOnlyFallbackDetails(ByVal NumberScore As Double) As String
+    BuildNumberOnlyFallbackDetails = "num:" & Format(NumberScore, "0") & " weak number-only candidate"
 End Function
 
 Private Function CheckSupplierMatch(OperSupplier As String, DoverSupplier As String) As Double
