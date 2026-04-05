@@ -1749,15 +1749,9 @@ End Function
 
 Private Sub AddThreePassResultColumns(Ws As Worksheet)
     Dim LastCol As Long
-    Dim i As Long
     Dim AlreadyExists As Boolean
     
-    For i = 1 To 25
-        If Trim(CStr(Ws.Cells(1, i).value)) = LocalizationManager.GetText("Three-pass search") Then
-            AlreadyExists = True
-            Exit For
-        End If
-    Next i
+    AlreadyExists = (FindResultColumn(Ws) > 0)
     
     If Not AlreadyExists Then
         LastCol = Ws.Cells(1, Ws.Columns.Count).End(xlToLeft).Column
@@ -1783,16 +1777,10 @@ Private Sub AddThreePassResultColumns(Ws As Worksheet)
 End Sub
 
 Private Sub WriteThreePassResult(Ws As Worksheet, Row As Long, MatchResult As MatchResult)
-    Dim ResultCol As Long
     Static CachedCol As Long
     
     If CachedCol = 0 Then
-        For ResultCol = 10 To 30
-            If Trim(CStr(Ws.Cells(1, ResultCol).value)) = LocalizationManager.GetText("Three-pass search") Then
-                CachedCol = ResultCol
-                Exit For
-            End If
-        Next ResultCol
+        CachedCol = FindResultColumn(Ws)
     End If
     
     If CachedCol > 0 Then
@@ -2375,11 +2363,39 @@ Private Function FindResultColumn(Ws As Worksheet) As Long
     FindResultColumn = 0
     
     For i = 1 To 30
-        If Trim(UCase(CStr(Ws.Cells(1, i).value))) = UCase(LocalizationManager.GetText("Three-pass search")) Then
+        If IsThreePassResultHeader(CStr(Ws.Cells(1, i).value)) Then
             FindResultColumn = i
             Exit For
         End If
     Next i
+End Function
+
+Private Function IsThreePassResultHeader(ByVal HeaderValue As String) As Boolean
+    Dim normalizedHeader As String
+    Dim localizedHeader As String
+
+    normalizedHeader = UCase$(Trim$(HeaderValue))
+    If normalizedHeader = "" Then Exit Function
+
+    localizedHeader = UCase$(Trim$(LocalizationManager.GetText("Three-pass search")))
+
+    If normalizedHeader = localizedHeader Then
+        IsThreePassResultHeader = True
+        Exit Function
+    End If
+
+    Select Case normalizedHeader
+        Case UCase$(GetLegacyThreePassSearchHeader()), UCase$(GetLegacyThreePassSearchHeaderYo())
+            IsThreePassResultHeader = True
+    End Select
+End Function
+
+Private Function GetLegacyThreePassSearchHeader() As String
+    GetLegacyThreePassSearchHeader = ChrW(1058) & ChrW(1088) & ChrW(1077) & ChrW(1093) & ChrW(1087) & ChrW(1088) & ChrW(1086) & ChrW(1093) & ChrW(1086) & ChrW(1076) & ChrW(1085) & ChrW(1099) & ChrW(1081) & ChrW(32) & ChrW(1087) & ChrW(1086) & ChrW(1080) & ChrW(1089) & ChrW(1082)
+End Function
+
+Private Function GetLegacyThreePassSearchHeaderYo() As String
+    GetLegacyThreePassSearchHeaderYo = ChrW(1058) & ChrW(1088) & ChrW(1105) & ChrW(1093) & ChrW(1087) & ChrW(1088) & ChrW(1086) & ChrW(1093) & ChrW(1086) & ChrW(1076) & ChrW(1085) & ChrW(1099) & ChrW(1081) & ChrW(32) & ChrW(1087) & ChrW(1086) & ChrW(1080) & ChrW(1089) & ChrW(1082)
 End Function
 
 Private Function ProcessSecondPassWithSupplierService(WsDover As Worksheet, OperData As Variant, NotFoundRows() As Long, NotFoundData() As ParsedNaryad, NotFoundCount As Long, ByRef Pass2NotFound() As Long, ByRef Pass2NotFoundData() As ParsedNaryad, ByRef Pass2Count As Long, CorrespondentColumn As Long) As Long

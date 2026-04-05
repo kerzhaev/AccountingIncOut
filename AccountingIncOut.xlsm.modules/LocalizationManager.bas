@@ -50,7 +50,7 @@ Private Function TryLoadLocalizationFromSource(ByVal sheetName As String, ByVal 
     If tblLoc.ListRows.Count > 0 And Not tblLoc.DataBodyRange Is Nothing Then
         For i = 1 To tblLoc.ListRows.Count
             key = Trim(CStr(tblLoc.DataBodyRange.Cells(i, 1).value))
-            val = Trim(CStr(tblLoc.DataBodyRange.Cells(i, 2).value))
+            val = CStr(tblLoc.DataBodyRange.Cells(i, 2).value)
 
             If key <> "" Then
                 If translationDict.Exists(key) Then
@@ -67,19 +67,23 @@ Private Function TryLoadLocalizationFromSource(ByVal sheetName As String, ByVal 
     Debug.Print "Localization initialized from " & sheetName & ". Loaded " & translationDict.Count & " keys."
 End Function
 
-Private Sub LogLocalizationIssue(ByVal message As String)
+Private Sub LogLocalizationIssue(ByVal Message As String)
     On Error GoTo SilentFail
 
-    Debug.Print message
-    Call SystemLogger.LogOperation("Localization", message, "WARNING", 0)
+    Debug.Print Message
+    Call SystemLogger.LogOperation("Localization", Message, "WARNING", 0)
     Exit Sub
 
 SilentFail:
-    Debug.Print "Localization log fallback: " & message
+    Debug.Print "Localization log fallback: " & Message
 End Sub
 
 ' Get translated text by key
 Public Function GetText(key As String, Optional defaultText As String = "") As String
+    Dim lookupKey As String
+
+    lookupKey = Trim$(CStr(key))
+
     If Not isInitialized Then Call InitializeLocalization
 
     If translationDict Is Nothing Or Not isInitialized Then
@@ -87,8 +91,8 @@ Public Function GetText(key As String, Optional defaultText As String = "") As S
         Exit Function
     End If
 
-    If translationDict.Exists(key) Then
-        GetText = translationDict(key)
+    If translationDict.Exists(lookupKey) Then
+        GetText = translationDict(lookupKey)
     Else
         GetText = IIf(defaultText <> "", defaultText, key)
     End If
