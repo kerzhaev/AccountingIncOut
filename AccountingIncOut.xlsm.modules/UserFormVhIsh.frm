@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} UserFormVhIsh 
-   Caption         =   "Система учёта входящих и исходящих"
-   ClientHeight    =   12045
+   Caption         =   "Accounting IncOut"
+   ClientHeight    =   11790
    ClientLeft      =   120
    ClientTop       =   465
-   ClientWidth     =   17940
+   ClientWidth     =   15210
    OleObjectBlob   =   "UserFormVhIsh.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -13,6 +13,12 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+
+
+
+
+
+
 
 
 
@@ -61,73 +67,6 @@ Public Sub SetFormRecordState(ByVal rowNumber As Long, ByVal newRecord As Boolea
     FormDataChanged = changed
 End Sub
 
-
-' Button to clear all execution marks
-Private Sub btnClearMarks_Click()
-    Call ProvodkaIntegrationModule.ClearAllProvodkaMarks
-    
-    ' Update current record in form
-    If RecordOperations.CurrentRecordRow > 0 Then
-        Call Me.LoadRecordToForm(RecordOperations.CurrentRecordRow)
-    End If
-End Sub
-
-Private Sub btnFindProvodka_Click()
-    ' Button to search posting for current record
-    Call ProvodkaIntegrationModule.FindProvodkaForCurrentRecord
-End Sub
-
-' Button for mass check of all records with 1C export
-Private Sub btnMassCheck_Click()
-    Dim response As VbMsgBoxResult
-    Dim StartTime As Double
-    
-    On Error GoTo MassCheckError
-    
-    ' User warning
-    response = MsgBox("[INFO] MASS RECORD CHECK" & vbCrLf & vbCrLf & _
-                     "This will check ALL records in the TableIncOut table" & vbCrLf & _
-                     "against the 1C export." & vbCrLf & vbCrLf & _
-                     "This may take some time." & vbCrLf & _
-                     "Continue?", _
-                     vbYesNo + vbQuestion, "Mass Check Confirmation")
-    
-    If response = vbNo Then Exit Sub
-    
-    ' Update status in form
-    Me.lblStatusBar.Caption = "Performing mass check..."
-    Me.btnMassCheck.Enabled = False
-    
-    StartTime = Timer
-    
-    ' Start mass processing
-    Call ProvodkaIntegrationModule.MassProcessWithFileSelection
-    
-    ' Restore UI
-    Me.btnMassCheck.Enabled = True
-    
-    ' If current record is open, update its display
-    If RecordOperations.CurrentRecordRow > 0 Then
-        Call Me.LoadRecordToForm(RecordOperations.CurrentRecordRow)
-    End If
-    
-    ' Update status
-    Me.lblStatusBar.Caption = "Mass check completed in " & _
-                             Format(Timer - StartTime, "0.0") & " sec."
-    
-    Exit Sub
-    
-MassCheckError:
-    Me.btnMassCheck.Enabled = True
-    Me.lblStatusBar.Caption = "Mass check error: " & Err.description
-    MsgBox "Error performing mass check:" & vbCrLf & Err.description, vbCritical, "Error"
-End Sub
-
-' Button to show matching statistics
-Private Sub btnShowStats_Click()
-    Call ProvodkaIntegrationModule.ShowMatchingStatistics
-End Sub
-
 Private Sub CommandButton1_Click()
 
 End Sub
@@ -139,6 +78,7 @@ End Sub
 Private Sub UserForm_Initialize()
     Call EnsureResponsiveLayoutInitialized
     Call LocalizationManager.TranslateForm(Me)
+    Call ApplyFormCaption
     Call InitializeForm
     Call LoadSettings
     Call ResizeAndCenterForm
@@ -271,10 +211,10 @@ End Sub
 ' Setup search results list
 Private Sub SetupSearchResultsList()
     With Me.lstSearchResults
-        .ColumnCount = 1
-        .ColumnWidths = "550"
+        .ColumnCount = 2
+        .ColumnWidths = "740;0"
         .Font.Name = "Segoe UI"
-        .Font.Size = 9
+        .Font.Size = 13
         .Width = 420
         .Height = 120
         .Visible = False
@@ -291,13 +231,13 @@ Private Sub LoadComboBoxData()
     On Error GoTo 0
     
     ' Load services
-    Call LoadComboData(Me.cmbSlujba, wsSettings, "A:A", "Services", "Службы")
+    Call LoadComboData(Me.cmbSlujba, wsSettings, "A:A", "Services", "пїЅпїЅпїЅпїЅпїЅпїЅ")
     
     ' Load document types to cmbVidDoc (4th column)
-    Call LoadComboData(Me.cmbVidDoc, wsSettings, "C:C", "Document Types", "Виды документов")
+    Call LoadComboData(Me.cmbVidDoc, wsSettings, "C:C", "Document Types", "пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")
     
     ' Load executors
-    Call LoadComboData(Me.cmbIspolnitel, wsSettings, "E:E", "Executors", "Исполнители")
+    Call LoadComboData(Me.cmbIspolnitel, wsSettings, "E:E", "Executors", "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")
     Call CacheComboSources
     
     ' Load data for cmbOtKogoPostupil autocomplete
@@ -1384,6 +1324,22 @@ Private Sub SetupNavigationButtons()
     End With
 End Sub
 
+Private Sub ApplyFormCaption()
+    Me.Caption = BuildFormCaption()
+End Sub
+
+Private Function BuildFormCaption() As String
+    BuildFormCaption = _
+        ChrW(&H421) & ChrW(&H438) & ChrW(&H441) & ChrW(&H442) & ChrW(&H435) & ChrW(&H43C) & ChrW(&H430) & " " & _
+        ChrW(&H443) & ChrW(&H447) & ChrW(&H435) & ChrW(&H442) & ChrW(&H430) & " " & _
+        ChrW(&H432) & ChrW(&H445) & ChrW(&H43E) & ChrW(&H434) & ChrW(&H44F) & ChrW(&H449) & ChrW(&H438) & ChrW(&H445) & " " & _
+        ChrW(&H438) & " " & _
+        ChrW(&H438) & ChrW(&H441) & ChrW(&H445) & ChrW(&H43E) & ChrW(&H434) & ChrW(&H44F) & ChrW(&H449) & ChrW(&H438) & ChrW(&H445)
+End Function
+
+
+
+
 Private Sub SetupStatusBar()
     With Me.lblStatusBar
         .BackColor = RGB(245, 245, 245)
@@ -1518,6 +1474,89 @@ Private Function MaxDouble(ByVal valueA As Double, ByVal valueB As Double) As Do
         MaxDouble = valueB
     End If
 End Function
+
+Private Sub ApplySearchAreaReadability()
+    On Error Resume Next
+
+    If Me.lstSearchResults.Font.Size < 12 Then Me.lstSearchResults.Font.Size = 13
+    If Me.txtSearch.Font.Size < 10.5 Then Me.txtSearch.Font.Size = 10.5
+    If Me.lblStatusBar.Font.Size < 9.5 Then Me.lblStatusBar.Font.Size = 9.5
+
+    On Error GoTo 0
+End Sub
+Private Sub ConstrainSearchAreaLayout()
+    Dim leftMargin As Single
+    Dim rightMargin As Single
+    Dim gap As Single
+    Dim contentWidth As Single
+    Dim desiredStatusWidth As Single
+    Dim minStatusWidth As Single
+    Dim minSearchWidth As Single
+    Dim availableWidth As Single
+    Dim searchWidth As Single
+    Dim listWidth As Single
+
+    On Error GoTo Cleanup
+
+    leftMargin = Me.txtSearch.Left
+    rightMargin = 18
+    gap = 12
+    minStatusWidth = 210
+    minSearchWidth = 360
+
+    contentWidth = Me.InsideWidth
+    If contentWidth <= 0 Then contentWidth = Me.ScrollWidth
+    If contentWidth <= 0 Then contentWidth = Me.Width
+    If contentWidth <= 0 Then Exit Sub
+
+    availableWidth = contentWidth - leftMargin - rightMargin
+    If availableWidth <= 0 Then Exit Sub
+
+    desiredStatusWidth = 252
+    If availableWidth < minSearchWidth + gap + desiredStatusWidth Then
+        desiredStatusWidth = availableWidth - gap - minSearchWidth
+        If desiredStatusWidth < minStatusWidth Then desiredStatusWidth = minStatusWidth
+    End If
+
+    searchWidth = availableWidth - gap - desiredStatusWidth
+    If searchWidth < minSearchWidth Then searchWidth = minSearchWidth
+    If searchWidth > availableWidth Then searchWidth = availableWidth
+
+    Me.txtSearch.Width = searchWidth
+    Me.lblStatusBar.Left = leftMargin + searchWidth + gap
+    Me.lblStatusBar.Width = contentWidth - rightMargin - Me.lblStatusBar.Left
+    If Me.lblStatusBar.Width < minStatusWidth Then Me.lblStatusBar.Width = minStatusWidth
+
+    listWidth = contentWidth - leftMargin - rightMargin
+    If listWidth < 420 Then listWidth = 420
+    Me.lstSearchResults.Left = leftMargin
+    Me.lstSearchResults.Width = listWidth
+
+    If Me.txtSearch.Left + Me.txtSearch.Width > contentWidth - rightMargin Then
+        Me.txtSearch.Width = contentWidth - rightMargin - Me.txtSearch.Left
+    End If
+
+    If Me.lblStatusBar.Left + Me.lblStatusBar.Width > contentWidth - rightMargin Then
+        Me.lblStatusBar.Width = contentWidth - rightMargin - Me.lblStatusBar.Left
+    End If
+
+    If Me.lstSearchResults.Left + Me.lstSearchResults.Width > contentWidth - rightMargin Then
+        Me.lstSearchResults.Width = contentWidth - rightMargin - Me.lstSearchResults.Left
+    End If
+
+    If Me.lstSearchResults.Width < 144 Then
+        Me.lstSearchResults.ColumnWidths = "120;0"
+    Else
+        Me.lstSearchResults.ColumnWidths = CStr(CLng(Me.lstSearchResults.Width - 24)) & ";0"
+    End If
+
+    Me.btnDelete.Left = Me.btnLast.Left + Me.btnLast.Width + 18
+    If Me.btnDelete.Left + Me.btnDelete.Width > contentWidth - rightMargin Then
+        Me.btnDelete.Left = contentWidth - rightMargin - Me.btnDelete.Width
+    End If
+
+Cleanup:
+End Sub
 Private Sub ResizeAndCenterForm()
     On Error GoTo ErrorHandler
 
@@ -1609,6 +1648,8 @@ Private Sub ResizeAndCenterForm()
     Me.Left = newLeft
     Me.Top = newTop
     Me.StartUpPosition = 0
+    Call ConstrainSearchAreaLayout
+    Call ApplySearchAreaReadability
 
     Exit Sub
 

@@ -7,17 +7,17 @@ Attribute VB_Name = "RecordOperations"
 
 Option Explicit
 
-' --- ÃËÎÁÀËÜÍÛÅ ÏÅÐÅÌÅÍÍÛÅ ÓÏÐÀÂËÅÍÈß ÄÀÍÍÛÌÈ ---
+' --- ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ---
 Public CurrentRecordRow As Long
 Public IsNewRecord As Boolean
 Public FormDataChanged As Boolean
 
-' --- ÏÅÐÅÌÅÍÍÛÅ ÏÎÈÑÊÀ ---
+' --- ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ---
 Private LastSearchText As String
 Private SearchResultsVisible As Boolean
 
 ' =====================================================================
-' 1. ÁËÎÊ ÓÏÐÀÂËÅÍÈß ÄÀÍÍÛÌÈ (DATA MANAGEMENT)
+' 1. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (DATA MANAGEMENT)
 ' =====================================================================
 
 Public Sub SaveCurrentRecord()
@@ -336,7 +336,7 @@ CannotDuplicate:
 End Function
 
 ' =====================================================================
-' 2. ÁËÎÊ ÍÀÂÈÃÀÖÈÈ (NAVIGATION)
+' 2. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (NAVIGATION)
 ' =====================================================================
 
 Public Sub NavigateToRecord(rowNumber As Long)
@@ -568,7 +568,7 @@ End Sub
 
 
 ' =====================================================================
-' 3. ÁËÎÊ ÏÎÈÑÊÀ (SEARCH)
+' 3. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (SEARCH)
 ' =====================================================================
 
 Public Sub PerformSearch()
@@ -660,7 +660,8 @@ Private Sub AddImprovedSearchResult(rowNum As Long, tbl As ListObject)
     With UserFormVhIsh.lstSearchResults
         .AddItem ResultText
         If .ListCount > 0 Then
-           .List(.ListCount - 1, 0) = ResultText & Chr(1) & CStr(rowNum)
+            .List(.ListCount - 1, 0) = ResultText
+            .List(.ListCount - 1, 1) = CStr(rowNum)
         End If
     End With
 AddError:
@@ -672,7 +673,11 @@ Private Sub DisplaySearchResults(FoundCount As Integer)
             .lstSearchResults.Visible = True
             SearchResultsVisible = True
             Call AutoResizeSearchResultsWidth
-            .lstSearchResults.Height = 120
+            .lstSearchResults.ListIndex = -1
+            On Error Resume Next
+            .lstSearchResults.TopIndex = 0
+            On Error GoTo 0
+            .Repaint
             .lblStatusBar.Caption = LocalizationManager.GetText("Found: ") & FoundCount & LocalizationManager.GetText(" records | ") & _
                                     LocalizationManager.GetText("Navigation: ^v or click to jump | ") & _
                                     LocalizationManager.GetText("Search remains active")
@@ -685,29 +690,18 @@ Private Sub DisplaySearchResults(FoundCount As Integer)
 End Sub
 
 Private Sub AutoResizeSearchResultsWidth()
-    Dim maxWidth As Single, textWidth As Single, i As Long
-    Dim testText As String, minWidth As Single, maxAllowedWidth As Single
+    Dim visibleWidth As Single
     
     On Error GoTo ResizeError
-    minWidth = 420
-    maxAllowedWidth = 800
-    maxWidth = minWidth
     
     With UserFormVhIsh.lstSearchResults
-        For i = 0 To .ListCount - 1
-            testText = .List(i, 0)
-            If InStr(testText, Chr(1)) > 0 Then testText = Left(testText, InStr(testText, Chr(1)) - 1)
-            textWidth = CalculateTextWidth(testText, .Font.Name, .Font.Size)
-            If textWidth + 20 > maxWidth Then maxWidth = textWidth + 20
-        Next i
-        If maxWidth < minWidth Then maxWidth = minWidth
-        If maxWidth > maxAllowedWidth Then maxWidth = maxAllowedWidth
-        .Width = maxWidth
-        .ColumnWidths = CStr(maxWidth - 10)
+        visibleWidth = .Width - 24
+        If visibleWidth < 120 Then visibleWidth = 120
+        .ColumnWidths = CStr(visibleWidth) & ";0"
     End With
     Exit Sub
 ResizeError:
-    UserFormVhIsh.lstSearchResults.Width = minWidth
+    UserFormVhIsh.lstSearchResults.ColumnWidths = "120;0"
 End Sub
 
 Private Function CalculateTextWidth(Text As String, fontName As String, fontSize As Single) As Single
@@ -719,14 +713,12 @@ WidthError:
 End Function
 
 Public Sub SelectSearchResult()
-    Dim selectedRow As Long, resultData As String, parts As Variant
+    Dim selectedRow As Long
     On Error GoTo SelectError
     With UserFormVhIsh.lstSearchResults
         If .ListIndex >= 0 Then
-            resultData = .List(.ListIndex, 0)
-            parts = Split(resultData, Chr(1))
-            If UBound(parts) >= 1 Then
-                selectedRow = CLng(parts(1))
+            If Trim$(CStr(.List(.ListIndex, 1))) <> "" Then
+                selectedRow = CLng(.List(.ListIndex, 1))
                 Call NavigateToRecord(selectedRow)
                 UserFormVhIsh.lblStatusBar.Caption = LocalizationManager.GetText("Jump to record No.") & selectedRow & " | " & _
                                                      LocalizationManager.GetText("Found: ") & .ListCount & LocalizationManager.GetText(" records | ") & _
