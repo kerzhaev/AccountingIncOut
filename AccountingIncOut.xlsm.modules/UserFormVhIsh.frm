@@ -16,6 +16,7 @@ Attribute VB_Exposed = False
 
 
 
+
 '==============================================
 ' FORM MANAGEMENT MODULE "IncOut" - UserFormVhIsh
 ' Purpose: Fully functional form for adding, editing, and searching records
@@ -48,6 +49,11 @@ Private IsComboFilterBusy As Boolean
 Private ServiceItems As Variant
 Private DocTypeItems As Variant
 Private ExecutorItems As Variant
+Private DesignFormWidth As Single
+Private DesignFormHeight As Single
+Private ControlLayoutCache As Object
+Private Const MIN_FORM_SCALE As Double = 0.85
+Private Const MIN_FONT_SIZE As Double = 8#
 
 Public Sub SetFormRecordState(ByVal rowNumber As Long, ByVal newRecord As Boolean, Optional ByVal changed As Boolean = False)
     CurrentRecordRow = rowNumber
@@ -131,15 +137,16 @@ End Sub
 ' ===============================================
 
 Private Sub UserForm_Initialize()
-    ' Масштабирование и центрирование
-    Call ResizeAndCenterForm
-    
-    ' АВТОМАТИЧЕСКИЙ ПЕРЕВОД ВСЕГО ИНТЕРФЕЙСА ФОРМЫ
+    Call EnsureResponsiveLayoutInitialized
     Call LocalizationManager.TranslateForm(Me)
-    
     Call InitializeForm
     Call LoadSettings
+    Call ResizeAndCenterForm
     Call RecordOperations.UpdateStatusBar
+End Sub
+
+Private Sub UserForm_Activate()
+    Call ResizeAndCenterForm
 End Sub
 
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
@@ -224,7 +231,7 @@ Private Sub InitializeForm()
     Me.txtSearch.Width = 300
     Me.txtSearch.Height = 24
     
-    ' Динамический перевод статуса
+    ' Initialize autocomplete data
     Me.lblStatusBar.Caption = LocalizationManager.GetText("Ready to work. Hotkeys: Ctrl+S (save), Ctrl+N (new), Ctrl+F (search)")
 End Sub
 
@@ -374,7 +381,7 @@ Private Sub CacheComboSources()
 End Sub
 
 Private Function GetComboItems(TargetCombo As MSForms.ComboBox) As Variant
-    Dim Result() As String
+    Dim result() As String
     Dim i As Long
 
     If TargetCombo.ListCount = 0 Then
@@ -382,13 +389,13 @@ Private Function GetComboItems(TargetCombo As MSForms.ComboBox) As Variant
         Exit Function
     End If
 
-    ReDim Result(0 To TargetCombo.ListCount - 1)
+    ReDim result(0 To TargetCombo.ListCount - 1)
 
     For i = 0 To TargetCombo.ListCount - 1
-        Result(i) = CStr(TargetCombo.List(i))
+        result(i) = CStr(TargetCombo.List(i))
     Next i
 
-    GetComboItems = Result
+    GetComboItems = result
 End Function
 
 Private Sub ResetComboList(TargetCombo As MSForms.ComboBox, SourceItems As Variant)
@@ -481,8 +488,8 @@ Private Function FindHeaderCell(SourceSheet As Worksheet, SourceColumn As String
 End Function
 
 Private Sub LoadComboData(TargetCombo As MSForms.ComboBox, SourceSheet As Worksheet, SourceColumn As String, PrimaryHeader As String, Optional SecondaryHeader As String = "")
-    Dim HeaderCell As Range
-    Dim CurrentCell As Range
+    Dim headerCell As Range
+    Dim currentCell As Range
     Dim StartRow As Long
 
     On Error GoTo LoadError
@@ -493,17 +500,17 @@ Private Sub LoadComboData(TargetCombo As MSForms.ComboBox, SourceSheet As Worksh
         .Clear
     End With
 
-    Set HeaderCell = FindHeaderCell(SourceSheet, SourceColumn, PrimaryHeader, SecondaryHeader)
-    If HeaderCell Is Nothing Then
+    Set headerCell = FindHeaderCell(SourceSheet, SourceColumn, PrimaryHeader, SecondaryHeader)
+    If headerCell Is Nothing Then
         Exit Sub
     End If
 
-    StartRow = HeaderCell.Row + 1
-    Set CurrentCell = SourceSheet.Cells(StartRow, HeaderCell.Column)
+    StartRow = headerCell.Row + 1
+    Set currentCell = SourceSheet.Cells(StartRow, headerCell.Column)
 
-    Do While Trim(CStr(CurrentCell.Value)) <> ""
-        TargetCombo.AddItem CStr(CurrentCell.Value)
-        Set CurrentCell = CurrentCell.Offset(1, 0)
+    Do While Trim(CStr(currentCell.value)) <> ""
+        TargetCombo.AddItem CStr(currentCell.value)
+        Set currentCell = currentCell.Offset(1, 0)
     Loop
 
     TargetCombo.ListIndex = -1
@@ -1427,83 +1434,186 @@ ErrorHandler:
     GetScreenHeight = 1080 ' Default
 End Function
 
+Private Sub EnsureResponsiveLayoutInitialized()
+    If DesignFormWidth <= 0 Then DesignFormWidth = Me.Width
+    If DesignFormHeight <= 0 Then DesignFormHeight = Me.Height
+
+    If ControlLayoutCache Is Nothing Then
+        Set ControlLayoutCache = CreateObject("Scripting.Dictionary")
+        Call CaptureContainerLayout(Me, "FORM")
+    End If
+End Sub
+
+Private Sub CaptureContainerLayout(ByVal container As Object, ByVal containerKey As String)
+    Dim ctrl As Object
+    Dim ctrlKey As String
+
+    For Each ctrl In container.Controls
+        ctrlKey = containerKey & "." & ctrl.Name
+        ControlLayoutCache(ctrlKey) = Array(CDbl(ctrl.Left), CDbl(ctrl.Top), CDbl(ctrl.Width), CDbl(ctrl.Height), GetControlFontSize(ctrl))
+
+        If ControlHasChildren(ctrl) Then
+            Call CaptureContainerLayout(ctrl, ctrlKey)
+        End If
+    Next ctrl
+End Sub
+
+Private Sub ApplyContainerScale(ByVal container As Object, ByVal containerKey As String, ByVal scaleFactor As Double)
+    Dim ctrl As Object
+    Dim ctrlKey As String
+
+    For Each ctrl In container.Controls
+        ctrlKey = containerKey & "." & ctrl.Name
+        Call ApplyControlScale(ctrl, ctrlKey, scaleFactor)
+
+        If ControlHasChildren(ctrl) Then
+            Call ApplyContainerScale(ctrl, ctrlKey, scaleFactor)
+        End If
+    Next ctrl
+End Sub
+
+Private Sub ApplyControlScale(ByVal ctrl As Object, ByVal ctrlKey As String, ByVal scaleFactor As Double)
+    Dim layout As Variant
+    Dim scaledFontSize As Double
+
+    If ControlLayoutCache Is Nothing Then Exit Sub
+    If Not ControlLayoutCache.Exists(ctrlKey) Then Exit Sub
+
+    layout = ControlLayoutCache(ctrlKey)
+
+    ctrl.Left = CSng(layout(0) * scaleFactor)
+    ctrl.Top = CSng(layout(1) * scaleFactor)
+    ctrl.Width = CSng(layout(2) * scaleFactor)
+    ctrl.Height = CSng(layout(3) * scaleFactor)
+
+    scaledFontSize = CDbl(layout(4))
+    If scaledFontSize > 0 Then
+        scaledFontSize = MaxDouble(MIN_FONT_SIZE, scaledFontSize * scaleFactor)
+        Call SetControlFontSize(ctrl, scaledFontSize)
+    End If
+End Sub
+
+Private Function GetControlFontSize(ByVal ctrl As Object) As Double
+    On Error Resume Next
+    GetControlFontSize = CDbl(ctrl.Font.Size)
+    On Error GoTo 0
+End Function
+
+Private Sub SetControlFontSize(ByVal ctrl As Object, ByVal fontSize As Double)
+    On Error Resume Next
+    ctrl.Font.Size = fontSize
+    On Error GoTo 0
+End Sub
+
+Private Function ControlHasChildren(ByVal ctrl As Object) As Boolean
+    On Error Resume Next
+    ControlHasChildren = (ctrl.Controls.Count > 0)
+    On Error GoTo 0
+End Function
+
+Private Function MaxDouble(ByVal valueA As Double, ByVal valueB As Double) As Double
+    If valueA > valueB Then
+        MaxDouble = valueA
+    Else
+        MaxDouble = valueB
+    End If
+End Function
 Private Sub ResizeAndCenterForm()
     On Error GoTo ErrorHandler
-    
+
     Dim screenWidth As Long
     Dim screenHeight As Long
-    Dim formWidth As Single
-    Dim formHeight As Single
-    Dim scaleFactor As Double
-    Dim minScaleFactor As Double
     Dim originalWidth As Single
     Dim originalHeight As Single
+    Dim viewportWidth As Single
+    Dim viewportHeight As Single
+    Dim scaledContentWidth As Single
+    Dim scaledContentHeight As Single
     Dim newLeft As Single
     Dim newTop As Single
     Dim usableScreenWidth As Single
     Dim usableScreenHeight As Single
-    
-    originalWidth = Me.Width
-    originalHeight = Me.Height
-    
-    screenWidth = GetScreenWidth()
-    screenHeight = GetScreenHeight()
-    
     Dim screenWidthPoints As Double
     Dim screenHeightPoints As Double
+    Dim availableScale As Double
+    Dim heightScale As Double
+    Dim appliedScale As Double
+    Dim needsHorizontalScroll As Boolean
+    Dim needsVerticalScroll As Boolean
+    Dim scrollMode As fmScrollBars
+
+    Call EnsureResponsiveLayoutInitialized
+
+    originalWidth = DesignFormWidth
+    originalHeight = DesignFormHeight
+
+    screenWidth = GetScreenWidth()
+    screenHeight = GetScreenHeight()
+
     screenWidthPoints = screenWidth * (72 / 96)
     screenHeightPoints = screenHeight * (72 / 96)
-    
-    usableScreenWidth = screenWidthPoints * 0.9
-    usableScreenHeight = screenHeightPoints * 0.9
-    
-    If originalWidth <= usableScreenWidth And originalHeight <= usableScreenHeight Then
-        formWidth = originalWidth
-        formHeight = originalHeight
-        scaleFactor = 1#
-    Else
-        Dim scaleX As Double
-        Dim scaleY As Double
-        scaleX = usableScreenWidth / originalWidth
-        scaleY = usableScreenHeight / originalHeight
-        
-        scaleFactor = Application.WorksheetFunction.Min(scaleX, scaleY)
-        
-        minScaleFactor = 0.75
-        If scaleFactor < minScaleFactor Then scaleFactor = minScaleFactor
-        
-        formWidth = originalWidth * scaleFactor
-        formHeight = originalHeight * scaleFactor
-        
-        If formWidth > usableScreenWidth Then
-            formWidth = usableScreenWidth
-            scaleFactor = formWidth / originalWidth
-            formHeight = originalHeight * scaleFactor
-        End If
-        If formHeight > usableScreenHeight Then
-            formHeight = usableScreenHeight
-            scaleFactor = formHeight / originalHeight
-            formWidth = originalWidth * scaleFactor
-        End If
+
+    usableScreenWidth = screenWidthPoints * 0.92
+    usableScreenHeight = screenHeightPoints * 0.88
+
+    availableScale = 1#
+    If originalWidth > 0 Then availableScale = usableScreenWidth / originalWidth
+
+    heightScale = 1#
+    If originalHeight > 0 Then heightScale = usableScreenHeight / originalHeight
+    If heightScale < availableScale Then availableScale = heightScale
+    If availableScale > 1# Then availableScale = 1#
+
+    appliedScale = availableScale
+    If appliedScale < MIN_FORM_SCALE Then appliedScale = MIN_FORM_SCALE
+
+    scaledContentWidth = CSng(originalWidth * appliedScale)
+    scaledContentHeight = CSng(originalHeight * appliedScale)
+
+    viewportWidth = scaledContentWidth
+    viewportHeight = scaledContentHeight
+    If viewportWidth > usableScreenWidth Then viewportWidth = usableScreenWidth
+    If viewportHeight > usableScreenHeight Then viewportHeight = usableScreenHeight
+
+    needsHorizontalScroll = (scaledContentWidth > viewportWidth)
+    needsVerticalScroll = (scaledContentHeight > viewportHeight)
+
+    scrollMode = fmScrollBarsNone
+    If needsHorizontalScroll And needsVerticalScroll Then
+        scrollMode = fmScrollBarsBoth
+    ElseIf needsHorizontalScroll Then
+        scrollMode = fmScrollBarsHorizontal
+    ElseIf needsVerticalScroll Then
+        scrollMode = fmScrollBarsVertical
     End If
-    
-    Me.Width = formWidth
-    Me.Height = formHeight
-    
-    newLeft = (screenWidthPoints - formWidth) / 2
-    newTop = (screenHeightPoints - formHeight) / 2
-    
+
+    Call ApplyContainerScale(Me, "FORM", appliedScale)
+
+    Me.Width = viewportWidth
+    Me.Height = viewportHeight
+    Me.ScrollBars = scrollMode
+    Me.KeepScrollBarsVisible = scrollMode
+    Me.ScrollLeft = 0
+    Me.ScrollTop = 0
+    Me.ScrollWidth = scaledContentWidth
+    Me.ScrollHeight = scaledContentHeight
+
+    newLeft = (screenWidthPoints - viewportWidth) / 2
+    newTop = (screenHeightPoints - viewportHeight) / 2
+
     If newLeft < 0 Then newLeft = 0
     If newTop < 0 Then newTop = 0
-    If newLeft + formWidth > screenWidthPoints Then newLeft = screenWidthPoints - formWidth
-    If newTop + formHeight > screenHeightPoints Then newTop = screenHeightPoints - formHeight
-    
+    If newLeft + viewportWidth > screenWidthPoints Then newLeft = screenWidthPoints - viewportWidth
+    If newTop + viewportHeight > screenHeightPoints Then newTop = screenHeightPoints - viewportHeight
+
     Me.Left = newLeft
     Me.Top = newTop
-    
+    Me.StartUpPosition = 0
+
     Exit Sub
-    
+
 ErrorHandler:
-    Me.StartUpPosition = 1 ' CenterOwner
+    Me.StartUpPosition = 1
 End Sub
+
 
