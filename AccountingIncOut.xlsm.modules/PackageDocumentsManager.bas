@@ -70,6 +70,34 @@ OpenError:
     MsgBox LocalizationManager.GetText("Error opening package documents: ") & Err.description, vbCritical, LocalizationManager.GetText("Package Documents")
 End Sub
 
+Public Function PackageHasChildDocuments(ByVal parentRowIndex As Long) As Boolean
+    Dim parentTable As ListObject
+
+    Set parentTable = GetParentTable()
+    If parentTable Is Nothing Then Exit Function
+    If parentRowIndex < 1 Or parentRowIndex > parentTable.ListRows.Count Then Exit Function
+
+    PackageHasChildDocuments = (LCase$(Trim$(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_HAS_CHILD_DOCUMENTS))) = "true")
+End Function
+
+Public Function GetPackageChildDocumentCount(ByVal parentRowIndex As Long) As Long
+    Dim parentTable As ListObject
+    Dim childCountText As String
+
+    Set parentTable = GetParentTable()
+    If parentTable Is Nothing Then Exit Function
+    If parentRowIndex < 1 Or parentRowIndex > parentTable.ListRows.Count Then Exit Function
+
+    childCountText = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_CHILD_DOCUMENTS_COUNT)
+    If IsNumeric(childCountText) Then
+        GetPackageChildDocumentCount = CLng(childCountText)
+    End If
+End Function
+
+Public Function ShouldUseChildDocumentsForMatching(ByVal parentRowIndex As Long) As Boolean
+    ShouldUseChildDocumentsForMatching = (GetPackageChildDocumentCount(parentRowIndex) > 0)
+End Function
+
 Public Sub RefreshPackageIndicatorsOnMainForm(ByVal frm As Object, ByVal parentRowIndex As Long)
     Dim parentTable As ListObject
     Dim childCount As String
@@ -834,6 +862,8 @@ Private Function TranslatePrimaryMatchStatus(ByVal statusValue As String) As Str
             TranslatePrimaryMatchStatus = LocalizationManager.GetText("Not checked")
     End Select
 End Function
+
+
 
 
 
