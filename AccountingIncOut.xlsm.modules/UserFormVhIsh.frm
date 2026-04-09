@@ -23,6 +23,7 @@ Attribute VB_Exposed = False
 
 
 
+
 '==============================================
 ' FORM MANAGEMENT MODULE "IncOut" - UserFormVhIsh
 ' Purpose: Fully functional form for adding, editing, and searching records
@@ -60,6 +61,26 @@ Private DesignFormHeight As Single
 Private ControlLayoutCache As Object
 Private Const MIN_FORM_SCALE As Double = 0.85
 Private Const MIN_FONT_SIZE As Double = 8#
+
+Private Sub btnPackageDocuments_Click()
+    Dim response As VbMsgBoxResult
+
+    If IsNewRecord Or FormDataChanged Then
+        response = MsgBox(LocalizationManager.GetText("Save the current record before editing package documents?"), vbYesNo + vbQuestion, LocalizationManager.GetText("Package Documents"))
+        If response <> vbYes Then Exit Sub
+
+        Call SaveCurrentRecord
+        If IsNewRecord Then Exit Sub
+    End If
+
+    If CurrentRecordRow < 1 Then
+        MsgBox LocalizationManager.GetText("Unable to determine the current record row."), vbExclamation, LocalizationManager.GetText("Package Documents"))
+        Exit Sub
+    End If
+
+    Call OpenPackageDocumentsForParentRow(CurrentRecordRow)
+End Sub
+
 
 Public Sub SetFormRecordState(ByVal rowNumber As Long, ByVal newRecord As Boolean, Optional ByVal changed As Boolean = False)
     CurrentRecordRow = rowNumber
@@ -128,10 +149,10 @@ Private Sub UserForm_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift
     ElseIf KeyCode = vbKeyF3 Then ' F3 = Next search result
         If Me.lstSearchResults.Visible And Me.lstSearchResults.ListCount > 0 Then
             With Me.lstSearchResults
-                If .ListIndex < .ListCount - 1 Then
-                    .ListIndex = .ListIndex + 1
+                If .listIndex < .ListCount - 1 Then
+                    .listIndex = .listIndex + 1
                 Else
-                    .ListIndex = 0
+                    .listIndex = 0
                 End If
             End With
         End If
@@ -193,7 +214,7 @@ Private Sub SetupNewComboBoxes()
         .MatchRequired = False
         .AddItem "Inc."
         .AddItem "Out."
-        .ListIndex = -1
+        .listIndex = -1
     End With
     
     ' Setup cmbStatusPodtverjdenie
@@ -204,7 +225,7 @@ Private Sub SetupNewComboBoxes()
         .AddItem ""
         .AddItem "Confirmed"
         .AddItem "Sent Out."
-        .ListIndex = 0
+        .listIndex = 0
     End With
 End Sub
 
@@ -302,7 +323,7 @@ Private Sub LoadAutoCompleteData()
         If Trim(CurrentValue) <> "" Then
             .value = CurrentValue
         Else
-            .ListIndex = -1
+            .listIndex = -1
         End If
     End With
     
@@ -453,7 +474,7 @@ Private Sub LoadComboData(TargetCombo As MSForms.ComboBox, SourceSheet As Worksh
         Set currentCell = currentCell.Offset(1, 0)
     Loop
 
-    TargetCombo.ListIndex = -1
+    TargetCombo.listIndex = -1
     Exit Sub
 
 LoadError:
@@ -535,7 +556,7 @@ Private Sub txtSearch_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shif
         Call ClearSearch
     ElseIf KeyCode = vbKeyReturn Then
         If Me.lstSearchResults.Visible And Me.lstSearchResults.ListCount > 0 Then
-            Me.lstSearchResults.ListIndex = 0
+            Me.lstSearchResults.listIndex = 0
             Call SelectSearchResult
         End If
     ElseIf KeyCode = vbKeyDown Then
@@ -1011,36 +1032,36 @@ Private Function ValidateRequiredFieldsConditional() As Boolean
 End Function
 
 ' Write form data to table
-Private Sub WriteFormDataToTable(tbl As ListObject, RowIndex As Long)
+Private Sub WriteFormDataToTable(tbl As ListObject, rowIndex As Long)
     On Error GoTo WriteError
     
-    tbl.DataBodyRange.Cells(RowIndex, 1).value = RowIndex
-    tbl.DataBodyRange.Cells(RowIndex, 2).value = Me.cmbSlujba.value
-    tbl.DataBodyRange.Cells(RowIndex, 3).value = Me.cmbVidDocumenta.value
-    tbl.DataBodyRange.Cells(RowIndex, 4).value = Me.cmbVidDoc.value
-    tbl.DataBodyRange.Cells(RowIndex, 5).value = Me.txtNomerDoc.Text
+    tbl.DataBodyRange.Cells(rowIndex, 1).value = rowIndex
+    tbl.DataBodyRange.Cells(rowIndex, 2).value = Me.cmbSlujba.value
+    tbl.DataBodyRange.Cells(rowIndex, 3).value = Me.cmbVidDocumenta.value
+    tbl.DataBodyRange.Cells(rowIndex, 4).value = Me.cmbVidDoc.value
+    tbl.DataBodyRange.Cells(rowIndex, 5).value = Me.txtNomerDoc.Text
     
     If IsNumeric(Me.txtSummaDoc.Text) Then
-        tbl.DataBodyRange.Cells(RowIndex, 6).value = CDbl(Me.txtSummaDoc.Text)
+        tbl.DataBodyRange.Cells(rowIndex, 6).value = CDbl(Me.txtSummaDoc.Text)
     Else
-        tbl.DataBodyRange.Cells(RowIndex, 6).value = 0
+        tbl.DataBodyRange.Cells(rowIndex, 6).value = 0
     End If
     
-    tbl.DataBodyRange.Cells(RowIndex, 7).value = Me.txtVhFRP.Text
-    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 8), Me.txtDataVhFRP.Text)
-    tbl.DataBodyRange.Cells(RowIndex, 9).value = Me.cmbOtKogoPostupil.value
-    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 10), Me.txtDataPeredachi.Text)
-    tbl.DataBodyRange.Cells(RowIndex, 11).value = Me.cmbIspolnitel.value
-    tbl.DataBodyRange.Cells(RowIndex, 12).value = Me.txtNomerIshVSlujbu.Text
-    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 13), Me.txtDataIshVSlujbu.Text)
-    tbl.DataBodyRange.Cells(RowIndex, 14).value = Me.txtNomerVozvrata.Text
-    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 15), Me.txtDataVozvrata.Text)
-    tbl.DataBodyRange.Cells(RowIndex, 16).value = Me.txtNomerIshKonvert.Text
-    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 17), Me.txtDataIshKonvert.Text)
-    tbl.DataBodyRange.Cells(RowIndex, 18).value = Me.txtOtmetkaIspolnenie.Text
-    tbl.DataBodyRange.Cells(RowIndex, 19).value = Me.cmbStatusPodtverjdenie.value
-    tbl.DataBodyRange.Cells(RowIndex, 20).value = Me.txtNaryadInfo.Text
-    Call ApplyPackageDefaultsToParentRow(tbl, RowIndex)
+    tbl.DataBodyRange.Cells(rowIndex, 7).value = Me.txtVhFRP.Text
+    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(rowIndex, 8), Me.txtDataVhFRP.Text)
+    tbl.DataBodyRange.Cells(rowIndex, 9).value = Me.cmbOtKogoPostupil.value
+    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(rowIndex, 10), Me.txtDataPeredachi.Text)
+    tbl.DataBodyRange.Cells(rowIndex, 11).value = Me.cmbIspolnitel.value
+    tbl.DataBodyRange.Cells(rowIndex, 12).value = Me.txtNomerIshVSlujbu.Text
+    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(rowIndex, 13), Me.txtDataIshVSlujbu.Text)
+    tbl.DataBodyRange.Cells(rowIndex, 14).value = Me.txtNomerVozvrata.Text
+    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(rowIndex, 15), Me.txtDataVozvrata.Text)
+    tbl.DataBodyRange.Cells(rowIndex, 16).value = Me.txtNomerIshKonvert.Text
+    Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(rowIndex, 17), Me.txtDataIshKonvert.Text)
+    tbl.DataBodyRange.Cells(rowIndex, 18).value = Me.txtOtmetkaIspolnenie.Text
+    tbl.DataBodyRange.Cells(rowIndex, 19).value = Me.cmbStatusPodtverjdenie.value
+    tbl.DataBodyRange.Cells(rowIndex, 20).value = Me.txtNaryadInfo.Text
+    Call ApplyPackageDefaultsToParentRow(tbl, rowIndex)
     
     Exit Sub
     
@@ -1064,7 +1085,7 @@ Private Sub UpdateProvodkaIndicator()
     End If
 End Sub
 
-Public Sub LoadRecordToForm(RowIndex As Long)
+Public Sub LoadRecordToForm(rowIndex As Long)
     Dim wsData As Worksheet
     Dim tblData As ListObject
     
@@ -1073,35 +1094,35 @@ Public Sub LoadRecordToForm(RowIndex As Long)
     Set wsData = ThisWorkbook.Worksheets("IncOut")
     Set tblData = wsData.ListObjects("TableIncOut")
     
-    If RowIndex < 1 Or RowIndex > tblData.ListRows.Count Then
+    If rowIndex < 1 Or rowIndex > tblData.ListRows.Count Then
         Exit Sub
     End If
     
     IsNewRecord = False
-    CurrentRecordRow = RowIndex
+    CurrentRecordRow = rowIndex
     
-    Me.txtNomerPP.Text = CStr(RowIndex)
-    Me.cmbSlujba.value = CStr(tblData.DataBodyRange.Cells(RowIndex, 2).value)
-    Me.cmbVidDocumenta.value = CStr(tblData.DataBodyRange.Cells(RowIndex, 3).value)
-    Me.cmbVidDoc.value = CStr(tblData.DataBodyRange.Cells(RowIndex, 4).value)
-    Me.txtNomerDoc.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 5).value)
-    Me.txtSummaDoc.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 6).value)
-    Me.txtVhFRP.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 7).value)
-    Me.txtDataVhFRP.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 8))
-    Me.cmbOtKogoPostupil.value = CStr(tblData.DataBodyRange.Cells(RowIndex, 9).value)
-    Me.txtDataPeredachi.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 10))
-    Me.cmbIspolnitel.value = CStr(tblData.DataBodyRange.Cells(RowIndex, 11).value)
-    Me.txtNomerIshVSlujbu.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 12).value)
-    Me.txtDataIshVSlujbu.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 13))
-    Me.txtNomerVozvrata.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 14).value)
-    Me.txtDataVozvrata.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 15))
-    Me.txtNomerIshKonvert.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 16).value)
-    Me.txtDataIshKonvert.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(RowIndex, 17))
-    Me.txtOtmetkaIspolnenie.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 18).value)
-    Me.cmbStatusPodtverjdenie.value = CStr(tblData.DataBodyRange.Cells(RowIndex, 19).value)
+    Me.txtNomerPP.Text = CStr(rowIndex)
+    Me.cmbSlujba.value = CStr(tblData.DataBodyRange.Cells(rowIndex, 2).value)
+    Me.cmbVidDocumenta.value = CStr(tblData.DataBodyRange.Cells(rowIndex, 3).value)
+    Me.cmbVidDoc.value = CStr(tblData.DataBodyRange.Cells(rowIndex, 4).value)
+    Me.txtNomerDoc.Text = CStr(tblData.DataBodyRange.Cells(rowIndex, 5).value)
+    Me.txtSummaDoc.Text = CStr(tblData.DataBodyRange.Cells(rowIndex, 6).value)
+    Me.txtVhFRP.Text = CStr(tblData.DataBodyRange.Cells(rowIndex, 7).value)
+    Me.txtDataVhFRP.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(rowIndex, 8))
+    Me.cmbOtKogoPostupil.value = CStr(tblData.DataBodyRange.Cells(rowIndex, 9).value)
+    Me.txtDataPeredachi.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(rowIndex, 10))
+    Me.cmbIspolnitel.value = CStr(tblData.DataBodyRange.Cells(rowIndex, 11).value)
+    Me.txtNomerIshVSlujbu.Text = CStr(tblData.DataBodyRange.Cells(rowIndex, 12).value)
+    Me.txtDataIshVSlujbu.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(rowIndex, 13))
+    Me.txtNomerVozvrata.Text = CStr(tblData.DataBodyRange.Cells(rowIndex, 14).value)
+    Me.txtDataVozvrata.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(rowIndex, 15))
+    Me.txtNomerIshKonvert.Text = CStr(tblData.DataBodyRange.Cells(rowIndex, 16).value)
+    Me.txtDataIshKonvert.Text = CommonUtilities.FormatDateCell(tblData.DataBodyRange.Cells(rowIndex, 17))
+    Me.txtOtmetkaIspolnenie.Text = CStr(tblData.DataBodyRange.Cells(rowIndex, 18).value)
+    Me.cmbStatusPodtverjdenie.value = CStr(tblData.DataBodyRange.Cells(rowIndex, 19).value)
     
     If tblData.DataBodyRange.Columns.Count >= 20 Then
-        Me.txtNaryadInfo.Text = CStr(tblData.DataBodyRange.Cells(RowIndex, 20).value)
+        Me.txtNaryadInfo.Text = CStr(tblData.DataBodyRange.Cells(rowIndex, 20).value)
     Else
         Me.txtNaryadInfo.Text = ""
     End If
@@ -1246,19 +1267,19 @@ DefaultSettings:
 End Sub
 
 Private Function GetSettingsWorksheet() As Worksheet
-    Dim Ws As Worksheet
+    Dim ws As Worksheet
     
     On Error GoTo CreateSheet
     
-    Set Ws = ThisWorkbook.Worksheets("SystemSettings")
-    Set GetSettingsWorksheet = Ws
+    Set ws = ThisWorkbook.Worksheets("SystemSettings")
+    Set GetSettingsWorksheet = ws
     Exit Function
     
 CreateSheet:
-    Set Ws = ThisWorkbook.Worksheets.Add
-    Ws.Name = "SystemSettings"
-    Ws.Visible = xlSheetHidden
-    Set GetSettingsWorksheet = Ws
+    Set ws = ThisWorkbook.Worksheets.Add
+    ws.Name = "SystemSettings"
+    ws.Visible = xlSheetHidden
+    Set GetSettingsWorksheet = ws
 End Function
 
 ' ===============================================
