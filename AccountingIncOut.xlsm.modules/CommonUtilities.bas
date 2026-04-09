@@ -48,6 +48,22 @@ Public Function GetListObjectSafe(Ws As Worksheet, tableName As String) As ListO
 End Function
 
 ' =============================================
+' SAFE TABLE COLUMN RETRIEVAL
+' =============================================
+Public Function GetListColumnSafe(ByVal targetTable As ListObject, ByVal columnName As String) As ListColumn
+    Dim listColumn As ListColumn
+
+    On Error Resume Next
+    If Not targetTable Is Nothing Then
+        Set listColumn = targetTable.ListColumns(columnName)
+    End If
+    On Error GoTo 0
+
+    Set GetListColumnSafe = listColumn
+End Function
+
+
+' =============================================
 ' DATE FORMAT VALIDATION
 ' =============================================
 ' @description Checks correctness of date format DD.MM.YY

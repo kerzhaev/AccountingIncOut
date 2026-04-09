@@ -178,6 +178,7 @@ Public Sub WriteFormDataToTable(tbl As ListObject, RowIndex As Long)
         tbl.DataBodyRange.Cells(RowIndex, 18).value = .txtOtmetkaIspolnenie.Text
         tbl.DataBodyRange.Cells(RowIndex, 19).value = .cmbStatusPodtverjdenie.value
         tbl.DataBodyRange.Cells(RowIndex, 20).value = .txtNaryadInfo.Text
+        Call ApplyPackageDefaultsToParentRow(tbl, RowIndex)
     End With
     Exit Sub
 WriteError:
@@ -786,4 +787,6 @@ Public Sub HighlightSearchTermInForm()
     Dim searchTerm As String
     searchTerm = UserFormVhIsh.txtSearch.Text
 End Sub
+
+
 

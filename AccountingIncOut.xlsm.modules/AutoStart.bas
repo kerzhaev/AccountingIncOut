@@ -24,6 +24,9 @@ Public Sub InitializeSystem()
     ' Inform user via status bar
     Application.StatusBar = LocalizationManager.GetText("Initializing interactive forms system...")
     
+    ' 0.1 Ensure package document schema
+    Call EnsurePackageDocumentsSchema
+
     ' 1. Initialize table event handler
     Call TableEventHandler.InitializeTableEvents
     
@@ -131,6 +134,27 @@ Public Sub DiagnoseSystemState()
             diagResult = diagResult & "[X] Table 'TableIncOut' NOT found!" & vbCrLf
         Else
             diagResult = diagResult & "[OK] Table found (" & tbl.ListRows.Count & " rows)" & vbCrLf
+            Dim pkgColumn As ListColumn
+            Set pkgColumn = Nothing
+            On Error Resume Next
+            Set pkgColumn = tbl.ListColumns(PACKAGE_COLUMN_PACKAGE_ID)
+            On Error GoTo 0
+            If pkgColumn Is Nothing Then
+                diagResult = diagResult & "[X] Package schema column missing: " & PACKAGE_COLUMN_PACKAGE_ID & vbCrLf
+            Else
+                diagResult = diagResult & "[OK] Package schema column found: " & pkgColumn.Name & vbCrLf
+            End If
+            Dim wsItems As Worksheet
+            Set wsItems = CommonUtilities.GetWorksheetSafe(PACKAGE_ITEMS_SHEET_NAME)
+            If wsItems Is Nothing Then
+                diagResult = diagResult & "[X] Package items sheet missing: " & PACKAGE_ITEMS_SHEET_NAME & vbCrLf
+            Else
+                If CommonUtilities.GetListObjectSafe(wsItems, PACKAGE_ITEMS_TABLE_NAME) Is Nothing Then
+                    diagResult = diagResult & "[X] Package items table missing: " & PACKAGE_ITEMS_TABLE_NAME & vbCrLf
+                Else
+                    diagResult = diagResult & "[OK] Package items table found" & vbCrLf
+                End If
+            End If
         End If
     End If
     On Error GoTo 0
@@ -323,6 +347,15 @@ Public Function SystemIntegrityCheck() As Boolean
         Dim tbl As ListObject
         Set tbl = Ws.ListObjects("TableIncOut")
         If tbl Is Nothing Then allGood = False
+        If Not tbl Is Nothing Then
+            If CommonUtilities.GetListColumnSafe(tbl, PACKAGE_COLUMN_PACKAGE_ID) Is Nothing Then allGood = False
+        End If
+        Dim wsItems As Worksheet
+        Set wsItems = CommonUtilities.GetWorksheetSafe(PACKAGE_ITEMS_SHEET_NAME)
+        If wsItems Is Nothing Then allGood = False
+        If Not wsItems Is Nothing Then
+            If CommonUtilities.GetListObjectSafe(wsItems, PACKAGE_ITEMS_TABLE_NAME) Is Nothing Then allGood = False
+        End If
     End If
     
     SystemIntegrityCheck = allGood
@@ -349,4 +382,6 @@ Public Sub RestartSystem()
     Application.StatusBar = LocalizationManager.GetText("System successfully restarted!")
     Debug.Print "System successfully restarted!"
 End Sub
+
+
 

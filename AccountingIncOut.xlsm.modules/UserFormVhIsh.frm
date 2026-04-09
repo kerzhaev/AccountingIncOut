@@ -1040,6 +1040,7 @@ Private Sub WriteFormDataToTable(tbl As ListObject, RowIndex As Long)
     tbl.DataBodyRange.Cells(RowIndex, 18).value = Me.txtOtmetkaIspolnenie.Text
     tbl.DataBodyRange.Cells(RowIndex, 19).value = Me.cmbStatusPodtverjdenie.value
     tbl.DataBodyRange.Cells(RowIndex, 20).value = Me.txtNaryadInfo.Text
+    Call ApplyPackageDefaultsToParentRow(tbl, RowIndex)
     
     Exit Sub
     
@@ -1656,5 +1657,7 @@ Private Sub ResizeAndCenterForm()
 ErrorHandler:
     Me.StartUpPosition = 1
 End Sub
+
+
 
 

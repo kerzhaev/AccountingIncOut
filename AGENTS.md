@@ -35,10 +35,10 @@ In addition to `aif`, the agent must also use the task-specific AI Factory skill
 
 ## Project Notes
 
+- English-only VBA code and comments for all new or edited implementation.
+- All new user-facing Russian text must be routed through localization modules or dictionaries, not hardcoded into VBA logic/comments.
 - UserForms must be designed for variable screen resolutions: fit within the visible screen, center on open, and provide scrollable fallback on smaller displays.
-
 - Project type: Excel VBA / UserForms / Ribbon XML / workbook automation
 - File encoding for VBA exports: Windows-1251
 - Prefer minimal, reversible changes
 - Treat exported `.frm`, `.frx`, `.bas`, `.cls`, Ribbon XML, and workbook module files as source of truth for reviewable changes
-

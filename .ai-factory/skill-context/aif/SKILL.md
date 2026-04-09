@@ -48,3 +48,10 @@ When project context changes, update `.spec/PROJECT_CONTEXT.md` or another proje
 - UserForms must open within the visible screen area, center on screen, and avoid clipping critical controls on low-resolution displays.
 - Prefer responsive resizing with scrollable fallback over fixed large layouts.
 
+
+## Code Language Rule
+
+- All new or edited VBA code identifiers and comments must remain English-only.
+- Do not add new Russian comments or Russian string literals directly in implementation code unless routed through localization lookups.
+- User-facing text should go through LocalizationManager.GetText() or other localization data sources whenever feasible.
+
