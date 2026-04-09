@@ -13,6 +13,8 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+
+
 Option Explicit
 
 #If VBA7 Then
@@ -61,6 +63,14 @@ End Sub
 
 Private Sub btnDeleteItem_Click()
     Call DeleteSelectedPackageItemFromForm(Me, mParentRowIndex, mPackageId)
+End Sub
+
+Private Sub btnDuplicateItem_Click()
+    Call DuplicateSelectedPackageItemFromForm(Me, mParentRowIndex, mPackageId)
+End Sub
+
+Private Sub btnFillFromPackage_Click()
+    Call FillPackageItemEditorFromParent(Me, mParentRowIndex)
 End Sub
 
 Private Sub btnClearItem_Click()

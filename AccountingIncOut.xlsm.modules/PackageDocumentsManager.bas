@@ -256,6 +256,80 @@ DeleteError:
     MsgBox LocalizationManager.GetText("Error deleting package document item: ") & Err.description, vbCritical, LocalizationManager.GetText("Package Documents")
 End Sub
 
+Public Sub DuplicateSelectedPackageItemFromForm(ByVal frm As Object, ByVal parentRowIndex As Long, ByVal packageId As String)
+    On Error GoTo DuplicateError
+
+    Dim itemId As String
+    Dim newItemId As String
+
+    itemId = Trim$(frm.txtItemId.Text)
+    If Len(itemId) = 0 Then
+        MsgBox LocalizationManager.GetText("Select a package document item first."), vbExclamation, LocalizationManager.GetText("Package Documents")
+        Exit Sub
+    End If
+
+    newItemId = DuplicatePackageItemRecord(parentRowIndex, packageId, itemId)
+    If Len(newItemId) = 0 Then
+        MsgBox LocalizationManager.GetText("The selected package document item no longer exists."), vbExclamation, LocalizationManager.GetText("Package Documents")
+        Exit Sub
+    End If
+
+    Call BindPackageDocumentsForm(frm, parentRowIndex, packageId)
+    Call SelectPackageItemInList(frm, newItemId)
+    MsgBox LocalizationManager.GetText("Package document item duplicated."), vbInformation, LocalizationManager.GetText("Package Documents")
+    Exit Sub
+
+DuplicateError:
+    MsgBox LocalizationManager.GetText("Error duplicating package document item: ") & Err.description, vbCritical, LocalizationManager.GetText("Package Documents")
+End Sub
+
+Public Sub FillPackageItemEditorFromParent(ByVal frm As Object, ByVal parentRowIndex As Long)
+    Dim parentTable As ListObject
+    Dim parentAmount As Variant
+
+    Set parentTable = GetParentTable()
+    If parentTable Is Nothing Then Exit Sub
+    If parentRowIndex < 1 Or parentRowIndex > parentTable.ListRows.Count Then Exit Sub
+
+    Call ClearPackageItemEditor(frm)
+
+    frm.txtItemDocumentTypeDisplay.Text = CStr(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DOCUMENT_TYPE_COLUMN))
+    frm.txtItemDocumentNumber.Text = CStr(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DOCUMENT_NUMBER_COLUMN))
+    frm.txtItemDocumentDate.Text = FormatItemDateValue(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_FRP_DATE_COLUMN))
+
+    parentAmount = GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_AMOUNT_COLUMN)
+    If IsNumeric(parentAmount) Then
+        frm.txtItemAmount.Text = FormatEditorAmountValue(parentAmount)
+    Else
+        frm.txtItemAmount.Text = ""
+    End If
+
+    frm.txtItemDescription.Text = LocalizationManager.GetText("Copied from package")
+    frm.txtItemNotes.Text = ""
+    frm.txtItemDocumentTypeDisplay.SetFocus
+End Sub
+
+Public Function DuplicatePackageItemRecord(ByVal parentRowIndex As Long, ByVal packageId As String, ByVal itemId As String) As String
+    Dim itemsTable As ListObject
+    Dim rowIndex As Long
+
+    Set itemsTable = GetItemsTable()
+    rowIndex = FindItemRowIndexById(itemsTable, itemId)
+    If rowIndex = 0 Then Exit Function
+
+    DuplicatePackageItemRecord = SavePackageItemRecord( _
+        parentRowIndex, _
+        packageId, _
+        vbNullString, _
+        CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_TYPE_DISPLAY)), _
+        CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_NUMBER)), _
+        GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_DATE), _
+        CDbl(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_AMOUNT)), _
+        CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DESCRIPTION)), _
+        CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_NOTES)), _
+        False)
+End Function
+
 Public Function SavePackageItemRecord(ByVal parentRowIndex As Long, ByVal packageId As String, ByVal itemId As String, ByVal documentTypeDisplay As String, ByVal documentNumber As String, ByVal itemDateValue As Variant, ByVal amountValue As Double, ByVal itemDescription As String, ByVal itemNotes As String, ByVal updateExisting As Boolean) As String
     Dim parentTable As ListObject
     Dim itemsTable As ListObject
@@ -336,6 +410,20 @@ Public Sub ClearPackageItemEditor(ByVal frm As Object)
     frm.txtItemDescription.Text = ""
     frm.txtItemNotes.Text = ""
     If frm.lstPackageItems.listCount > 0 Then frm.lstPackageItems.listIndex = -1
+End Sub
+
+Private Sub SelectPackageItemInList(ByVal frm As Object, ByVal itemId As String)
+    Dim listIndex As Long
+
+    If frm Is Nothing Then Exit Sub
+    If Len(Trim$(itemId)) = 0 Then Exit Sub
+
+    For listIndex = 0 To frm.lstPackageItems.listCount - 1
+        If StrComp(CStr(frm.lstPackageItems.List(listIndex, 6)), itemId, vbTextCompare) = 0 Then
+            frm.lstPackageItems.listIndex = listIndex
+            Exit For
+        End If
+    Next listIndex
 End Sub
 
 Public Sub LoadParentSummaryToForm(ByVal frm As Object, ByVal parentRowIndex As Long, ByVal packageId As String)
@@ -616,6 +704,10 @@ Private Function TranslateAmountCheckStatus(ByVal statusValue As String) As Stri
             TranslateAmountCheckStatus = LocalizationManager.GetText("Not checked")
     End Select
 End Function
+
+
+
+
 
 
 
