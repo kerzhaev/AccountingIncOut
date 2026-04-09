@@ -15,6 +15,7 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 
 
+
 Option Explicit
 
 #If VBA7 Then
@@ -38,9 +39,10 @@ End Sub
 
 Private Sub UserForm_Initialize()
     Me.Caption = "Package Documents"
-    Me.Width = 615
-    Me.Height = 385
+    Me.Width = 700
+    Me.Height = 455
     Call SetupPackageItemsList
+    Call SetupMatchedStatusCombo
     Call LocalizationManager.TranslateForm(Me)
     Call ResizeAndCenterForm
 End Sub
@@ -83,9 +85,21 @@ End Sub
 
 Private Sub SetupPackageItemsList()
     With Me.lstPackageItems
-        .ColumnCount = 7
-        .ColumnWidths = "24 pt;110 pt;90 pt;60 pt;70 pt;80 pt;0 pt"
+        .ColumnCount = 8
+        .ColumnWidths = "24 pt;110 pt;90 pt;60 pt;70 pt;80 pt;95 pt;0 pt"
         .MultiSelect = fmMultiSelectSingle
+    End With
+End Sub
+
+Private Sub SetupMatchedStatusCombo()
+    With Me.cmbMatched1CStatus
+        .Clear
+        .AddItem "not_checked"
+        .AddItem "exact"
+        .AddItem "candidate"
+        .AddItem "manual"
+        .AddItem "not_found"
+        .Text = "not_checked"
     End With
 End Sub
 

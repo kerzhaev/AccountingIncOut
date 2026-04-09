@@ -33,7 +33,10 @@ Private Const ITEM_COLUMN_DESCRIPTION As String = "ItemDescription"
 Private Const ITEM_COLUMN_BASE_DOCUMENT_TYPE As String = "BaseDocumentType"
 Private Const ITEM_COLUMN_BASE_DOCUMENT_NUMBER As String = "BaseDocumentNumber"
 Private Const ITEM_COLUMN_BASE_DOCUMENT_DATE As String = "BaseDocumentDate"
+Private Const ITEM_COLUMN_MATCHED_OPERATION_NUMBER As String = "Matched1COperationNumber"
+Private Const ITEM_COLUMN_MATCHED_OPERATION_DATE As String = "Matched1COperationDate"
 Private Const ITEM_COLUMN_MATCHED_STATUS As String = "Matched1CMatchStatus"
+Private Const ITEM_COLUMN_MATCHED_COMMENT As String = "Matched1CComment"
 Private Const ITEM_COLUMN_MATCHED_MODE As String = "Matched1CMode"
 Private Const ITEM_COLUMN_IS_POSTED_SEPARATELY As String = "IsPostedSeparately"
 Private Const ITEM_COLUMN_CREATED_AT As String = "CreatedAt"
@@ -162,7 +165,8 @@ Public Sub LoadPackageItemsToList(ByVal frm As Object, ByVal packageId As String
             frm.lstPackageItems.List(listIndex, 3) = FormatItemDateValue(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_DOCUMENT_DATE))
             frm.lstPackageItems.List(listIndex, 4) = FormatItemAmountValue(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_AMOUNT))
             frm.lstPackageItems.List(listIndex, 5) = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_MATCHED_STATUS))
-            frm.lstPackageItems.List(listIndex, 6) = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_ITEM_ID))
+            frm.lstPackageItems.List(listIndex, 6) = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_MATCHED_OPERATION_NUMBER))
+            frm.lstPackageItems.List(listIndex, 7) = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_ITEM_ID))
         End If
     Next dataRow
 End Sub
@@ -175,7 +179,7 @@ Public Sub LoadSelectedPackageItemIntoForm(ByVal frm As Object, ByVal packageId 
     Dim rowIndex As Long
 
     If frm.lstPackageItems.listIndex < 0 Then Exit Sub
-    selectedItemId = CStr(frm.lstPackageItems.List(frm.lstPackageItems.listIndex, 6))
+    selectedItemId = CStr(frm.lstPackageItems.List(frm.lstPackageItems.listIndex, 7))
     If Len(selectedItemId) = 0 Then Exit Sub
 
     Set itemsTable = GetItemsTable()
@@ -189,6 +193,10 @@ Public Sub LoadSelectedPackageItemIntoForm(ByVal frm As Object, ByVal packageId 
     frm.txtItemAmount.Text = FormatEditorAmountValue(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_AMOUNT))
     frm.txtItemDescription.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DESCRIPTION))
     frm.txtItemNotes.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_NOTES))
+    frm.txtMatched1COperationNumber.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_NUMBER))
+    frm.txtMatched1COperationDate.Text = FormatItemDateValue(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_DATE))
+    frm.cmbMatched1CStatus.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_STATUS))
+    frm.txtMatched1CComment.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_COMMENT))
     Exit Sub
 
 LoadError:
@@ -201,8 +209,10 @@ Public Sub SavePackageItemFromForm(ByVal frm As Object, ByVal parentRowIndex As 
     Dim amountValue As Double
     Dim itemDateValue As Variant
     Dim itemId As String
+    Dim matchedOperationDateValue As Variant
 
     If Not ValidatePackageItemForm(frm, amountValue, itemDateValue) Then Exit Sub
+    If Not ValidateMatchedFields(frm, matchedOperationDateValue) Then Exit Sub
 
     itemId = SavePackageItemRecord( _
         parentRowIndex, _
@@ -214,6 +224,10 @@ Public Sub SavePackageItemFromForm(ByVal frm As Object, ByVal parentRowIndex As 
         amountValue, _
         Trim$(frm.txtItemDescription.Text), _
         Trim$(frm.txtItemNotes.Text), _
+        Trim$(frm.txtMatched1COperationNumber.Text), _
+        matchedOperationDateValue, _
+        Trim$(frm.cmbMatched1CStatus.Text), _
+        Trim$(frm.txtMatched1CComment.Text), _
         updateExisting)
 
     If Len(itemId) = 0 Then Exit Sub
@@ -327,10 +341,14 @@ Public Function DuplicatePackageItemRecord(ByVal parentRowIndex As Long, ByVal p
         CDbl(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_AMOUNT)), _
         CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DESCRIPTION)), _
         CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_NOTES)), _
+        vbNullString, _
+        vbNullString, _
+        "not_checked", _
+        vbNullString, _
         False)
 End Function
 
-Public Function SavePackageItemRecord(ByVal parentRowIndex As Long, ByVal packageId As String, ByVal itemId As String, ByVal documentTypeDisplay As String, ByVal documentNumber As String, ByVal itemDateValue As Variant, ByVal amountValue As Double, ByVal itemDescription As String, ByVal itemNotes As String, ByVal updateExisting As Boolean) As String
+Public Function SavePackageItemRecord(ByVal parentRowIndex As Long, ByVal packageId As String, ByVal itemId As String, ByVal documentTypeDisplay As String, ByVal documentNumber As String, ByVal itemDateValue As Variant, ByVal amountValue As Double, ByVal itemDescription As String, ByVal itemNotes As String, ByVal matchedOperationNumber As String, ByVal matchedOperationDateValue As Variant, ByVal matchedStatus As String, ByVal matchedComment As String, ByVal updateExisting As Boolean) As String
     Dim parentTable As ListObject
     Dim itemsTable As ListObject
     Dim itemRowIndex As Long
@@ -360,6 +378,9 @@ Public Function SavePackageItemRecord(ByVal parentRowIndex As Long, ByVal packag
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_AMOUNT, amountValue
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_DESCRIPTION, itemDescription
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_NOTES, itemNotes
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_OPERATION_NUMBER, matchedOperationNumber
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_OPERATION_DATE, matchedOperationDateValue
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_COMMENT, matchedComment
 
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_COUNTERPARTY_NAME, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_COUNTERPARTY_COLUMN)
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_COUNTERPARTY_NORMALIZED, GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_COUNTERPARTY_NORMALIZED)
@@ -373,7 +394,9 @@ Public Function SavePackageItemRecord(ByVal parentRowIndex As Long, ByVal packag
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_BASE_DOCUMENT_NUMBER, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DOCUMENT_NUMBER_COLUMN)
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_BASE_DOCUMENT_DATE, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_FRP_DATE_COLUMN)
 
-    If Len(Trim$(CStr(GetItemCellValue(itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_STATUS)))) = 0 Then
+    If Len(Trim$(matchedStatus)) > 0 Then
+        SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_STATUS, matchedStatus
+    ElseIf Len(Trim$(CStr(GetItemCellValue(itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_STATUS)))) = 0 Then
         SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_STATUS, "not_checked"
     End If
     If Len(Trim$(CStr(GetItemCellValue(itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_MODE)))) = 0 Then
@@ -409,6 +432,10 @@ Public Sub ClearPackageItemEditor(ByVal frm As Object)
     frm.txtItemAmount.Text = ""
     frm.txtItemDescription.Text = ""
     frm.txtItemNotes.Text = ""
+    frm.txtMatched1COperationNumber.Text = ""
+    frm.txtMatched1COperationDate.Text = ""
+    frm.cmbMatched1CStatus.Text = "not_checked"
+    frm.txtMatched1CComment.Text = ""
     If frm.lstPackageItems.listCount > 0 Then frm.lstPackageItems.listIndex = -1
 End Sub
 
@@ -419,7 +446,7 @@ Private Sub SelectPackageItemInList(ByVal frm As Object, ByVal itemId As String)
     If Len(Trim$(itemId)) = 0 Then Exit Sub
 
     For listIndex = 0 To frm.lstPackageItems.listCount - 1
-        If StrComp(CStr(frm.lstPackageItems.List(listIndex, 6)), itemId, vbTextCompare) = 0 Then
+        If StrComp(CStr(frm.lstPackageItems.List(listIndex, 7)), itemId, vbTextCompare) = 0 Then
             frm.lstPackageItems.listIndex = listIndex
             Exit For
         End If
@@ -539,6 +566,26 @@ Private Function ValidatePackageItemForm(ByVal frm As Object, ByRef amountValue 
     End If
 
     ValidatePackageItemForm = True
+End Function
+
+Private Function ValidateMatchedFields(ByVal frm As Object, ByRef matchedOperationDateValue As Variant) As Boolean
+    ValidateMatchedFields = False
+
+    matchedOperationDateValue = ""
+    If Len(Trim$(frm.txtMatched1COperationDate.Text)) > 0 Then
+        If Not CommonUtilities.IsValidDateFormat(frm.txtMatched1COperationDate.Text) Then
+            MsgBox LocalizationManager.GetText("Enter date in DD.MM.YY format or leave it blank."), vbExclamation, LocalizationManager.GetText("Package Documents")
+            frm.txtMatched1COperationDate.SetFocus
+            Exit Function
+        End If
+        matchedOperationDateValue = ParseShortDateText(frm.txtMatched1COperationDate.Text)
+    End If
+
+    If Len(Trim$(frm.cmbMatched1CStatus.Text)) = 0 Then
+        frm.cmbMatched1CStatus.Text = "not_checked"
+    End If
+
+    ValidateMatchedFields = True
 End Function
 
 Private Function ParseShortDateText(ByVal shortDateText As String) As Date
@@ -704,6 +751,8 @@ Private Function TranslateAmountCheckStatus(ByVal statusValue As String) As Stri
             TranslateAmountCheckStatus = LocalizationManager.GetText("Not checked")
     End Select
 End Function
+
+
 
 
 
