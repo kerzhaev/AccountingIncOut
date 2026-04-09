@@ -17,6 +17,8 @@ Attribute VB_Exposed = False
 
 
 
+
+
 Option Explicit
 
 #If VBA7 Then
@@ -30,6 +32,7 @@ Private Const SM_CYSCREEN As Long = 1
 
 Private mParentRowIndex As Long
 Private mPackageId As String
+Private mDocumentTypeItems As Variant
 
 Public Sub OpenForParentRow(ByVal parentRowIndex As Long, ByVal packageId As String)
     mParentRowIndex = parentRowIndex
@@ -44,6 +47,7 @@ Private Sub UserForm_Initialize()
     Me.Height = 520
     Call SetupPackageItemsList
     Call SetupMatchedStatusCombo
+    Call LoadDocumentTypeComboData
     Call LocalizationManager.TranslateForm(Me)
     Call ApplyFormLayout
     Call ResizeAndCenterForm
@@ -56,6 +60,14 @@ End Sub
 
 Private Sub lstPackageItems_Click()
     Call LoadSelectedPackageItemIntoForm(Me, mPackageId)
+End Sub
+
+Private Sub cmbItemDocumentTypeDisplay_KeyUp(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+    Call HandleDocumentTypeKeyUp(KeyCode)
+End Sub
+
+Private Sub cmbItemDocumentTypeDisplay_DropButtonClick()
+    Call ResetDocumentTypeCombo
 End Sub
 
 Private Sub btnAddItem_Click()
@@ -104,6 +116,100 @@ Private Sub SetupMatchedStatusCombo()
         .AddItem "not_found"
         .Text = "not_checked"
     End With
+End Sub
+
+Private Sub LoadDocumentTypeComboData()
+    Dim wsSettings As Worksheet
+
+    On Error GoTo LoadError
+    Set wsSettings = ThisWorkbook.Worksheets("Dictionaries")
+    On Error GoTo 0
+
+    Call LoadComboData(Me.cmbItemDocumentTypeDisplay, wsSettings, "C:C", "Document Types")
+    mDocumentTypeItems = GetComboItems(Me.cmbItemDocumentTypeDisplay)
+    Exit Sub
+
+LoadError:
+    Me.cmbItemDocumentTypeDisplay.Clear
+    mDocumentTypeItems = Empty
+End Sub
+
+Private Function GetComboItems(TargetCombo As MSForms.ComboBox) As Variant
+    Dim result() As String
+    Dim i As Long
+
+    If TargetCombo.listCount = 0 Then
+        GetComboItems = Empty
+        Exit Function
+    End If
+
+    ReDim result(0 To TargetCombo.listCount - 1)
+    For i = 0 To TargetCombo.listCount - 1
+        result(i) = CStr(TargetCombo.List(i))
+    Next i
+
+    GetComboItems = result
+End Function
+
+Private Sub ResetDocumentTypeCombo()
+    Dim i As Long
+
+    If IsEmpty(mDocumentTypeItems) Then Exit Sub
+
+    Me.cmbItemDocumentTypeDisplay.Clear
+    For i = LBound(mDocumentTypeItems) To UBound(mDocumentTypeItems)
+        Me.cmbItemDocumentTypeDisplay.AddItem mDocumentTypeItems(i)
+    Next i
+End Sub
+
+Private Sub HandleDocumentTypeKeyUp(ByVal KeyCode As MSForms.ReturnInteger)
+    Dim currentText As String
+    Dim i As Long
+
+    If IsEmpty(mDocumentTypeItems) Then Exit Sub
+    If KeyCode = vbKeyUp Or KeyCode = vbKeyDown Or KeyCode = vbKeyLeft Or KeyCode = vbKeyRight Or KeyCode = vbKeyReturn Or KeyCode = vbKeyTab Then Exit Sub
+
+    currentText = Me.cmbItemDocumentTypeDisplay.Text
+    Me.cmbItemDocumentTypeDisplay.Clear
+
+    For i = LBound(mDocumentTypeItems) To UBound(mDocumentTypeItems)
+        If InStr(1, mDocumentTypeItems(i), currentText, vbTextCompare) > 0 Then
+            Me.cmbItemDocumentTypeDisplay.AddItem mDocumentTypeItems(i)
+        End If
+    Next i
+
+    Me.cmbItemDocumentTypeDisplay.Text = currentText
+    Me.cmbItemDocumentTypeDisplay.SelStart = Len(currentText)
+    Me.cmbItemDocumentTypeDisplay.DropDown
+End Sub
+
+Private Sub LoadComboData(TargetCombo As MSForms.ComboBox, SourceSheet As Worksheet, SourceColumn As String, PrimaryHeader As String)
+    Dim searchRange As Range
+    Dim headerCell As Range
+    Dim currentCell As Range
+    Dim startLoad As Boolean
+
+    TargetCombo.Clear
+    TargetCombo.Style = fmStyleDropDownCombo
+    TargetCombo.MatchRequired = False
+    TargetCombo.MatchEntry = fmMatchEntryComplete
+
+    Set searchRange = SourceSheet.Range(SourceColumn)
+    Set headerCell = searchRange.Find(What:=PrimaryHeader, LookIn:=xlValues, LookAt:=xlWhole)
+    If headerCell Is Nothing Then Exit Sub
+
+    startLoad = False
+    For Each currentCell In searchRange.Cells
+        If currentCell.Row <= headerCell.Row Then GoTo ContinueLoop
+
+        If Trim$(CStr(currentCell.value)) <> "" Then
+            TargetCombo.AddItem CStr(currentCell.value)
+            startLoad = True
+        ElseIf startLoad Then
+            Exit For
+        End If
+ContinueLoop:
+    Next currentCell
 End Sub
 
 Private Sub ApplyFormLayout()
@@ -166,9 +272,9 @@ Private Sub ApplyFormLayout()
     firstRowTop = buttonTop + 44
     Me.lblItemDocumentType.Left = marginX
     Me.lblItemDocumentType.Top = firstRowTop
-    Me.txtItemDocumentTypeDisplay.Left = marginX
-    Me.txtItemDocumentTypeDisplay.Top = firstRowTop + labelOffset
-    Me.txtItemDocumentTypeDisplay.Width = 170
+    Me.cmbItemDocumentTypeDisplay.Left = marginX
+    Me.cmbItemDocumentTypeDisplay.Top = firstRowTop + labelOffset
+    Me.cmbItemDocumentTypeDisplay.Width = 170
 
     Me.lblItemDocumentNumber.Left = 194
     Me.lblItemDocumentNumber.Top = firstRowTop

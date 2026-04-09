@@ -14,16 +14,22 @@ Private isInitialized As Boolean
 ' Initialize the dictionary from the Excel table
 Public Sub InitializeLocalization()
     On Error GoTo InitError
+    Dim loaded As Boolean
 
     Set translationDict = CreateObject("Scripting.Dictionary")
     translationDict.CompareMode = 1
     isInitialized = False
 
-    ' Preferred source after sheet rename.
-    If TryLoadLocalizationFromSource("Dictionaries", "TableLocalization") Then Exit Sub
+    ' Preferred source.
+    loaded = TryLoadLocalizationFromSource("Localization", "TableLocalization", True)
 
-    ' Backward-compatible fallback.
-    If TryLoadLocalizationFromSource("Localization", "TableLocalization") Then Exit Sub
+    ' Backward-compatible fallback for older keys not yet moved.
+    If TryLoadLocalizationFromSource("Dictionaries", "TableLocalization", False) Then loaded = True
+
+    If loaded Then
+        isInitialized = True
+        Exit Sub
+    End If
 
     Call LogLocalizationIssue("Localization dictionary/table not found. Falling back to key text.")
     Exit Sub
@@ -34,7 +40,7 @@ InitError:
     Call LogLocalizationIssue("Error initializing localization: " & Err.description)
 End Sub
 
-Private Function TryLoadLocalizationFromSource(ByVal sheetName As String, ByVal tableName As String) As Boolean
+Private Function TryLoadLocalizationFromSource(ByVal sheetName As String, ByVal tableName As String, Optional ByVal overwriteExisting As Boolean = True) As Boolean
     Dim wsLoc As Worksheet
     Dim tblLoc As ListObject
     Dim i As Long
@@ -54,7 +60,7 @@ Private Function TryLoadLocalizationFromSource(ByVal sheetName As String, ByVal 
 
             If key <> "" Then
                 If translationDict.Exists(key) Then
-                    translationDict(key) = val
+                    If overwriteExisting Then translationDict(key) = val
                 Else
                     translationDict.Add key, val
                 End If
@@ -62,7 +68,6 @@ Private Function TryLoadLocalizationFromSource(ByVal sheetName As String, ByVal 
         Next i
     End If
 
-    isInitialized = True
     TryLoadLocalizationFromSource = True
     Debug.Print "Localization initialized from " & sheetName & ". Loaded " & translationDict.Count & " keys."
 End Function
@@ -144,3 +149,7 @@ Public Sub ReloadDictionary()
     Set translationDict = Nothing
     Call InitializeLocalization
 End Sub
+
+
+
+
