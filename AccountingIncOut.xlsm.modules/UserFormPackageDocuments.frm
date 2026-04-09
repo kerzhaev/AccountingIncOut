@@ -62,10 +62,6 @@ Private Sub lstPackageItems_Click()
     Call LoadSelectedPackageItemIntoForm(Me, mPackageId)
 End Sub
 
-Private Sub cmbItemDocumentTypeDisplay_KeyUp(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
-    Call HandleDocumentTypeKeyUp(KeyCode)
-End Sub
-
 Private Sub cmbItemDocumentTypeDisplay_DropButtonClick()
     Call ResetDocumentTypeCombo
 End Sub
@@ -160,27 +156,6 @@ Private Sub ResetDocumentTypeCombo()
     For i = LBound(mDocumentTypeItems) To UBound(mDocumentTypeItems)
         Me.cmbItemDocumentTypeDisplay.AddItem mDocumentTypeItems(i)
     Next i
-End Sub
-
-Private Sub HandleDocumentTypeKeyUp(ByVal KeyCode As MSForms.ReturnInteger)
-    Dim currentText As String
-    Dim i As Long
-
-    If IsEmpty(mDocumentTypeItems) Then Exit Sub
-    If KeyCode = vbKeyUp Or KeyCode = vbKeyDown Or KeyCode = vbKeyLeft Or KeyCode = vbKeyRight Or KeyCode = vbKeyReturn Or KeyCode = vbKeyTab Then Exit Sub
-
-    currentText = Me.cmbItemDocumentTypeDisplay.Text
-    Me.cmbItemDocumentTypeDisplay.Clear
-
-    For i = LBound(mDocumentTypeItems) To UBound(mDocumentTypeItems)
-        If InStr(1, mDocumentTypeItems(i), currentText, vbTextCompare) > 0 Then
-            Me.cmbItemDocumentTypeDisplay.AddItem mDocumentTypeItems(i)
-        End If
-    Next i
-
-    Me.cmbItemDocumentTypeDisplay.Text = currentText
-    Me.cmbItemDocumentTypeDisplay.SelStart = Len(currentText)
-    Me.cmbItemDocumentTypeDisplay.DropDown
 End Sub
 
 Private Sub LoadComboData(TargetCombo As MSForms.ComboBox, SourceSheet As Worksheet, SourceColumn As String, PrimaryHeader As String)

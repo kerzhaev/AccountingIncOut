@@ -222,7 +222,7 @@ Public Sub LoadSelectedPackageItemIntoForm(ByVal frm As Object, ByVal packageId 
     If rowIndex = 0 Then Exit Sub
 
     frm.txtItemId.Text = selectedItemId
-    frm.cmbItemDocumentTypeDisplay.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_TYPE_DISPLAY))
+    frm.cmbItemDocumentTypeDisplay.Value = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_TYPE_DISPLAY))
     frm.txtItemDocumentNumber.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_NUMBER))
     frm.txtItemDocumentDate.Text = FormatItemDateValue(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_DATE))
     frm.txtItemAmount.Text = FormatEditorAmountValue(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_AMOUNT))
@@ -253,7 +253,7 @@ Public Sub SavePackageItemFromForm(ByVal frm As Object, ByVal parentRowIndex As 
         parentRowIndex, _
         packageId, _
         Trim$(frm.txtItemId.Text), _
-        Trim$(frm.cmbItemDocumentTypeDisplay.Text), _
+        Trim$(frm.cmbItemDocumentTypeDisplay.Value), _
         Trim$(frm.txtItemDocumentNumber.Text), _
         itemDateValue, _
         amountValue, _
@@ -342,7 +342,7 @@ Public Sub FillPackageItemEditorFromParent(ByVal frm As Object, ByVal parentRowI
 
     Call ClearPackageItemEditor(frm)
 
-    frm.cmbItemDocumentTypeDisplay.Text = CStr(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DOCUMENT_TYPE_COLUMN))
+    frm.cmbItemDocumentTypeDisplay.Value = CStr(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DOCUMENT_TYPE_COLUMN))
     frm.txtItemDocumentNumber.Text = CStr(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DOCUMENT_NUMBER_COLUMN))
     frm.txtItemDocumentDate.Text = FormatItemDateValue(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_FRP_DATE_COLUMN))
 
@@ -461,7 +461,7 @@ End Function
 
 Public Sub ClearPackageItemEditor(ByVal frm As Object)
     frm.txtItemId.Text = ""
-    frm.cmbItemDocumentTypeDisplay.Text = ""
+    frm.cmbItemDocumentTypeDisplay.Value = ""
     frm.txtItemDocumentNumber.Text = ""
     frm.txtItemDocumentDate.Text = ""
     frm.txtItemAmount.Text = ""
@@ -632,7 +632,7 @@ End Sub
 Private Function ValidatePackageItemForm(ByVal frm As Object, ByRef amountValue As Double, ByRef itemDateValue As Variant) As Boolean
     ValidatePackageItemForm = False
 
-    If Len(Trim$(frm.cmbItemDocumentTypeDisplay.Text)) = 0 Then
+    If Len(Trim$(frm.cmbItemDocumentTypeDisplay.Value)) = 0 Then
         MsgBox LocalizationManager.GetText("Document Type is required."), vbExclamation, LocalizationManager.GetText("Package Documents")
         frm.cmbItemDocumentTypeDisplay.SetFocus
         Exit Function
