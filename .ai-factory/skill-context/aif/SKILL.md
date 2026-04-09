@@ -55,3 +55,11 @@ When project context changes, update `.spec/PROJECT_CONTEXT.md` or another proje
 - Do not add new Russian comments or Russian string literals directly in implementation code unless routed through localization lookups.
 - User-facing text should go through LocalizationManager.GetText() or other localization data sources whenever feasible.
 
+## Excel Automation Test Rule
+
+- For `.xlsm` automated testing, use Python with `xlwings` or `pywin32` as the primary tool for direct Excel COM interaction.
+- Do not use `openpyxl` or `pandas` to validate or simulate VBA macro behavior.
+- Use PowerShell only for system-level tasks such as backups, process launch, or cleanup, not as the main end-to-end test runner for VBA logic.
+- COM test scripts must catch COM exceptions, account for blocking modal dialogs or UserForms, and terminate stuck `EXCEL.EXE` processes when required.
+- Test output should be emitted in a `pytest`-style console format whenever practical.
+

@@ -38,6 +38,11 @@ In addition to `aif`, the agent must also use the task-specific AI Factory skill
 - English-only VBA code and comments for all new or edited implementation.
 - All new user-facing Russian text must be routed through localization modules or dictionaries, not hardcoded into VBA logic/comments.
 - UserForms must be designed for variable screen resolutions: fit within the visible screen, center on open, and provide scrollable fallback on smaller displays.
+- Automated testing for `.xlsm` files must use Python with `xlwings` or `pywin32` for direct Excel COM interaction.
+- Do not use `openpyxl` or `pandas` to test VBA macro logic.
+- PowerShell may be used for system tasks such as backups or file launch, but not as the primary tool for end-to-end macro logic tests.
+- Excel COM test scripts must handle COM exceptions, guard against blocking modal dialogs or UserForms, and terminate stuck `EXCEL.EXE` processes when needed.
+- Automated test output should be printed in a `pytest`-style console format whenever feasible.
 - Project type: Excel VBA / UserForms / Ribbon XML / workbook automation
 - File encoding for VBA exports: Windows-1251
 - Prefer minimal, reversible changes
