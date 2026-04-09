@@ -24,6 +24,7 @@ Attribute VB_Exposed = False
 
 
 
+
 '==============================================
 ' FORM MANAGEMENT MODULE "IncOut" - UserFormVhIsh
 ' Purpose: Fully functional form for adding, editing, and searching records
@@ -79,6 +80,11 @@ Private Sub btnPackageDocuments_Click()
     End If
 
     Call OpenPackageDocumentsForParentRow(CurrentRecordRow)
+    Call RefreshPackageIndicatorsOnMainForm(Me, CurrentRecordRow)
+
+    If IsParentPackageAmountMismatch(CurrentRecordRow) Then
+        MsgBox LocalizationManager.GetText("Amount Check:") & " " & LocalizationManager.GetText("Amount mismatch"), vbExclamation, LocalizationManager.GetText("Package Documents")
+    End If
 End Sub
 
 
@@ -147,9 +153,9 @@ Private Sub UserForm_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift
                 Me.txtSearch.SetFocus
         End Select
     ElseIf KeyCode = vbKeyF3 Then ' F3 = Next search result
-        If Me.lstSearchResults.Visible And Me.lstSearchResults.ListCount > 0 Then
+        If Me.lstSearchResults.Visible And Me.lstSearchResults.listCount > 0 Then
             With Me.lstSearchResults
-                If .listIndex < .ListCount - 1 Then
+                If .listIndex < .listCount - 1 Then
                     .listIndex = .listIndex + 1
                 Else
                     .listIndex = 0
@@ -191,6 +197,7 @@ Private Sub InitializeForm()
     
     Me.txtSearch.Width = 300
     Me.txtSearch.Height = 24
+    Call ClearPackageIndicatorsOnMainForm(Me)
     
     ' Initialize autocomplete data
     Me.lblStatusBar.Caption = LocalizationManager.GetText("Ready to work. Hotkeys: Ctrl+S (save), Ctrl+N (new), Ctrl+F (search)")
@@ -345,14 +352,14 @@ Private Function GetComboItems(TargetCombo As MSForms.ComboBox) As Variant
     Dim result() As String
     Dim i As Long
 
-    If TargetCombo.ListCount = 0 Then
+    If TargetCombo.listCount = 0 Then
         GetComboItems = Empty
         Exit Function
     End If
 
-    ReDim result(0 To TargetCombo.ListCount - 1)
+    ReDim result(0 To TargetCombo.listCount - 1)
 
-    For i = 0 To TargetCombo.ListCount - 1
+    For i = 0 To TargetCombo.listCount - 1
         result(i) = CStr(TargetCombo.List(i))
     Next i
 
@@ -422,7 +429,7 @@ Private Sub FilterComboByText(TargetCombo As MSForms.ComboBox, SourceItems As Va
         TargetCombo.SelLength = 0
     End If
 
-    If TargetCombo.ListCount > 0 Then
+    If TargetCombo.listCount > 0 Then
         TargetCombo.DropDown
     End If
 
@@ -555,16 +562,16 @@ Private Sub txtSearch_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shif
     If KeyCode = vbKeyEscape Then
         Call ClearSearch
     ElseIf KeyCode = vbKeyReturn Then
-        If Me.lstSearchResults.Visible And Me.lstSearchResults.ListCount > 0 Then
+        If Me.lstSearchResults.Visible And Me.lstSearchResults.listCount > 0 Then
             Me.lstSearchResults.listIndex = 0
             Call SelectSearchResult
         End If
     ElseIf KeyCode = vbKeyDown Then
-        If Me.lstSearchResults.Visible And Me.lstSearchResults.ListCount > 0 Then
+        If Me.lstSearchResults.Visible And Me.lstSearchResults.listCount > 0 Then
             Call NavigateSearchResults("DOWN")
         End If
     ElseIf KeyCode = vbKeyUp Then
-        If Me.lstSearchResults.Visible And Me.lstSearchResults.ListCount > 0 Then
+        If Me.lstSearchResults.Visible And Me.lstSearchResults.listCount > 0 Then
             Call NavigateSearchResults("UP")
         End If
     End If
@@ -1062,6 +1069,8 @@ Private Sub WriteFormDataToTable(tbl As ListObject, rowIndex As Long)
     tbl.DataBodyRange.Cells(rowIndex, 19).value = Me.cmbStatusPodtverjdenie.value
     tbl.DataBodyRange.Cells(rowIndex, 20).value = Me.txtNaryadInfo.Text
     Call ApplyPackageDefaultsToParentRow(tbl, rowIndex)
+    Call RefreshParentPackageSummary(rowIndex)
+    Call RefreshPackageIndicatorsOnMainForm(Me, rowIndex)
     
     Exit Sub
     
@@ -1131,7 +1140,8 @@ Public Sub LoadRecordToForm(rowIndex As Long)
     
     ' Update fields highlight after loading record
     Call UpdateFieldAppearanceBasedOnNaryad
-    
+    Call RefreshPackageIndicatorsOnMainForm(Me, rowIndex)
+
     Exit Sub
     
 LoadError:

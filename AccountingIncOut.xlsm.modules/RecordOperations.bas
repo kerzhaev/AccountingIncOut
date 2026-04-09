@@ -151,34 +151,36 @@ Public Function ValidateDates() As Boolean
     End With
 End Function
 
-Public Sub WriteFormDataToTable(tbl As ListObject, RowIndex As Long)
+Public Sub WriteFormDataToTable(tbl As ListObject, rowIndex As Long)
     On Error GoTo WriteError
     With UserFormVhIsh
-        tbl.DataBodyRange.Cells(RowIndex, 1).value = RowIndex
-        tbl.DataBodyRange.Cells(RowIndex, 2).value = .cmbSlujba.value
-        tbl.DataBodyRange.Cells(RowIndex, 3).value = .cmbVidDocumenta.value
-        tbl.DataBodyRange.Cells(RowIndex, 4).value = .cmbVidDoc.value
-        tbl.DataBodyRange.Cells(RowIndex, 5).value = .txtNomerDoc.Text
+        tbl.DataBodyRange.Cells(rowIndex, 1).value = rowIndex
+        tbl.DataBodyRange.Cells(rowIndex, 2).value = .cmbSlujba.value
+        tbl.DataBodyRange.Cells(rowIndex, 3).value = .cmbVidDocumenta.value
+        tbl.DataBodyRange.Cells(rowIndex, 4).value = .cmbVidDoc.value
+        tbl.DataBodyRange.Cells(rowIndex, 5).value = .txtNomerDoc.Text
         If IsNumeric(.txtSummaDoc.Text) Then
-            tbl.DataBodyRange.Cells(RowIndex, 6).value = CDbl(.txtSummaDoc.Text)
+            tbl.DataBodyRange.Cells(rowIndex, 6).value = CDbl(.txtSummaDoc.Text)
         Else
-            tbl.DataBodyRange.Cells(RowIndex, 6).value = 0
+            tbl.DataBodyRange.Cells(rowIndex, 6).value = 0
         End If
-        tbl.DataBodyRange.Cells(RowIndex, 7).value = .txtVhFRP.Text
-        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 8), .txtDataVhFRP.Text)
-        tbl.DataBodyRange.Cells(RowIndex, 9).value = .cmbOtKogoPostupil.value
-        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 10), .txtDataPeredachi.Text)
-        tbl.DataBodyRange.Cells(RowIndex, 11).value = .cmbIspolnitel.value
-        tbl.DataBodyRange.Cells(RowIndex, 12).value = .txtNomerIshVSlujbu.Text
-        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 13), .txtDataIshVSlujbu.Text)
-        tbl.DataBodyRange.Cells(RowIndex, 14).value = .txtNomerVozvrata.Text
-        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 15), .txtDataVozvrata.Text)
-        tbl.DataBodyRange.Cells(RowIndex, 16).value = .txtNomerIshKonvert.Text
-        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(RowIndex, 17), .txtDataIshKonvert.Text)
-        tbl.DataBodyRange.Cells(RowIndex, 18).value = .txtOtmetkaIspolnenie.Text
-        tbl.DataBodyRange.Cells(RowIndex, 19).value = .cmbStatusPodtverjdenie.value
-        tbl.DataBodyRange.Cells(RowIndex, 20).value = .txtNaryadInfo.Text
-        Call ApplyPackageDefaultsToParentRow(tbl, RowIndex)
+        tbl.DataBodyRange.Cells(rowIndex, 7).value = .txtVhFRP.Text
+        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(rowIndex, 8), .txtDataVhFRP.Text)
+        tbl.DataBodyRange.Cells(rowIndex, 9).value = .cmbOtKogoPostupil.value
+        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(rowIndex, 10), .txtDataPeredachi.Text)
+        tbl.DataBodyRange.Cells(rowIndex, 11).value = .cmbIspolnitel.value
+        tbl.DataBodyRange.Cells(rowIndex, 12).value = .txtNomerIshVSlujbu.Text
+        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(rowIndex, 13), .txtDataIshVSlujbu.Text)
+        tbl.DataBodyRange.Cells(rowIndex, 14).value = .txtNomerVozvrata.Text
+        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(rowIndex, 15), .txtDataVozvrata.Text)
+        tbl.DataBodyRange.Cells(rowIndex, 16).value = .txtNomerIshKonvert.Text
+        Call CommonUtilities.WriteDateToCell(tbl.DataBodyRange.Cells(rowIndex, 17), .txtDataIshKonvert.Text)
+        tbl.DataBodyRange.Cells(rowIndex, 18).value = .txtOtmetkaIspolnenie.Text
+        tbl.DataBodyRange.Cells(rowIndex, 19).value = .cmbStatusPodtverjdenie.value
+        tbl.DataBodyRange.Cells(rowIndex, 20).value = .txtNaryadInfo.Text
+        Call ApplyPackageDefaultsToParentRow(tbl, rowIndex)
+        Call RefreshParentPackageSummary(rowIndex)
+        Call RefreshPackageIndicatorsOnMainForm(UserFormVhIsh, rowIndex)
     End With
     Exit Sub
 WriteError:
@@ -240,7 +242,7 @@ Public Sub ClearForm()
         .txtNomerIshKonvert.Text = ""
         .txtDataIshKonvert.Text = ""
         .txtOtmetkaIspolnenie.Text = ""
-        .cmbStatusPodtverjdenie.ListIndex = 0
+        .cmbStatusPodtverjdenie.listIndex = 0
         .cmbSlujba.value = ""
         .cmbVidDoc.value = ""
         .cmbIspolnitel.value = ""
@@ -250,6 +252,7 @@ Public Sub ClearForm()
         .lstSearchResults.Visible = False
         .SetFormRecordState 0, True, False
     End With
+    Call ClearPackageIndicatorsOnMainForm(UserFormVhIsh)
 
     Call UpdateStatusBar
 End Sub
@@ -660,9 +663,9 @@ Private Sub AddImprovedSearchResult(rowNum As Long, tbl As ListObject)
     
     With UserFormVhIsh.lstSearchResults
         .AddItem ResultText
-        If .ListCount > 0 Then
-            .List(.ListCount - 1, 0) = ResultText
-            .List(.ListCount - 1, 1) = CStr(rowNum)
+        If .listCount > 0 Then
+            .List(.listCount - 1, 0) = ResultText
+            .List(.listCount - 1, 1) = CStr(rowNum)
         End If
     End With
 AddError:
@@ -670,11 +673,11 @@ End Sub
 
 Private Sub DisplaySearchResults(FoundCount As Integer)
     With UserFormVhIsh
-        If .lstSearchResults.ListCount > 0 Then
+        If .lstSearchResults.listCount > 0 Then
             .lstSearchResults.Visible = True
             SearchResultsVisible = True
             Call AutoResizeSearchResultsWidth
-            .lstSearchResults.ListIndex = -1
+            .lstSearchResults.listIndex = -1
             On Error Resume Next
             .lstSearchResults.TopIndex = 0
             On Error GoTo 0
@@ -717,12 +720,12 @@ Public Sub SelectSearchResult()
     Dim selectedRow As Long
     On Error GoTo SelectError
     With UserFormVhIsh.lstSearchResults
-        If .ListIndex >= 0 Then
-            If Trim$(CStr(.List(.ListIndex, 1))) <> "" Then
-                selectedRow = CLng(.List(.ListIndex, 1))
+        If .listIndex >= 0 Then
+            If Trim$(CStr(.List(.listIndex, 1))) <> "" Then
+                selectedRow = CLng(.List(.listIndex, 1))
                 Call NavigateToRecord(selectedRow)
                 UserFormVhIsh.lblStatusBar.Caption = LocalizationManager.GetText("Jump to record No.") & selectedRow & " | " & _
-                                                     LocalizationManager.GetText("Found: ") & .ListCount & LocalizationManager.GetText(" records | ") & _
+                                                     LocalizationManager.GetText("Found: ") & .listCount & LocalizationManager.GetText(" records | ") & _
                                                      LocalizationManager.GetText("Search active: """) & UserFormVhIsh.txtSearch.Text & """"
                 .BackColor = RGB(240, 248, 255)
             End If
@@ -753,14 +756,14 @@ End Sub
 
 Public Sub NavigateSearchResults(direction As String)
     With UserFormVhIsh.lstSearchResults
-        If .Visible And .ListCount > 0 Then
+        If .Visible And .listCount > 0 Then
             Select Case UCase(direction)
                 Case "UP"
-                    If .ListIndex > 0 Then .ListIndex = .ListIndex - 1 Else .ListIndex = .ListCount - 1
+                    If .listIndex > 0 Then .listIndex = .listIndex - 1 Else .listIndex = .listCount - 1
                 Case "DOWN"
-                    If .ListIndex < .ListCount - 1 Then .ListIndex = .ListIndex + 1 Else .ListIndex = 0
-                Case "FIRST": .ListIndex = 0
-                Case "LAST": .ListIndex = .ListCount - 1
+                    If .listIndex < .listCount - 1 Then .listIndex = .listIndex + 1 Else .listIndex = 0
+                Case "FIRST": .listIndex = 0
+                Case "LAST": .listIndex = .listCount - 1
             End Select
             Call SelectSearchResult
         End If
@@ -768,15 +771,15 @@ Public Sub NavigateSearchResults(direction As String)
 End Sub
 
 Public Function IsSearchActive() As Boolean
-    IsSearchActive = SearchResultsVisible And (UserFormVhIsh.lstSearchResults.ListCount > 0)
+    IsSearchActive = SearchResultsVisible And (UserFormVhIsh.lstSearchResults.listCount > 0)
 End Function
 
 Public Function GetSearchInfo() As String
     If IsSearchActive() Then
         With UserFormVhIsh.lstSearchResults
             GetSearchInfo = LocalizationManager.GetText("Active search: """) & UserFormVhIsh.txtSearch.Text & """ | " & _
-                            LocalizationManager.GetText("Found: ") & .ListCount & LocalizationManager.GetText(" records | ") & _
-                            LocalizationManager.GetText("Selected: ") & (.ListIndex + 1) & LocalizationManager.GetText(" of ") & .ListCount
+                            LocalizationManager.GetText("Found: ") & .listCount & LocalizationManager.GetText(" records | ") & _
+                            LocalizationManager.GetText("Selected: ") & (.listIndex + 1) & LocalizationManager.GetText(" of ") & .listCount
         End With
     Else
         GetSearchInfo = LocalizationManager.GetText("Search inactive")
@@ -787,6 +790,9 @@ Public Sub HighlightSearchTermInForm()
     Dim searchTerm As String
     searchTerm = UserFormVhIsh.txtSearch.Text
 End Sub
+
+
+
 
 
 

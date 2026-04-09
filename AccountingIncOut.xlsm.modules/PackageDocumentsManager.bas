@@ -67,6 +67,75 @@ OpenError:
     MsgBox LocalizationManager.GetText("Error opening package documents: ") & Err.description, vbCritical, LocalizationManager.GetText("Package Documents")
 End Sub
 
+Public Sub RefreshPackageIndicatorsOnMainForm(ByVal frm As Object, ByVal parentRowIndex As Long)
+    Dim parentTable As ListObject
+    Dim childCount As String
+    Dim childrenTotal As String
+    Dim statusValue As String
+    Dim statusText As String
+
+    On Error GoTo IndicatorError
+
+    If frm Is Nothing Then Exit Sub
+    If parentRowIndex < 1 Then
+        Call ClearPackageIndicatorsOnMainForm(frm)
+        Exit Sub
+    End If
+
+    Set parentTable = GetParentTable()
+    If parentTable Is Nothing Then
+        Call ClearPackageIndicatorsOnMainForm(frm)
+        Exit Sub
+    End If
+    If parentRowIndex > parentTable.ListRows.Count Then
+        Call ClearPackageIndicatorsOnMainForm(frm)
+        Exit Sub
+    End If
+
+    childCount = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_CHILD_DOCUMENTS_COUNT)
+    If Len(childCount) = 0 Then childCount = "0"
+
+    childrenTotal = FormatItemAmountValue(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_CHILDREN_TOTAL_AMOUNT))
+    statusValue = LCase$(Trim$(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_AMOUNT_CHECK_STATUS)))
+    statusText = TranslateAmountCheckStatus(statusValue)
+
+    frm.lblPackageIndicators.Caption = LocalizationManager.GetText("Items:") & " " & childCount & " | " & _
+        LocalizationManager.GetText("Children Total:") & " " & childrenTotal & vbCrLf & _
+        LocalizationManager.GetText("Amount Check:") & " " & statusText
+
+    Select Case statusValue
+        Case "match"
+            frm.lblPackageIndicators.ForeColor = RGB(0, 102, 51)
+        Case "mismatch"
+            frm.lblPackageIndicators.ForeColor = RGB(156, 0, 6)
+        Case Else
+            frm.lblPackageIndicators.ForeColor = RGB(96, 96, 96)
+    End Select
+    Exit Sub
+
+IndicatorError:
+    Call ClearPackageIndicatorsOnMainForm(frm)
+End Sub
+
+Public Sub ClearPackageIndicatorsOnMainForm(ByVal frm As Object)
+    On Error Resume Next
+    If frm Is Nothing Then Exit Sub
+    frm.lblPackageIndicators.Caption = ""
+    frm.lblPackageIndicators.ForeColor = RGB(96, 96, 96)
+End Sub
+
+Public Function IsParentPackageAmountMismatch(ByVal parentRowIndex As Long) As Boolean
+    Dim parentTable As ListObject
+    Dim statusValue As String
+
+    Set parentTable = GetParentTable()
+    If parentTable Is Nothing Then Exit Function
+    If parentRowIndex < 1 Or parentRowIndex > parentTable.ListRows.Count Then Exit Function
+
+    statusValue = LCase$(Trim$(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_AMOUNT_CHECK_STATUS)))
+    IsParentPackageAmountMismatch = (statusValue = "mismatch")
+End Function
+
 Public Sub BindPackageDocumentsForm(ByVal frm As Object, ByVal parentRowIndex As Long, ByVal packageId As String)
     Call LoadParentSummaryToForm(frm, parentRowIndex, packageId)
     Call LoadPackageItemsToList(frm, packageId)
@@ -87,7 +156,7 @@ Public Sub LoadPackageItemsToList(ByVal frm As Object, ByVal packageId As String
     For Each dataRow In itemsTable.DataBodyRange.rows
         If StrComp(Trim$(CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_PACKAGE_ID))), Trim$(packageId), vbTextCompare) = 0 Then
             frm.lstPackageItems.AddItem CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_ITEM_ORDER))
-            listIndex = frm.lstPackageItems.ListCount - 1
+            listIndex = frm.lstPackageItems.listCount - 1
             frm.lstPackageItems.List(listIndex, 1) = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_DOCUMENT_TYPE_DISPLAY))
             frm.lstPackageItems.List(listIndex, 2) = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_DOCUMENT_NUMBER))
             frm.lstPackageItems.List(listIndex, 3) = FormatItemDateValue(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_DOCUMENT_DATE))
@@ -266,7 +335,7 @@ Public Sub ClearPackageItemEditor(ByVal frm As Object)
     frm.txtItemAmount.Text = ""
     frm.txtItemDescription.Text = ""
     frm.txtItemNotes.Text = ""
-    If frm.lstPackageItems.ListCount > 0 Then frm.lstPackageItems.listIndex = -1
+    If frm.lstPackageItems.listCount > 0 Then frm.lstPackageItems.listIndex = -1
 End Sub
 
 Public Sub LoadParentSummaryToForm(ByVal frm As Object, ByVal parentRowIndex As Long, ByVal packageId As String)
@@ -547,6 +616,8 @@ Private Function TranslateAmountCheckStatus(ByVal statusValue As String) As Stri
             TranslateAmountCheckStatus = LocalizationManager.GetText("Not checked")
     End Select
 End Function
+
+
 
 
 
