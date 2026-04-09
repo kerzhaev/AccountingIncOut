@@ -76,6 +76,9 @@ Public Sub RefreshPackageIndicatorsOnMainForm(ByVal frm As Object, ByVal parentR
     Dim childrenTotal As String
     Dim statusValue As String
     Dim statusText As String
+    Dim primaryStatusValue As String
+    Dim primaryStatusText As String
+    Dim primaryOperationNumber As String
 
     On Error GoTo IndicatorError
 
@@ -101,10 +104,14 @@ Public Sub RefreshPackageIndicatorsOnMainForm(ByVal frm As Object, ByVal parentR
     childrenTotal = FormatItemAmountValue(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_CHILDREN_TOTAL_AMOUNT))
     statusValue = LCase$(Trim$(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_AMOUNT_CHECK_STATUS)))
     statusText = TranslateAmountCheckStatus(statusValue)
+    primaryStatusValue = LCase$(Trim$(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_STATUS)))
+    primaryStatusText = TranslatePrimaryMatchStatus(primaryStatusValue)
+    primaryOperationNumber = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_NUMBER)
 
     frm.lblPackageIndicators.Caption = LocalizationManager.GetText("Items:") & " " & childCount & " | " & _
         LocalizationManager.GetText("Children Total:") & " " & childrenTotal & vbCrLf & _
-        LocalizationManager.GetText("Amount Check:") & " " & statusText
+        LocalizationManager.GetText("Amount Check:") & " " & statusText & " | " & _
+        LocalizationManager.GetText("1C Status") & ": " & primaryStatusText & IIf(Len(Trim$(primaryOperationNumber)) > 0, " | " & LocalizationManager.GetText("1C Operation No.") & ": " & primaryOperationNumber, vbNullString)
 
     Select Case statusValue
         Case "match"
@@ -460,6 +467,8 @@ Public Sub LoadParentSummaryToForm(ByVal frm As Object, ByVal parentRowIndex As 
     Dim childrenTotal As String
     Dim amountCheckText As String
     Dim childCount As String
+    Dim primaryStatusText As String
+    Dim primaryOperationNumber As String
 
     Set parentTable = GetParentTable()
     If parentTable Is Nothing Then Exit Sub
@@ -469,13 +478,16 @@ Public Sub LoadParentSummaryToForm(ByVal frm As Object, ByVal parentRowIndex As 
     childrenTotal = FormatItemAmountValue(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_CHILDREN_TOTAL_AMOUNT))
     childCount = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_CHILD_DOCUMENTS_COUNT)
     amountCheckText = TranslateAmountCheckStatus(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_AMOUNT_CHECK_STATUS))
+    primaryStatusText = TranslatePrimaryMatchStatus(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_STATUS))
+    primaryOperationNumber = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_NUMBER)
 
     frm.lblPackageSummary.Caption = LocalizationManager.GetText("Package:") & " " & packageId & vbCrLf & _
         LocalizationManager.GetText("Counterparty:") & " " & counterparty & vbCrLf & _
         LocalizationManager.GetText("Parent Amount:") & " " & parentAmount & "    " & _
         LocalizationManager.GetText("Children Total:") & " " & childrenTotal & "    " & _
         LocalizationManager.GetText("Items:") & " " & childCount & "    " & _
-        LocalizationManager.GetText("Amount Check:") & " " & amountCheckText
+        LocalizationManager.GetText("Amount Check:") & " " & amountCheckText & vbCrLf & _
+        LocalizationManager.GetText("1C Status") & ": " & primaryStatusText & IIf(Len(Trim$(primaryOperationNumber)) > 0, "    " & LocalizationManager.GetText("1C Operation No.") & ": " & primaryOperationNumber, vbNullString)
 End Sub
 
 Public Sub RefreshParentPackageSummary(ByVal parentRowIndex As Long)
@@ -489,6 +501,18 @@ Public Sub RefreshParentPackageSummary(ByVal parentRowIndex As Long)
     Dim childCount As Long
     Dim rowIndex As Long
     Dim statusValue As String
+    Dim exactCount As Long
+    Dim candidateCount As Long
+    Dim manualCount As Long
+    Dim notFoundCount As Long
+    Dim notCheckedCount As Long
+    Dim childStatusValue As String
+    Dim childOperationNumber As String
+    Dim childOperationDate As Variant
+    Dim primaryStatusValue As String
+    Dim matchedOperationCount As Long
+    Dim matchedOperationNumber As String
+    Dim matchedOperationDate As Variant
 
     Set parentTable = GetParentTable()
     Set itemsTable = GetItemsTable()
@@ -511,6 +535,33 @@ Public Sub RefreshParentPackageSummary(ByVal parentRowIndex As Long)
                 If IsNumeric(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_AMOUNT)) Then
                     childrenTotal = childrenTotal + CDbl(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_AMOUNT))
                 End If
+
+                childStatusValue = LCase$(Trim$(CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_STATUS))))
+                Select Case childStatusValue
+                    Case "exact"
+                        exactCount = exactCount + 1
+                    Case "candidate"
+                        candidateCount = candidateCount + 1
+                    Case "manual"
+                        manualCount = manualCount + 1
+                    Case "not_found"
+                        notFoundCount = notFoundCount + 1
+                    Case Else
+                        notCheckedCount = notCheckedCount + 1
+                End Select
+
+                childOperationNumber = Trim$(CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_NUMBER)))
+                childOperationDate = GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_DATE)
+                If Len(childOperationNumber) > 0 And childStatusValue <> "not_checked" And childStatusValue <> "not_found" Then
+                    matchedOperationCount = matchedOperationCount + 1
+                    If matchedOperationCount = 1 Then
+                        matchedOperationNumber = childOperationNumber
+                        matchedOperationDate = childOperationDate
+                    Else
+                        matchedOperationNumber = ""
+                        matchedOperationDate = ""
+                    End If
+                End If
             End If
         Next rowIndex
     End If
@@ -523,10 +574,27 @@ Public Sub RefreshParentPackageSummary(ByVal parentRowIndex As Long)
         statusValue = "mismatch"
     End If
 
+    If childCount = 0 Then
+        primaryStatusValue = "not_checked"
+    ElseIf exactCount = childCount Then
+        primaryStatusValue = "exact"
+    ElseIf manualCount = childCount Then
+        primaryStatusValue = "manual"
+    ElseIf notFoundCount = childCount Then
+        primaryStatusValue = "not_found"
+    ElseIf (exactCount + candidateCount + manualCount) > 0 Then
+        primaryStatusValue = "candidate"
+    Else
+        primaryStatusValue = "not_checked"
+    End If
+
     SetParentPackageValue parentTable, parentRowIndex, PACKAGE_COLUMN_HAS_CHILD_DOCUMENTS, IIf(childCount > 0, "True", "False")
     SetParentPackageValue parentTable, parentRowIndex, PACKAGE_COLUMN_CHILD_DOCUMENTS_COUNT, childCount
     SetParentPackageValue parentTable, parentRowIndex, PACKAGE_COLUMN_CHILDREN_TOTAL_AMOUNT, childrenTotal
     SetParentPackageValue parentTable, parentRowIndex, PACKAGE_COLUMN_AMOUNT_CHECK_STATUS, statusValue
+    SetParentPackageValue parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_STATUS, primaryStatusValue
+    SetParentPackageValue parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_NUMBER, matchedOperationNumber
+    SetParentPackageValue parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_DATE, matchedOperationDate
     Exit Sub
 
 RefreshError:
@@ -751,6 +819,23 @@ Private Function TranslateAmountCheckStatus(ByVal statusValue As String) As Stri
             TranslateAmountCheckStatus = LocalizationManager.GetText("Not checked")
     End Select
 End Function
+
+Private Function TranslatePrimaryMatchStatus(ByVal statusValue As String) As String
+    Select Case LCase$(Trim$(statusValue))
+        Case "exact"
+            TranslatePrimaryMatchStatus = LocalizationManager.GetText("Exact")
+        Case "candidate"
+            TranslatePrimaryMatchStatus = LocalizationManager.GetText("Candidate")
+        Case "manual"
+            TranslatePrimaryMatchStatus = LocalizationManager.GetText("Manual")
+        Case "not_found"
+            TranslatePrimaryMatchStatus = LocalizationManager.GetText("Not found")
+        Case Else
+            TranslatePrimaryMatchStatus = LocalizationManager.GetText("Not checked")
+    End Select
+End Function
+
+
 
 
 
