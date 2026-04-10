@@ -276,14 +276,15 @@ End Function
 
 Public Sub BindPackageDocumentsForm(ByVal frm As Object, ByVal parentRowIndex As Long, ByVal packageId As String)
     Call LoadParentSummaryToForm(frm, parentRowIndex, packageId)
-    Call LoadPackageItemsToList(frm, packageId)
+    Call LoadPackageItemsToList(frm, packageId, GetActiveReviewFilter(frm))
     Call ClearPackageItemEditor(frm)
 End Sub
 
-Public Sub LoadPackageItemsToList(ByVal frm As Object, ByVal packageId As String)
+Public Sub LoadPackageItemsToList(ByVal frm As Object, ByVal packageId As String, Optional ByVal reviewFilter As String = "")
     Dim itemsTable As ListObject
     Dim dataRow As Range
     Dim listIndex As Long
+    Dim statusValue As String
 
     Set itemsTable = GetItemsTable()
     frm.lstPackageItems.Clear
@@ -293,17 +294,54 @@ Public Sub LoadPackageItemsToList(ByVal frm As Object, ByVal packageId As String
 
     For Each dataRow In itemsTable.DataBodyRange.rows
         If StrComp(Trim$(CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_PACKAGE_ID))), Trim$(packageId), vbTextCompare) = 0 Then
+            statusValue = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_MATCHED_STATUS))
+            If Not IsItemVisibleForReviewFilter(statusValue, reviewFilter) Then GoTo ContinueLoop
             frm.lstPackageItems.AddItem CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_ITEM_ORDER))
             listIndex = frm.lstPackageItems.listCount - 1
             frm.lstPackageItems.List(listIndex, 1) = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_DOCUMENT_TYPE_DISPLAY))
             frm.lstPackageItems.List(listIndex, 2) = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_DOCUMENT_NUMBER))
             frm.lstPackageItems.List(listIndex, 3) = FormatItemDateValue(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_DOCUMENT_DATE))
             frm.lstPackageItems.List(listIndex, 4) = FormatItemAmountValue(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_AMOUNT))
-            frm.lstPackageItems.List(listIndex, 5) = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_MATCHED_STATUS))
+            frm.lstPackageItems.List(listIndex, 5) = statusValue
             frm.lstPackageItems.List(listIndex, 6) = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_MATCHED_OPERATION_NUMBER))
             frm.lstPackageItems.List(listIndex, 7) = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_ITEM_ID))
         End If
+ContinueLoop:
     Next dataRow
+End Sub
+
+Public Sub ApplyPackageReviewFilterFromForm(ByVal frm As Object, ByVal packageId As String)
+    Call LoadPackageItemsToList(frm, packageId, GetActiveReviewFilter(frm))
+    Call ClearPackageItemEditor(frm)
+End Sub
+
+Public Sub SelectNextReviewItemFromForm(ByVal frm As Object)
+    Dim listIndex As Long
+    Dim startIndex As Long
+
+    If frm Is Nothing Then Exit Sub
+    If frm.lstPackageItems.listCount = 0 Then Exit Sub
+
+    startIndex = frm.lstPackageItems.listIndex + 1
+    If startIndex < 0 Then startIndex = 0
+
+    For listIndex = startIndex To frm.lstPackageItems.listCount - 1
+        If IsReviewTargetStatus(CStr(frm.lstPackageItems.List(listIndex, 5))) Then
+            frm.lstPackageItems.listIndex = listIndex
+            Call LoadSelectedPackageItemIntoForm(frm, vbNullString)
+            Exit Sub
+        End If
+    Next listIndex
+
+    For listIndex = 0 To startIndex - 1
+        If IsReviewTargetStatus(CStr(frm.lstPackageItems.List(listIndex, 5))) Then
+            frm.lstPackageItems.listIndex = listIndex
+            Call LoadSelectedPackageItemIntoForm(frm, vbNullString)
+            Exit Sub
+        End If
+    Next listIndex
+
+    MsgBox LocalizationManager.GetText("No more review items in the current list."), vbInformation, LocalizationManager.GetText("Package Documents")
 End Sub
 
 Public Sub LoadSelectedPackageItemIntoForm(ByVal frm As Object, ByVal packageId As String)
@@ -807,6 +845,45 @@ Private Function IsChildMatchPending(ByVal statusValue As String) As Boolean
         Case Else
             IsChildMatchPending = True
     End Select
+End Function
+
+Private Function IsReviewTargetStatus(ByVal statusValue As String) As Boolean
+    Select Case LCase$(Trim$(statusValue))
+        Case "candidate", "not_found", "not_checked", vbNullString
+            IsReviewTargetStatus = True
+    End Select
+End Function
+
+Private Function IsItemVisibleForReviewFilter(ByVal statusValue As String, ByVal reviewFilter As String) As Boolean
+    Dim filterValue As String
+    Dim normalizedStatus As String
+
+    filterValue = LCase$(Trim$(reviewFilter))
+    normalizedStatus = LCase$(Trim$(statusValue))
+
+    If Len(filterValue) = 0 Or filterValue = LCase$(LocalizationManager.GetText("All")) Then
+        IsItemVisibleForReviewFilter = True
+        Exit Function
+    End If
+
+    Select Case filterValue
+        Case LCase$(LocalizationManager.GetText("Needs review"))
+            IsItemVisibleForReviewFilter = IsReviewTargetStatus(normalizedStatus)
+        Case LCase$(LocalizationManager.GetText("Pending"))
+            IsItemVisibleForReviewFilter = (normalizedStatus = "not_checked" Or Len(normalizedStatus) = 0)
+        Case LCase$(LocalizationManager.GetText("Candidate"))
+            IsItemVisibleForReviewFilter = (normalizedStatus = "candidate")
+        Case LCase$(LocalizationManager.GetText("Not found"))
+            IsItemVisibleForReviewFilter = (normalizedStatus = "not_found")
+        Case Else
+            IsItemVisibleForReviewFilter = True
+    End Select
+End Function
+
+Private Function GetActiveReviewFilter(ByVal frm As Object) As String
+    On Error Resume Next
+    GetActiveReviewFilter = Trim$(CStr(frm.cmbReviewFilter.Value))
+    On Error GoTo 0
 End Function
 
 Private Sub ApplyChildMatchResult(ByVal itemsTable As ListObject, ByVal rowIndex As Long, ByVal childFound As Boolean, ByVal childProvodkaNumber As String, ByVal childProvodkaDate As Variant, ByVal childMatchCount As Long, ByVal childStatusMessage As String, ByVal childCandidatesList As String)

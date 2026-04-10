@@ -20,6 +20,7 @@ Attribute VB_Exposed = False
 
 
 
+
 Option Explicit
 
 #If VBA7 Then
@@ -34,6 +35,7 @@ Private Const SM_CYSCREEN As Long = 1
 Private mParentRowIndex As Long
 Private mPackageId As String
 Private mDocumentTypeItems As Variant
+Private mIsReviewFilterInitializing As Boolean
 
 Public Sub OpenForParentRow(ByVal parentRowIndex As Long, ByVal packageId As String)
     mParentRowIndex = parentRowIndex
@@ -48,6 +50,7 @@ Private Sub UserForm_Initialize()
     Me.Height = 520
     Call SetupPackageItemsList
     Call SetupMatchedStatusCombo
+    Call SetupReviewFilterCombo
     Call LoadDocumentTypeComboData
     Call LocalizationManager.TranslateForm(Me)
     Call ApplyFormLayout
@@ -61,6 +64,11 @@ End Sub
 
 Private Sub lstPackageItems_Click()
     Call LoadSelectedPackageItemIntoForm(Me, mPackageId)
+End Sub
+
+Private Sub cmbReviewFilter_Change()
+    If mIsReviewFilterInitializing Then Exit Sub
+    Call ApplyPackageReviewFilterFromForm(Me, mPackageId)
 End Sub
 
 Private Sub cmbItemDocumentTypeDisplay_DropButtonClick()
@@ -92,6 +100,10 @@ Private Sub btnMatchIn1C_Click()
     Call BindPackageDocumentsForm(Me, mParentRowIndex, mPackageId)
 End Sub
 
+Private Sub btnNextReview_Click()
+    Call SelectNextReviewItemFromForm(Me)
+End Sub
+
 Private Sub btnClearItem_Click()
     Call ClearPackageItemEditor(Me)
 End Sub
@@ -118,6 +130,21 @@ Private Sub SetupMatchedStatusCombo()
         .AddItem "not_found"
         .Text = "not_checked"
     End With
+End Sub
+
+Private Sub SetupReviewFilterCombo()
+    mIsReviewFilterInitializing = True
+    With Me.cmbReviewFilter
+        .Clear
+        .Style = fmStyleDropDownList
+        .AddItem LocalizationManager.GetText("All")
+        .AddItem LocalizationManager.GetText("Needs review")
+        .AddItem LocalizationManager.GetText("Pending")
+        .AddItem LocalizationManager.GetText("Candidate")
+        .AddItem LocalizationManager.GetText("Not found")
+        .ListIndex = 0
+    End With
+    mIsReviewFilterInitializing = False
 End Sub
 
 Private Sub LoadDocumentTypeComboData()
@@ -204,6 +231,7 @@ Private Sub ApplyFormLayout()
     Dim secondRowTop As Single
     Dim thirdRowTop As Single
     Dim labelOffset As Single
+    Dim filterTop As Single
 
     marginX = 12
     labelOffset = 14
@@ -216,10 +244,21 @@ Private Sub ApplyFormLayout()
 
     currentTop = Me.lblPackageSummary.Top + Me.lblPackageSummary.Height + 8
     Me.lblPackageItemsTitle.Left = marginX
-    Me.lblPackageItemsTitle.Top = currentTop
+    Me.lblPackageItemsTitle.Top = currentTop + 4
     Me.lblPackageItemsTitle.Width = 180
 
-    currentTop = Me.lblPackageItemsTitle.Top + 16
+    filterTop = currentTop
+    Me.lblReviewFilter.Left = 468
+    Me.lblReviewFilter.Top = filterTop + 4
+    Me.lblReviewFilter.Width = 72
+    Me.cmbReviewFilter.Left = 544
+    Me.cmbReviewFilter.Top = filterTop
+    Me.cmbReviewFilter.Width = 120
+    Me.btnNextReview.Left = 670
+    Me.btnNextReview.Top = filterTop
+    Me.btnNextReview.Width = 72
+
+    currentTop = Me.lblPackageItemsTitle.Top + 20
     Me.lstPackageItems.Left = marginX
     Me.lstPackageItems.Top = currentTop
     Me.lstPackageItems.Width = contentWidth
