@@ -344,6 +344,36 @@ Public Sub SelectNextReviewItemFromForm(ByVal frm As Object)
     MsgBox LocalizationManager.GetText("No more review items in the current list."), vbInformation, LocalizationManager.GetText("Package Documents")
 End Sub
 
+Public Sub MarkSelectedPackageItemManualFromForm(ByVal frm As Object, ByVal parentRowIndex As Long, ByVal packageId As String)
+    Dim itemId As String
+
+    itemId = GetSelectedPackageItemIdFromForm(frm)
+    If Len(itemId) = 0 Then
+        MsgBox LocalizationManager.GetText("Select a package document item first."), vbExclamation, LocalizationManager.GetText("Package Documents")
+        Exit Sub
+    End If
+
+    Call UpdatePackageItemMatchState(itemId, "manual", True)
+    Call RefreshParentPackageSummary(parentRowIndex)
+    Call BindPackageDocumentsForm(frm, parentRowIndex, packageId)
+    Call SelectPackageItemInList(frm, itemId)
+End Sub
+
+Public Sub ResetSelectedPackageItemMatchFromForm(ByVal frm As Object, ByVal parentRowIndex As Long, ByVal packageId As String)
+    Dim itemId As String
+
+    itemId = GetSelectedPackageItemIdFromForm(frm)
+    If Len(itemId) = 0 Then
+        MsgBox LocalizationManager.GetText("Select a package document item first."), vbExclamation, LocalizationManager.GetText("Package Documents")
+        Exit Sub
+    End If
+
+    Call UpdatePackageItemMatchState(itemId, "not_checked", False)
+    Call RefreshParentPackageSummary(parentRowIndex)
+    Call BindPackageDocumentsForm(frm, parentRowIndex, packageId)
+    Call SelectPackageItemInList(frm, itemId)
+End Sub
+
 Public Sub LoadSelectedPackageItemIntoForm(ByVal frm As Object, ByVal packageId As String)
     On Error GoTo LoadError
 
@@ -885,6 +915,47 @@ Private Function GetActiveReviewFilter(ByVal frm As Object) As String
     GetActiveReviewFilter = Trim$(CStr(frm.cmbReviewFilter.Value))
     On Error GoTo 0
 End Function
+
+Private Function GetSelectedPackageItemIdFromForm(ByVal frm As Object) As String
+    If frm Is Nothing Then Exit Function
+
+    GetSelectedPackageItemIdFromForm = Trim$(CStr(frm.txtItemId.Text))
+    If Len(GetSelectedPackageItemIdFromForm) > 0 Then Exit Function
+
+    If frm.lstPackageItems.listIndex >= 0 Then
+        GetSelectedPackageItemIdFromForm = Trim$(CStr(frm.lstPackageItems.List(frm.lstPackageItems.listIndex, 7)))
+    End If
+End Function
+
+Private Sub UpdatePackageItemMatchState(ByVal itemId As String, ByVal statusValue As String, ByVal keepExistingOperation As Boolean)
+    Dim itemsTable As ListObject
+    Dim rowIndex As Long
+
+    Set itemsTable = GetItemsTable()
+    rowIndex = FindItemRowIndexById(itemsTable, itemId)
+    If rowIndex = 0 Then Exit Sub
+
+    Select Case LCase$(Trim$(statusValue))
+        Case "manual"
+            SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_STATUS, "manual"
+            SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_MODE, "manual"
+            SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_CONFIDENCE, 100
+        Case Else
+            SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_NUMBER, vbNullString
+            SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_DATE, vbNullString
+            SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_COMMENT, vbNullString
+            SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_STATUS, "not_checked"
+            SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_MODE, vbNullString
+            SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_CONFIDENCE, 0
+    End Select
+
+    If Not keepExistingOperation Then
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_NUMBER, vbNullString
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_DATE, vbNullString
+    End If
+
+    SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_UPDATED_AT, Now
+End Sub
 
 Private Sub ApplyChildMatchResult(ByVal itemsTable As ListObject, ByVal rowIndex As Long, ByVal childFound As Boolean, ByVal childProvodkaNumber As String, ByVal childProvodkaDate As Variant, ByVal childMatchCount As Long, ByVal childStatusMessage As String, ByVal childCandidatesList As String)
     Dim commentText As String

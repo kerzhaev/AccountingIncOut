@@ -21,6 +21,7 @@ Attribute VB_Exposed = False
 
 
 
+
 Option Explicit
 
 #If VBA7 Then
@@ -104,6 +105,14 @@ Private Sub btnNextReview_Click()
     Call SelectNextReviewItemFromForm(Me)
 End Sub
 
+Private Sub btnMarkManual_Click()
+    Call MarkSelectedPackageItemManualFromForm(Me, mParentRowIndex, mPackageId)
+End Sub
+
+Private Sub btnResetMatch_Click()
+    Call ResetSelectedPackageItemMatchFromForm(Me, mParentRowIndex, mPackageId)
+End Sub
+
 Private Sub btnClearItem_Click()
     Call ClearPackageItemEditor(Me)
 End Sub
@@ -142,7 +151,7 @@ Private Sub SetupReviewFilterCombo()
         .AddItem LocalizationManager.GetText("Pending")
         .AddItem LocalizationManager.GetText("Candidate")
         .AddItem LocalizationManager.GetText("Not found")
-        .ListIndex = 0
+        .listIndex = 0
     End With
     mIsReviewFilterInitializing = False
 End Sub
@@ -225,6 +234,7 @@ Private Sub ApplyFormLayout()
     Dim currentTop As Single
     Dim contentWidth As Single
     Dim buttonTop As Single
+    Dim reviewButtonTop As Single
     Dim buttonWidth As Single
     Dim buttonGap As Single
     Dim firstRowTop As Single
@@ -254,15 +264,12 @@ Private Sub ApplyFormLayout()
     Me.cmbReviewFilter.Left = 544
     Me.cmbReviewFilter.Top = filterTop
     Me.cmbReviewFilter.Width = 120
-    Me.btnNextReview.Left = 670
-    Me.btnNextReview.Top = filterTop
-    Me.btnNextReview.Width = 72
 
     currentTop = Me.lblPackageItemsTitle.Top + 20
     Me.lstPackageItems.Left = marginX
     Me.lstPackageItems.Top = currentTop
     Me.lstPackageItems.Width = contentWidth
-    Me.lstPackageItems.Height = 120
+    Me.lstPackageItems.Height = 112
 
     buttonTop = Me.lstPackageItems.Top + Me.lstPackageItems.Height + 8
     buttonWidth = 78
@@ -285,14 +292,25 @@ Private Sub ApplyFormLayout()
     Me.btnMatchIn1C.Left = Me.btnFillFromPackage.Left + Me.btnFillFromPackage.Width + buttonGap
     Me.btnMatchIn1C.Top = buttonTop
     Me.btnMatchIn1C.Width = 90
-    Me.btnClearItem.Left = Me.btnMatchIn1C.Left + Me.btnMatchIn1C.Width + buttonGap
-    Me.btnClearItem.Top = buttonTop
+    
+    reviewButtonTop = buttonTop + 32
+    Me.btnNextReview.Left = marginX
+    Me.btnNextReview.Top = reviewButtonTop
+    Me.btnNextReview.Width = 96
+    Me.btnMarkManual.Left = Me.btnNextReview.Left + Me.btnNextReview.Width + buttonGap
+    Me.btnMarkManual.Top = reviewButtonTop
+    Me.btnMarkManual.Width = 102
+    Me.btnResetMatch.Left = Me.btnMarkManual.Left + Me.btnMarkManual.Width + buttonGap
+    Me.btnResetMatch.Top = reviewButtonTop
+    Me.btnResetMatch.Width = 96
+    Me.btnClearItem.Left = Me.btnResetMatch.Left + Me.btnResetMatch.Width + buttonGap
+    Me.btnClearItem.Top = reviewButtonTop
     Me.btnClearItem.Width = 78
     Me.btnClose.Left = Me.btnClearItem.Left + Me.btnClearItem.Width + buttonGap
-    Me.btnClose.Top = buttonTop
+    Me.btnClose.Top = reviewButtonTop
     Me.btnClose.Width = 78
 
-    firstRowTop = buttonTop + 44
+    firstRowTop = reviewButtonTop + 40
     Me.lblItemDocumentType.Left = marginX
     Me.lblItemDocumentType.Top = firstRowTop
     Me.cmbItemDocumentTypeDisplay.Left = marginX
