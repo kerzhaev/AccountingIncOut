@@ -323,7 +323,7 @@ End Sub
 Public Sub SetPackageReviewFilterFromForm(ByVal frm As Object, ByVal packageId As String, ByVal filterKey As String)
     If frm Is Nothing Then Exit Sub
 
-    frm.cmbReviewFilter.Value = LocalizationManager.GetText(filterKey)
+    frm.cmbReviewFilter.value = LocalizationManager.GetText(filterKey)
     Call ApplyPackageReviewFilterFromForm(frm, packageId)
 End Sub
 
@@ -402,7 +402,7 @@ Public Sub LoadSelectedPackageItemIntoForm(ByVal frm As Object, ByVal packageId 
     If rowIndex = 0 Then Exit Sub
 
     frm.txtItemId.Text = selectedItemId
-    frm.cmbItemDocumentTypeDisplay.Value = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_TYPE_DISPLAY))
+    frm.cmbItemDocumentTypeDisplay.value = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_TYPE_DISPLAY))
     frm.txtItemDocumentNumber.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_NUMBER))
     frm.txtItemDocumentDate.Text = FormatItemDateValue(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_DATE))
     frm.txtItemAmount.Text = FormatEditorAmountValue(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_AMOUNT))
@@ -412,6 +412,7 @@ Public Sub LoadSelectedPackageItemIntoForm(ByVal frm As Object, ByVal packageId 
     frm.txtMatched1COperationDate.Text = FormatItemDateValue(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_DATE))
     frm.cmbMatched1CStatus.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_STATUS))
     frm.txtMatched1CComment.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_COMMENT))
+    Call UpdatePackageItemReviewHint(frm)
     Exit Sub
 
 LoadError:
@@ -433,7 +434,7 @@ Public Sub SavePackageItemFromForm(ByVal frm As Object, ByVal parentRowIndex As 
         parentRowIndex, _
         packageId, _
         Trim$(frm.txtItemId.Text), _
-        Trim$(frm.cmbItemDocumentTypeDisplay.Value), _
+        Trim$(frm.cmbItemDocumentTypeDisplay.value), _
         Trim$(frm.txtItemDocumentNumber.Text), _
         itemDateValue, _
         amountValue, _
@@ -522,7 +523,7 @@ Public Sub FillPackageItemEditorFromParent(ByVal frm As Object, ByVal parentRowI
 
     Call ClearPackageItemEditor(frm)
 
-    frm.cmbItemDocumentTypeDisplay.Value = CStr(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DOCUMENT_TYPE_COLUMN))
+    frm.cmbItemDocumentTypeDisplay.value = CStr(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DOCUMENT_TYPE_COLUMN))
     frm.txtItemDocumentNumber.Text = CStr(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DOCUMENT_NUMBER_COLUMN))
     frm.txtItemDocumentDate.Text = FormatItemDateValue(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_FRP_DATE_COLUMN))
 
@@ -641,7 +642,7 @@ End Function
 
 Public Sub ClearPackageItemEditor(ByVal frm As Object)
     frm.txtItemId.Text = ""
-    frm.cmbItemDocumentTypeDisplay.Value = ""
+    frm.cmbItemDocumentTypeDisplay.value = ""
     frm.txtItemDocumentNumber.Text = ""
     frm.txtItemDocumentDate.Text = ""
     frm.txtItemAmount.Text = ""
@@ -652,6 +653,49 @@ Public Sub ClearPackageItemEditor(ByVal frm As Object)
     frm.cmbMatched1CStatus.Text = "not_checked"
     frm.txtMatched1CComment.Text = ""
     If frm.lstPackageItems.listCount > 0 Then frm.lstPackageItems.listIndex = -1
+    Call UpdatePackageItemReviewHint(frm)
+End Sub
+
+Public Sub UpdatePackageItemReviewHint(ByVal frm As Object)
+    Dim statusValue As String
+    Dim hintText As String
+    Dim accentColor As Long
+    Dim warningColor As Long
+    Dim dangerColor As Long
+    Dim neutralColor As Long
+
+    If frm Is Nothing Then Exit Sub
+
+    statusValue = LCase$(Trim$(CStr(frm.cmbMatched1CStatus.Text)))
+    warningColor = RGB(255, 242, 204)
+    dangerColor = RGB(255, 199, 206)
+    accentColor = RGB(226, 239, 218)
+    neutralColor = RGB(255, 255, 255)
+
+    Select Case statusValue
+        Case "candidate"
+            hintText = LocalizationManager.GetText("Child match requires review. Confirm it as manual or reset it.")
+            Call SetReviewFieldsColor(frm, warningColor)
+            frm.lblReviewHint.ForeColor = RGB(156, 101, 0)
+        Case "not_found"
+            hintText = LocalizationManager.GetText("No 1C match found for this child document.")
+            Call SetReviewFieldsColor(frm, dangerColor)
+            frm.lblReviewHint.ForeColor = RGB(156, 0, 6)
+        Case "manual"
+            hintText = LocalizationManager.GetText("Child document was manually confirmed.")
+            Call SetReviewFieldsColor(frm, accentColor)
+            frm.lblReviewHint.ForeColor = RGB(0, 97, 0)
+        Case "exact"
+            hintText = LocalizationManager.GetText("Child document has an exact 1C match.")
+            Call SetReviewFieldsColor(frm, accentColor)
+            frm.lblReviewHint.ForeColor = RGB(0, 97, 0)
+        Case Else
+            hintText = LocalizationManager.GetText("Child document is pending 1C matching.")
+            Call SetReviewFieldsColor(frm, neutralColor)
+            frm.lblReviewHint.ForeColor = RGB(96, 96, 96)
+    End Select
+
+    frm.lblReviewHint.Caption = hintText
 End Sub
 
 Private Sub SelectPackageItemInList(ByVal frm As Object, ByVal itemId As String)
@@ -815,7 +859,7 @@ End Sub
 Private Function ValidatePackageItemForm(ByVal frm As Object, ByRef amountValue As Double, ByRef itemDateValue As Variant) As Boolean
     ValidatePackageItemForm = False
 
-    If Len(Trim$(frm.cmbItemDocumentTypeDisplay.Value)) = 0 Then
+    If Len(Trim$(frm.cmbItemDocumentTypeDisplay.value)) = 0 Then
         MsgBox LocalizationManager.GetText("Document Type is required."), vbExclamation, LocalizationManager.GetText("Package Documents")
         frm.cmbItemDocumentTypeDisplay.SetFocus
         Exit Function
@@ -927,9 +971,18 @@ End Function
 
 Private Function GetActiveReviewFilter(ByVal frm As Object) As String
     On Error Resume Next
-    GetActiveReviewFilter = Trim$(CStr(frm.cmbReviewFilter.Value))
+    GetActiveReviewFilter = Trim$(CStr(frm.cmbReviewFilter.value))
     On Error GoTo 0
 End Function
+
+Private Sub SetReviewFieldsColor(ByVal frm As Object, ByVal backColorValue As Long)
+    On Error Resume Next
+    frm.txtMatched1COperationNumber.BackColor = backColorValue
+    frm.txtMatched1COperationDate.BackColor = backColorValue
+    frm.cmbMatched1CStatus.BackColor = backColorValue
+    frm.txtMatched1CComment.BackColor = backColorValue
+    On Error GoTo 0
+End Sub
 
 Private Function BuildPackageReviewSummary(ByVal packageId As String) As String
     Dim itemsTable As ListObject
@@ -1220,22 +1273,5 @@ Private Function TranslatePrimaryMatchStatus(ByVal statusValue As String) As Str
             TranslatePrimaryMatchStatus = LocalizationManager.GetText("Not checked")
     End Select
 End Function
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

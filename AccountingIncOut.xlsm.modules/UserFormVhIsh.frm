@@ -25,6 +25,7 @@ Attribute VB_Exposed = False
 
 
 
+
 '==============================================
 ' FORM MANAGEMENT MODULE "IncOut" - UserFormVhIsh
 ' Purpose: Fully functional form for adding, editing, and searching records
@@ -1608,6 +1609,8 @@ Private Sub ConstrainPackageAreaLayout()
     rightMargin = 18
     gap = 8
 
+    Me.btnPackageDocuments.Visible = True
+    Me.lblPackageIndicators.Visible = True
     Me.btnPackageDocuments.Top = Me.btnNew.Top
     Me.btnPackageDocuments.Width = 126
     Me.btnPackageDocuments.Left = contentWidth - rightMargin - Me.btnPackageDocuments.Width
@@ -1615,10 +1618,13 @@ Private Sub ConstrainPackageAreaLayout()
         Me.btnPackageDocuments.Left = Me.btnClear.Left + Me.btnClear.Width + gap
     End If
 
-    indicatorTop = Me.Frame6.Top - 46
-    indicatorHeight = 36
+    indicatorHeight = 44
+    indicatorTop = Me.Frame6.Top - indicatorHeight - 8
+    If indicatorTop < Me.lstSearchResults.Top + Me.lstSearchResults.Height + 10 Then
+        indicatorTop = Me.lstSearchResults.Top + Me.lstSearchResults.Height + 10
+    End If
 
-    indicatorWidth = 240
+    indicatorWidth = 252
     Me.lblPackageIndicators.Width = indicatorWidth
     Me.lblPackageIndicators.Left = contentWidth - rightMargin - indicatorWidth
     Me.lblPackageIndicators.Top = indicatorTop
@@ -1728,6 +1734,7 @@ Private Sub ResizeAndCenterForm()
 ErrorHandler:
     Me.StartUpPosition = 1
 End Sub
+
 
 
 

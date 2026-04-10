@@ -23,6 +23,7 @@ Attribute VB_Exposed = False
 
 
 
+
 Option Explicit
 
 #If VBA7 Then
@@ -48,8 +49,8 @@ End Sub
 
 Private Sub UserForm_Initialize()
     Me.Caption = "Package Documents"
-    Me.Width = 780
-    Me.Height = 560
+    Me.Width = 820
+    Me.Height = 600
     Call SetupPackageItemsList
     Call SetupMatchedStatusCombo
     Call SetupReviewFilterCombo
@@ -71,6 +72,10 @@ End Sub
 Private Sub cmbReviewFilter_Change()
     If mIsReviewFilterInitializing Then Exit Sub
     Call ApplyPackageReviewFilterFromForm(Me, mPackageId)
+End Sub
+
+Private Sub cmbMatched1CStatus_Change()
+    Call UpdatePackageItemReviewHint(Me)
 End Sub
 
 Private Sub cmbItemDocumentTypeDisplay_DropButtonClick()
@@ -257,12 +262,15 @@ Private Sub ApplyFormLayout()
     Dim firstRowTop As Single
     Dim secondRowTop As Single
     Dim thirdRowTop As Single
+    Dim notesTop As Single
     Dim labelOffset As Single
     Dim filterTop As Single
+    Dim comboWidth As Single
+    Dim filterLabelWidth As Single
 
     marginX = 12
     labelOffset = 14
-    contentWidth = Me.Width - (marginX * 2) - 12
+    contentWidth = Me.Width - (marginX * 2) - 18
 
     Me.lblPackageSummary.Left = marginX
     Me.lblPackageSummary.Top = 12
@@ -273,36 +281,38 @@ Private Sub ApplyFormLayout()
     filterTop = currentTop
     Me.lblPackageItemsTitle.Left = marginX
     Me.lblPackageItemsTitle.Top = filterTop + 4
-    Me.lblPackageItemsTitle.Width = 90
+    Me.lblPackageItemsTitle.Width = 92
 
     Me.btnFilterAll.Left = 108
     Me.btnFilterAll.Top = filterTop
-    Me.btnFilterAll.Width = 42
+    Me.btnFilterAll.Width = 50
     Me.btnFilterCandidate.Left = Me.btnFilterAll.Left + Me.btnFilterAll.Width + 6
     Me.btnFilterCandidate.Top = filterTop
-    Me.btnFilterCandidate.Width = 70
+    Me.btnFilterCandidate.Width = 74
     Me.btnFilterPending.Left = Me.btnFilterCandidate.Left + Me.btnFilterCandidate.Width + 6
     Me.btnFilterPending.Top = filterTop
-    Me.btnFilterPending.Width = 68
+    Me.btnFilterPending.Width = 74
     Me.btnFilterNotFound.Left = Me.btnFilterPending.Left + Me.btnFilterPending.Width + 6
     Me.btnFilterNotFound.Top = filterTop
-    Me.btnFilterNotFound.Width = 82
+    Me.btnFilterNotFound.Width = 86
 
-    Me.lblReviewFilter.Left = 496
-    Me.lblReviewFilter.Top = filterTop + 4
-    Me.lblReviewFilter.Width = 72
-    Me.cmbReviewFilter.Left = 572
+    comboWidth = 112
+    filterLabelWidth = 86
+    Me.cmbReviewFilter.Left = marginX + contentWidth - comboWidth
     Me.cmbReviewFilter.Top = filterTop
-    Me.cmbReviewFilter.Width = 110
+    Me.cmbReviewFilter.Width = comboWidth
+    Me.lblReviewFilter.Left = Me.cmbReviewFilter.Left - filterLabelWidth - 6
+    Me.lblReviewFilter.Top = filterTop + 4
+    Me.lblReviewFilter.Width = filterLabelWidth
 
     currentTop = filterTop + 30
     Me.lstPackageItems.Left = marginX
     Me.lstPackageItems.Top = currentTop
     Me.lstPackageItems.Width = contentWidth
-    Me.lstPackageItems.Height = 118
+    Me.lstPackageItems.Height = 126
 
     buttonTop = Me.lstPackageItems.Top + Me.lstPackageItems.Height + 8
-    buttonWidth = 78
+    buttonWidth = 82
     buttonGap = 6
     Me.btnAddItem.Left = marginX
     Me.btnAddItem.Top = buttonTop
@@ -318,15 +328,15 @@ Private Sub ApplyFormLayout()
     Me.btnDuplicateItem.Width = buttonWidth
     Me.btnFillFromPackage.Left = Me.btnDuplicateItem.Left + buttonWidth + buttonGap
     Me.btnFillFromPackage.Top = buttonTop
-    Me.btnFillFromPackage.Width = 102
+    Me.btnFillFromPackage.Width = 112
     Me.btnMatchIn1C.Left = Me.btnFillFromPackage.Left + Me.btnFillFromPackage.Width + buttonGap
     Me.btnMatchIn1C.Top = buttonTop
-    Me.btnMatchIn1C.Width = 90
-    
+    Me.btnMatchIn1C.Width = 94
+
     reviewButtonTop = buttonTop + 34
     Me.btnNextReview.Left = marginX
     Me.btnNextReview.Top = reviewButtonTop
-    Me.btnNextReview.Width = 118
+    Me.btnNextReview.Width = 124
     Me.btnMarkManual.Left = Me.btnNextReview.Left + Me.btnNextReview.Width + buttonGap
     Me.btnMarkManual.Top = reviewButtonTop
     Me.btnMarkManual.Width = 132
@@ -335,76 +345,83 @@ Private Sub ApplyFormLayout()
     Me.btnResetMatch.Width = 132
     Me.btnClearItem.Left = Me.btnResetMatch.Left + Me.btnResetMatch.Width + buttonGap
     Me.btnClearItem.Top = reviewButtonTop
-    Me.btnClearItem.Width = 78
+    Me.btnClearItem.Width = 82
     Me.btnClose.Left = Me.btnClearItem.Left + Me.btnClearItem.Width + buttonGap
     Me.btnClose.Top = reviewButtonTop
-    Me.btnClose.Width = 78
+    Me.btnClose.Width = 82
 
-    firstRowTop = reviewButtonTop + 42
+    firstRowTop = reviewButtonTop + 40
     Me.lblItemDocumentType.Left = marginX
     Me.lblItemDocumentType.Top = firstRowTop
     Me.cmbItemDocumentTypeDisplay.Left = marginX
     Me.cmbItemDocumentTypeDisplay.Top = firstRowTop + labelOffset
-    Me.cmbItemDocumentTypeDisplay.Width = 170
+    Me.cmbItemDocumentTypeDisplay.Width = 180
 
-    Me.lblItemDocumentNumber.Left = 194
+    Me.lblItemDocumentNumber.Left = 206
     Me.lblItemDocumentNumber.Top = firstRowTop
-    Me.txtItemDocumentNumber.Left = 194
+    Me.txtItemDocumentNumber.Left = 206
     Me.txtItemDocumentNumber.Top = firstRowTop + labelOffset
-    Me.txtItemDocumentNumber.Width = 120
+    Me.txtItemDocumentNumber.Width = 132
 
-    Me.lblItemDocumentDate.Left = 330
+    Me.lblItemDocumentDate.Left = 352
     Me.lblItemDocumentDate.Top = firstRowTop
-    Me.txtItemDocumentDate.Left = 330
+    Me.txtItemDocumentDate.Left = 352
     Me.txtItemDocumentDate.Top = firstRowTop + labelOffset
-    Me.txtItemDocumentDate.Width = 82
+    Me.txtItemDocumentDate.Width = 92
 
-    Me.lblItemAmount.Left = 426
+    Me.lblItemAmount.Left = 458
     Me.lblItemAmount.Top = firstRowTop
-    Me.txtItemAmount.Left = 426
+    Me.txtItemAmount.Left = 458
     Me.txtItemAmount.Top = firstRowTop + labelOffset
-    Me.txtItemAmount.Width = 78
+    Me.txtItemAmount.Width = 86
 
-    Me.lblMatched1COperationNumber.Left = 522
+    Me.lblMatched1COperationNumber.Left = 560
     Me.lblMatched1COperationNumber.Top = firstRowTop
-    Me.txtMatched1COperationNumber.Left = 522
+    Me.txtMatched1COperationNumber.Left = 560
     Me.txtMatched1COperationNumber.Top = firstRowTop + labelOffset
-    Me.txtMatched1COperationNumber.Width = 102
+    Me.txtMatched1COperationNumber.Width = 114
 
-    Me.lblMatched1COperationDate.Left = 636
+    Me.lblMatched1COperationDate.Left = 688
     Me.lblMatched1COperationDate.Top = firstRowTop
-    Me.txtMatched1COperationDate.Left = 636
+    Me.txtMatched1COperationDate.Left = 688
     Me.txtMatched1COperationDate.Top = firstRowTop + labelOffset
-    Me.txtMatched1COperationDate.Width = 84
+    Me.txtMatched1COperationDate.Width = 92
 
-    secondRowTop = firstRowTop + 50
+    secondRowTop = firstRowTop + 56
     Me.lblItemDescription.Left = marginX
     Me.lblItemDescription.Top = secondRowTop
     Me.txtItemDescription.Left = marginX
     Me.txtItemDescription.Top = secondRowTop + labelOffset
-    Me.txtItemDescription.Width = 360
+    Me.txtItemDescription.Width = 390
     Me.txtItemDescription.Height = 42
 
-    Me.lblMatched1CStatus.Left = 390
+    Me.lblMatched1CStatus.Left = 420
     Me.lblMatched1CStatus.Top = secondRowTop
-    Me.cmbMatched1CStatus.Left = 390
+    Me.cmbMatched1CStatus.Left = 420
     Me.cmbMatched1CStatus.Top = secondRowTop + labelOffset
-    Me.cmbMatched1CStatus.Width = 110
+    Me.cmbMatched1CStatus.Width = 120
 
-    Me.lblMatched1CComment.Left = 516
+    Me.lblMatched1CComment.Left = 556
     Me.lblMatched1CComment.Top = secondRowTop
-    Me.txtMatched1CComment.Left = 516
+    Me.txtMatched1CComment.Left = 556
     Me.txtMatched1CComment.Top = secondRowTop + labelOffset
-    Me.txtMatched1CComment.Width = 204
+    Me.txtMatched1CComment.Width = 224
     Me.txtMatched1CComment.Height = 42
 
-    thirdRowTop = secondRowTop + 66
+    thirdRowTop = secondRowTop + 64
+    Me.lblReviewHint.Left = marginX
+    Me.lblReviewHint.Top = thirdRowTop
+    Me.lblReviewHint.Width = contentWidth
+    Me.lblReviewHint.Height = 22
+    Me.lblReviewHint.WordWrap = True
+
+    notesTop = thirdRowTop + 32
     Me.lblItemNotes.Left = marginX
-    Me.lblItemNotes.Top = thirdRowTop
+    Me.lblItemNotes.Top = notesTop
     Me.txtItemNotes.Left = marginX
-    Me.txtItemNotes.Top = thirdRowTop + labelOffset
+    Me.txtItemNotes.Top = notesTop + labelOffset
     Me.txtItemNotes.Width = contentWidth
-    Me.txtItemNotes.Height = 48
+    Me.txtItemNotes.Height = 54
 
     Me.txtItemId.Left = contentWidth - 90
     Me.txtItemId.Top = Me.txtItemNotes.Top + Me.txtItemNotes.Height + 6
