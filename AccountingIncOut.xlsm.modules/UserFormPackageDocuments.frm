@@ -19,6 +19,7 @@ Attribute VB_Exposed = False
 
 
 
+
 Option Explicit
 
 #If VBA7 Then
@@ -84,6 +85,11 @@ End Sub
 
 Private Sub btnFillFromPackage_Click()
     Call FillPackageItemEditorFromParent(Me, mParentRowIndex)
+End Sub
+
+Private Sub btnMatchIn1C_Click()
+    Call ProvodkaIntegrationModule.ProcessSingleRecord(mParentRowIndex)
+    Call BindPackageDocumentsForm(Me, mParentRowIndex, mPackageId)
 End Sub
 
 Private Sub btnClearItem_Click()
@@ -220,7 +226,7 @@ Private Sub ApplyFormLayout()
     Me.lstPackageItems.Height = 120
 
     buttonTop = Me.lstPackageItems.Top + Me.lstPackageItems.Height + 8
-    buttonWidth = 86
+    buttonWidth = 78
     buttonGap = 6
     Me.btnAddItem.Left = marginX
     Me.btnAddItem.Top = buttonTop
@@ -236,13 +242,16 @@ Private Sub ApplyFormLayout()
     Me.btnDuplicateItem.Width = buttonWidth
     Me.btnFillFromPackage.Left = Me.btnDuplicateItem.Left + buttonWidth + buttonGap
     Me.btnFillFromPackage.Top = buttonTop
-    Me.btnFillFromPackage.Width = 110
-    Me.btnClearItem.Left = Me.btnFillFromPackage.Left + Me.btnFillFromPackage.Width + buttonGap
+    Me.btnFillFromPackage.Width = 102
+    Me.btnMatchIn1C.Left = Me.btnFillFromPackage.Left + Me.btnFillFromPackage.Width + buttonGap
+    Me.btnMatchIn1C.Top = buttonTop
+    Me.btnMatchIn1C.Width = 90
+    Me.btnClearItem.Left = Me.btnMatchIn1C.Left + Me.btnMatchIn1C.Width + buttonGap
     Me.btnClearItem.Top = buttonTop
-    Me.btnClearItem.Width = 86
+    Me.btnClearItem.Width = 78
     Me.btnClose.Left = Me.btnClearItem.Left + Me.btnClearItem.Width + buttonGap
     Me.btnClose.Top = buttonTop
-    Me.btnClose.Width = 86
+    Me.btnClose.Width = 78
 
     firstRowTop = buttonTop + 44
     Me.lblItemDocumentType.Left = marginX
