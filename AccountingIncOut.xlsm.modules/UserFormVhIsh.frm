@@ -1618,8 +1618,8 @@ Private Sub ConstrainPackageAreaLayout()
         Me.btnPackageDocuments.Left = Me.btnClear.Left + Me.btnClear.Width + gap
     End If
 
-    indicatorHeight = 40
-    indicatorTop = Me.Frame6.Top - indicatorHeight - 12
+    indicatorHeight = 54
+    indicatorTop = Me.Frame6.Top - indicatorHeight - 16
     If indicatorTop < Me.lstSearchResults.Top + Me.lstSearchResults.Height + 10 Then
         indicatorTop = Me.lstSearchResults.Top + Me.lstSearchResults.Height + 10
     End If
@@ -1627,14 +1627,14 @@ Private Sub ConstrainPackageAreaLayout()
         indicatorTop = Me.btnPackageDocuments.Top - indicatorHeight - 4
     End If
 
-    indicatorWidth = 252
+    indicatorWidth = 260
     Me.lblPackageIndicators.Width = indicatorWidth
     Me.lblPackageIndicators.Left = contentWidth - rightMargin - indicatorWidth
     Me.lblPackageIndicators.Top = indicatorTop
     Me.lblPackageIndicators.Height = indicatorHeight
     Me.lblPackageIndicators.WordWrap = True
     On Error Resume Next
-    If Me.lblPackageIndicators.Font.Size > 8.5 Then Me.lblPackageIndicators.Font.Size = 8.5
+    If Me.lblPackageIndicators.Font.Size > 8 Then Me.lblPackageIndicators.Font.Size = 8
     On Error GoTo 0
 
 Cleanup:

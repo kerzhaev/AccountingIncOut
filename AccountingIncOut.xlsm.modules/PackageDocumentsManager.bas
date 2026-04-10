@@ -29,6 +29,8 @@ Private Const ITEM_COLUMN_ORDER_INFO As String = "OrderInfo"
 Private Const ITEM_COLUMN_FRP_NUMBER As String = "FRPNumber"
 Private Const ITEM_COLUMN_FRP_DATE As String = "FRPDate"
 Private Const ITEM_COLUMN_ASSET_CATEGORY As String = "ItemAssetCategory"
+Private Const ITEM_COLUMN_QUANTITY As String = "ItemQuantity"
+Private Const ITEM_COLUMN_UNIT As String = "ItemUnit"
 Private Const ITEM_COLUMN_DESCRIPTION As String = "ItemDescription"
 Private Const ITEM_COLUMN_BASE_DOCUMENT_TYPE As String = "BaseDocumentType"
 Private Const ITEM_COLUMN_BASE_DOCUMENT_NUMBER As String = "BaseDocumentNumber"
@@ -243,7 +245,7 @@ Public Sub RefreshPackageIndicatorsOnMainForm(ByVal frm As Object, ByVal parentR
         LocalizationManager.GetText("Amount Check:") & " " & statusText & " | " & _
         LocalizationManager.GetText("1C Status") & ": " & primaryStatusText & IIf(Len(Trim$(primaryOperationNumber)) > 0, " | " & LocalizationManager.GetText("1C Operation No.") & ": " & primaryOperationNumber, vbNullString) & vbCrLf & _
         reviewSummaryText
-    frm.lblPackageIndicators.Height = 42
+        frm.lblPackageIndicators.Height = 54
 
     Select Case statusValue
         Case "match"
@@ -263,7 +265,7 @@ Public Sub ClearPackageIndicatorsOnMainForm(ByVal frm As Object)
     On Error Resume Next
     If frm Is Nothing Then Exit Sub
     frm.lblPackageIndicators.Caption = ""
-    frm.lblPackageIndicators.Height = 42
+    frm.lblPackageIndicators.Height = 54
     frm.lblPackageIndicators.ForeColor = RGB(96, 96, 96)
 End Sub
 
@@ -406,6 +408,12 @@ Public Sub LoadSelectedPackageItemIntoForm(ByVal frm As Object, ByVal packageId 
     frm.txtItemDocumentNumber.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_NUMBER))
     frm.txtItemDocumentDate.Text = FormatItemDateValue(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_DATE))
     frm.txtItemAmount.Text = FormatEditorAmountValue(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_AMOUNT))
+    Call SetOptionalFormValue(frm, "cmbItemAssetCategory", TranslateAssetCategoryValue(CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_ASSET_CATEGORY))))
+    Call SetOptionalFormText(frm, "txtItemQuantity", FormatEditorNumberValue(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_QUANTITY)))
+    Call SetOptionalFormText(frm, "txtItemUnit", CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_UNIT)))
+    Call SetOptionalFormText(frm, "txtItemOrderInfo", CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_ORDER_INFO)))
+    Call SetOptionalFormText(frm, "txtItemFrpNumber", CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_FRP_NUMBER)))
+    Call SetOptionalFormText(frm, "txtItemFrpDate", FormatItemDateValue(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_FRP_DATE)))
     frm.txtItemDescription.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DESCRIPTION))
     frm.txtItemNotes.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_NOTES))
     frm.txtMatched1COperationNumber.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_NUMBER))
@@ -424,10 +432,12 @@ Public Sub SavePackageItemFromForm(ByVal frm As Object, ByVal parentRowIndex As 
 
     Dim amountValue As Double
     Dim itemDateValue As Variant
+    Dim itemFrpDateValue As Variant
     Dim itemId As String
     Dim matchedOperationDateValue As Variant
+    Dim quantityValue As Variant
 
-    If Not ValidatePackageItemForm(frm, amountValue, itemDateValue) Then Exit Sub
+    If Not ValidatePackageItemForm(frm, amountValue, itemDateValue, quantityValue, itemFrpDateValue) Then Exit Sub
     If Not ValidateMatchedFields(frm, matchedOperationDateValue) Then Exit Sub
 
     itemId = SavePackageItemRecord( _
@@ -438,6 +448,12 @@ Public Sub SavePackageItemFromForm(ByVal frm As Object, ByVal parentRowIndex As 
         Trim$(frm.txtItemDocumentNumber.Text), _
         itemDateValue, _
         amountValue, _
+        NormalizeAssetCategoryValue(GetOptionalFormValue(frm, "cmbItemAssetCategory")), _
+        quantityValue, _
+        GetOptionalFormText(frm, "txtItemUnit"), _
+        GetOptionalFormText(frm, "txtItemOrderInfo"), _
+        GetOptionalFormText(frm, "txtItemFrpNumber"), _
+        itemFrpDateValue, _
         Trim$(frm.txtItemDescription.Text), _
         Trim$(frm.txtItemNotes.Text), _
         Trim$(frm.txtMatched1COperationNumber.Text), _
@@ -515,6 +531,7 @@ End Sub
 
 Public Sub FillPackageItemEditorFromParent(ByVal frm As Object, ByVal parentRowIndex As Long)
     Dim parentTable As ListObject
+    Dim assetCategoryValue As String
 
     Set parentTable = GetParentTable()
     If parentTable Is Nothing Then Exit Sub
@@ -522,6 +539,11 @@ Public Sub FillPackageItemEditorFromParent(ByVal frm As Object, ByVal parentRowI
 
     Call ClearPackageItemEditor(frm)
 
+    assetCategoryValue = TranslateAssetCategoryValue(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_ASSET_CATEGORY))
+    Call SetOptionalFormValue(frm, "cmbItemAssetCategory", assetCategoryValue)
+    Call SetOptionalFormText(frm, "txtItemOrderInfo", CStr(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_ORDER_INFO_COLUMN)))
+    Call SetOptionalFormText(frm, "txtItemFrpNumber", CStr(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_FRP_NUMBER_COLUMN)))
+    Call SetOptionalFormText(frm, "txtItemFrpDate", FormatItemDateValue(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_FRP_DATE_COLUMN)))
     frm.txtItemDescription.Text = LocalizationManager.GetText("Copied from package")
     frm.txtItemNotes.Text = ""
     frm.cmbItemDocumentTypeDisplay.SetFocus
@@ -543,6 +565,12 @@ Public Function DuplicatePackageItemRecord(ByVal parentRowIndex As Long, ByVal p
         CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_NUMBER)), _
         GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DOCUMENT_DATE), _
         CDbl(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_AMOUNT)), _
+        CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_ASSET_CATEGORY)), _
+        GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_QUANTITY), _
+        CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_UNIT)), _
+        CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_ORDER_INFO)), _
+        CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_FRP_NUMBER)), _
+        GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_FRP_DATE), _
         CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DESCRIPTION)), _
         CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_NOTES)), _
         vbNullString, _
@@ -552,7 +580,7 @@ Public Function DuplicatePackageItemRecord(ByVal parentRowIndex As Long, ByVal p
         False)
 End Function
 
-Public Function SavePackageItemRecord(ByVal parentRowIndex As Long, ByVal packageId As String, ByVal itemId As String, ByVal documentTypeDisplay As String, ByVal documentNumber As String, ByVal itemDateValue As Variant, ByVal amountValue As Double, ByVal itemDescription As String, ByVal itemNotes As String, ByVal matchedOperationNumber As String, ByVal matchedOperationDateValue As Variant, ByVal matchedStatus As String, ByVal matchedComment As String, ByVal updateExisting As Boolean) As String
+Public Function SavePackageItemRecord(ByVal parentRowIndex As Long, ByVal packageId As String, ByVal itemId As String, ByVal documentTypeDisplay As String, ByVal documentNumber As String, ByVal itemDateValue As Variant, ByVal amountValue As Double, ByVal assetCategoryValue As String, ByVal quantityValue As Variant, ByVal unitValue As String, ByVal orderInfoValue As String, ByVal frpNumberValue As String, ByVal itemFrpDateValue As Variant, ByVal itemDescription As String, ByVal itemNotes As String, ByVal matchedOperationNumber As String, ByVal matchedOperationDateValue As Variant, ByVal matchedStatus As String, ByVal matchedComment As String, ByVal updateExisting As Boolean) As String
     Dim parentTable As ListObject
     Dim itemsTable As ListObject
     Dim itemRowIndex As Long
@@ -580,6 +608,9 @@ Public Function SavePackageItemRecord(ByVal parentRowIndex As Long, ByVal packag
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_DOCUMENT_NUMBER, documentNumber
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_DOCUMENT_DATE, itemDateValue
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_AMOUNT, amountValue
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_ASSET_CATEGORY, GetEffectiveAssetCategoryValue(assetCategoryValue, GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_ASSET_CATEGORY))
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_QUANTITY, quantityValue
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_UNIT, unitValue
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_DESCRIPTION, itemDescription
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_NOTES, itemNotes
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_OPERATION_NUMBER, matchedOperationNumber
@@ -591,9 +622,9 @@ Public Function SavePackageItemRecord(ByVal parentRowIndex As Long, ByVal packag
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_DIRECTION, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DIRECTION_COLUMN)
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_SERVICE, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_SERVICE_COLUMN)
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_EXECUTOR, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_EXECUTOR_COLUMN)
-    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_ORDER_INFO, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_ORDER_INFO_COLUMN)
-    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_FRP_NUMBER, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_FRP_NUMBER_COLUMN)
-    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_FRP_DATE, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_FRP_DATE_COLUMN)
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_ORDER_INFO, GetEffectiveTextValue(orderInfoValue, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_ORDER_INFO_COLUMN))
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_FRP_NUMBER, GetEffectiveTextValue(frpNumberValue, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_FRP_NUMBER_COLUMN))
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_FRP_DATE, GetEffectiveDateValue(itemFrpDateValue, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_FRP_DATE_COLUMN))
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_BASE_DOCUMENT_TYPE, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DOCUMENT_TYPE_COLUMN)
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_BASE_DOCUMENT_NUMBER, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DOCUMENT_NUMBER_COLUMN)
     SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_BASE_DOCUMENT_DATE, GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_FRP_DATE_COLUMN)
@@ -634,6 +665,12 @@ Public Sub ClearPackageItemEditor(ByVal frm As Object)
     frm.txtItemDocumentNumber.Text = ""
     frm.txtItemDocumentDate.Text = ""
     frm.txtItemAmount.Text = ""
+    Call SetOptionalFormValue(frm, "cmbItemAssetCategory", vbNullString)
+    Call SetOptionalFormText(frm, "txtItemQuantity", vbNullString)
+    Call SetOptionalFormText(frm, "txtItemUnit", vbNullString)
+    Call SetOptionalFormText(frm, "txtItemOrderInfo", vbNullString)
+    Call SetOptionalFormText(frm, "txtItemFrpNumber", vbNullString)
+    Call SetOptionalFormText(frm, "txtItemFrpDate", vbNullString)
     frm.txtItemDescription.Text = ""
     frm.txtItemNotes.Text = ""
     frm.txtMatched1COperationNumber.Text = ""
@@ -844,7 +881,7 @@ RefreshError:
     MsgBox LocalizationManager.GetText("Error refreshing package summary: ") & Err.description, vbCritical, LocalizationManager.GetText("Package Documents")
 End Sub
 
-Private Function ValidatePackageItemForm(ByVal frm As Object, ByRef amountValue As Double, ByRef itemDateValue As Variant) As Boolean
+Private Function ValidatePackageItemForm(ByVal frm As Object, ByRef amountValue As Double, ByRef itemDateValue As Variant, ByRef quantityValue As Variant, ByRef itemFrpDateValue As Variant) As Boolean
     ValidatePackageItemForm = False
 
     If Len(Trim$(frm.cmbItemDocumentTypeDisplay.value)) = 0 Then
@@ -876,6 +913,26 @@ Private Function ValidatePackageItemForm(ByVal frm As Object, ByRef amountValue 
         itemDateValue = ParseShortDateText(frm.txtItemDocumentDate.Text)
     End If
 
+    quantityValue = ""
+    If Len(GetOptionalFormText(frm, "txtItemQuantity")) > 0 Then
+        If Not IsNumeric(GetOptionalFormText(frm, "txtItemQuantity")) Then
+            MsgBox LocalizationManager.GetText("Quantity must be numeric."), vbExclamation, LocalizationManager.GetText("Package Documents")
+            Call SetFocusIfExists(frm, "txtItemQuantity")
+            Exit Function
+        End If
+        quantityValue = CDbl(GetOptionalFormText(frm, "txtItemQuantity"))
+    End If
+
+    itemFrpDateValue = ""
+    If Len(GetOptionalFormText(frm, "txtItemFrpDate")) > 0 Then
+        If Not CommonUtilities.IsValidDateFormat(GetOptionalFormText(frm, "txtItemFrpDate")) Then
+            MsgBox LocalizationManager.GetText("Enter date in DD.MM.YY format or leave it blank."), vbExclamation, LocalizationManager.GetText("Package Documents")
+            Call SetFocusIfExists(frm, "txtItemFrpDate")
+            Exit Function
+        End If
+        itemFrpDateValue = ParseShortDateText(GetOptionalFormText(frm, "txtItemFrpDate"))
+    End If
+
     ValidatePackageItemForm = True
 End Function
 
@@ -901,6 +958,127 @@ End Function
 
 Private Function ParseShortDateText(ByVal shortDateText As String) As Date
     ParseShortDateText = CDate(Left$(shortDateText, 6) & "20" & Right$(shortDateText, 2))
+End Function
+
+Private Function TranslateAssetCategoryValue(ByVal assetCategoryValue As String) As String
+    Select Case LCase$(Trim$(assetCategoryValue))
+        Case "inventory", LCase$(LocalizationManager.GetText("Inventory"))
+            TranslateAssetCategoryValue = LocalizationManager.GetText("Inventory")
+        Case "fixed_assets", LCase$(LocalizationManager.GetText("Fixed assets"))
+            TranslateAssetCategoryValue = LocalizationManager.GetText("Fixed assets")
+        Case Else
+            TranslateAssetCategoryValue = vbNullString
+    End Select
+End Function
+
+Private Function NormalizeAssetCategoryValue(ByVal assetCategoryValue As String) As String
+    Select Case LCase$(Trim$(assetCategoryValue))
+        Case LCase$(LocalizationManager.GetText("Inventory")), "inventory"
+            NormalizeAssetCategoryValue = "inventory"
+        Case LCase$(LocalizationManager.GetText("Fixed assets")), "fixed_assets"
+            NormalizeAssetCategoryValue = "fixed_assets"
+        Case Else
+            NormalizeAssetCategoryValue = vbNullString
+    End Select
+End Function
+
+Private Function GetEffectiveAssetCategoryValue(ByVal assetCategoryValue As String, ByVal parentAssetCategory As String) As String
+    If Len(Trim$(assetCategoryValue)) > 0 Then
+        GetEffectiveAssetCategoryValue = assetCategoryValue
+    Else
+        GetEffectiveAssetCategoryValue = Trim$(parentAssetCategory)
+    End If
+End Function
+
+Private Function GetEffectiveTextValue(ByVal currentValue As String, ByVal fallbackValue As Variant) As String
+    If Len(Trim$(currentValue)) > 0 Then
+        GetEffectiveTextValue = Trim$(currentValue)
+    Else
+        GetEffectiveTextValue = Trim$(CStr(fallbackValue))
+    End If
+End Function
+
+Private Function GetEffectiveDateValue(ByVal currentValue As Variant, ByVal fallbackValue As Variant) As Variant
+    If Len(Trim$(CStr(currentValue))) > 0 Then
+        GetEffectiveDateValue = currentValue
+    Else
+        GetEffectiveDateValue = fallbackValue
+    End If
+End Function
+
+Private Function GetOptionalControl(ByVal frm As Object, ByVal controlName As String) As Object
+    On Error Resume Next
+    Set GetOptionalControl = frm.Controls(controlName)
+    On Error GoTo 0
+End Function
+
+Private Function GetOptionalFormText(ByVal frm As Object, ByVal controlName As String) As String
+    Dim ctrl As Object
+    Set ctrl = GetOptionalControl(frm, controlName)
+    If ctrl Is Nothing Then Exit Function
+    On Error Resume Next
+    GetOptionalFormText = Trim$(CStr(ctrl.Text))
+    If Err.Number <> 0 Then
+        Err.Clear
+        GetOptionalFormText = Trim$(CStr(ctrl.value))
+    End If
+    On Error GoTo 0
+End Function
+
+Private Function GetOptionalFormValue(ByVal frm As Object, ByVal controlName As String) As String
+    Dim ctrl As Object
+    Set ctrl = GetOptionalControl(frm, controlName)
+    If ctrl Is Nothing Then Exit Function
+    On Error Resume Next
+    GetOptionalFormValue = Trim$(CStr(ctrl.value))
+    On Error GoTo 0
+End Function
+
+Private Sub SetOptionalFormText(ByVal frm As Object, ByVal controlName As String, ByVal textValue As String)
+    Dim ctrl As Object
+    Set ctrl = GetOptionalControl(frm, controlName)
+    If ctrl Is Nothing Then Exit Sub
+    On Error Resume Next
+    ctrl.Text = textValue
+    If Err.Number <> 0 Then
+        Err.Clear
+        ctrl.value = textValue
+    End If
+    On Error GoTo 0
+End Sub
+
+Private Sub SetOptionalFormValue(ByVal frm As Object, ByVal controlName As String, ByVal valueText As String)
+    Dim ctrl As Object
+    Set ctrl = GetOptionalControl(frm, controlName)
+    If ctrl Is Nothing Then Exit Sub
+    On Error Resume Next
+    ctrl.value = valueText
+    On Error GoTo 0
+End Sub
+
+Private Sub SetFocusIfExists(ByVal frm As Object, ByVal controlName As String)
+    Dim ctrl As Object
+    Set ctrl = GetOptionalControl(frm, controlName)
+    If ctrl Is Nothing Then Exit Sub
+    On Error Resume Next
+    ctrl.SetFocus
+    On Error GoTo 0
+End Sub
+
+Private Function FormatEditorNumberValue(ByVal rawValue As Variant) As String
+    Dim numericValue As Double
+
+    If Len(Trim$(CStr(rawValue))) = 0 Then Exit Function
+    If IsNumeric(rawValue) Then
+        numericValue = CDbl(rawValue)
+        If numericValue = CLng(numericValue) Then
+            FormatEditorNumberValue = CStr(CLng(numericValue))
+        Else
+            FormatEditorNumberValue = Replace(Trim$(CStr(numericValue)), ",", ".")
+        End If
+    Else
+        FormatEditorNumberValue = Trim$(CStr(rawValue))
+    End If
 End Function
 
 Private Function GetParentTable() As ListObject

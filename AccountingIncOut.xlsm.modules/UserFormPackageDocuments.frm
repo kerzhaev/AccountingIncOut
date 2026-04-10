@@ -49,12 +49,14 @@ End Sub
 
 Private Sub UserForm_Initialize()
     Me.Caption = "Package Documents"
-    Me.Width = 820
-    Me.Height = 600
+    Me.Width = 900
+    Me.Height = 700
     Call SetupPackageItemsList
     Call SetupMatchedStatusCombo
     Call SetupReviewFilterCombo
     Call LoadDocumentTypeComboData
+    Call EnsureExtendedEditorControls
+    Call SetupAssetCategoryCombo
     Call LocalizationManager.TranslateForm(Me)
     Call ApplyFormLayout
     Call ResizeAndCenterForm
@@ -193,6 +195,76 @@ LoadError:
     mDocumentTypeItems = Empty
 End Sub
 
+Private Sub EnsureExtendedEditorControls()
+    Call EnsureLabelControl("lblItemAssetCategory", "Asset Category")
+    Call EnsureComboBoxControl("cmbItemAssetCategory")
+    Call EnsureLabelControl("lblItemQuantity", "Quantity")
+    Call EnsureTextBoxControl("txtItemQuantity")
+    Call EnsureLabelControl("lblItemUnit", "Unit")
+    Call EnsureTextBoxControl("txtItemUnit")
+    Call EnsureLabelControl("lblItemOrderInfo", "Order Info")
+    Call EnsureTextBoxControl("txtItemOrderInfo")
+    Call EnsureLabelControl("lblItemFrpNumber", "FRP Number")
+    Call EnsureTextBoxControl("txtItemFrpNumber")
+    Call EnsureLabelControl("lblItemFrpDate", "FRP Date")
+    Call EnsureTextBoxControl("txtItemFrpDate")
+End Sub
+
+Private Sub SetupAssetCategoryCombo()
+    Dim comboControl As Object
+
+    Set comboControl = GetControlByName("cmbItemAssetCategory")
+    If comboControl Is Nothing Then Exit Sub
+
+    With comboControl
+        .Clear
+        .Style = fmStyleDropDownList
+        .AddItem vbNullString
+        .AddItem LocalizationManager.GetText("Inventory")
+        .AddItem LocalizationManager.GetText("Fixed assets")
+        .listIndex = 0
+    End With
+End Sub
+
+Private Sub EnsureLabelControl(ByVal controlName As String, ByVal captionText As String)
+    Dim ctrl As Object
+
+    Set ctrl = GetControlByName(controlName)
+    If ctrl Is Nothing Then
+        Set ctrl = Me.Controls.Add("Forms.Label.1", controlName, True)
+    End If
+
+    ctrl.Caption = captionText
+    ctrl.BackStyle = fmBackStyleTransparent
+End Sub
+
+Private Sub EnsureTextBoxControl(ByVal controlName As String)
+    Dim ctrl As Object
+
+    Set ctrl = GetControlByName(controlName)
+    If ctrl Is Nothing Then
+        Set ctrl = Me.Controls.Add("Forms.TextBox.1", controlName, True)
+    End If
+
+    ctrl.MultiLine = False
+    ctrl.EnterKeyBehavior = False
+End Sub
+
+Private Sub EnsureComboBoxControl(ByVal controlName As String)
+    Dim ctrl As Object
+
+    Set ctrl = GetControlByName(controlName)
+    If ctrl Is Nothing Then
+        Set ctrl = Me.Controls.Add("Forms.ComboBox.1", controlName, True)
+    End If
+End Sub
+
+Private Function GetControlByName(ByVal controlName As String) As Object
+    On Error Resume Next
+    Set GetControlByName = Me.Controls(controlName)
+    On Error GoTo 0
+End Function
+
 Private Function GetComboItems(TargetCombo As MSForms.ComboBox) As Variant
     Dim result() As String
     Dim i As Long
@@ -261,6 +333,7 @@ Private Sub ApplyFormLayout()
     Dim firstRowTop As Single
     Dim secondRowTop As Single
     Dim thirdRowTop As Single
+    Dim fourthRowTop As Single
     Dim notesTop As Single
     Dim labelOffset As Single
     Dim filterTop As Single
@@ -342,85 +415,122 @@ Private Sub ApplyFormLayout()
     Me.btnResetMatch.Left = Me.btnMarkManual.Left + Me.btnMarkManual.Width + buttonGap
     Me.btnResetMatch.Top = reviewButtonTop
     Me.btnResetMatch.Width = 132
-    Me.btnClearItem.Left = Me.btnResetMatch.Left + Me.btnResetMatch.Width + buttonGap
-    Me.btnClearItem.Top = reviewButtonTop
-    Me.btnClearItem.Width = 82
-    Me.btnClose.Left = Me.btnClearItem.Left + Me.btnClearItem.Width + buttonGap
-    Me.btnClose.Top = reviewButtonTop
     Me.btnClose.Width = 82
+    Me.btnClose.Left = marginX + contentWidth - Me.btnClose.Width
+    Me.btnClose.Top = reviewButtonTop
+    Me.btnClearItem.Width = 82
+    Me.btnClearItem.Left = Me.btnClose.Left - buttonGap - Me.btnClearItem.Width
+    Me.btnClearItem.Top = reviewButtonTop
 
     firstRowTop = reviewButtonTop + 40
     Me.lblItemDocumentType.Left = marginX
     Me.lblItemDocumentType.Top = firstRowTop
     Me.cmbItemDocumentTypeDisplay.Left = marginX
     Me.cmbItemDocumentTypeDisplay.Top = firstRowTop + labelOffset
-    Me.cmbItemDocumentTypeDisplay.Width = 180
+    Me.cmbItemDocumentTypeDisplay.Width = 154
 
-    Me.lblItemDocumentNumber.Left = 206
+    Me.lblItemDocumentNumber.Left = 178
     Me.lblItemDocumentNumber.Top = firstRowTop
-    Me.txtItemDocumentNumber.Left = 206
+    Me.txtItemDocumentNumber.Left = 178
     Me.txtItemDocumentNumber.Top = firstRowTop + labelOffset
-    Me.txtItemDocumentNumber.Width = 132
+    Me.txtItemDocumentNumber.Width = 118
 
-    Me.lblItemDocumentDate.Left = 352
+    Me.lblItemDocumentDate.Left = 310
     Me.lblItemDocumentDate.Top = firstRowTop
-    Me.txtItemDocumentDate.Left = 352
+    Me.txtItemDocumentDate.Left = 310
     Me.txtItemDocumentDate.Top = firstRowTop + labelOffset
-    Me.txtItemDocumentDate.Width = 92
+    Me.txtItemDocumentDate.Width = 82
 
-    Me.lblItemAmount.Left = 458
+    Me.lblItemAmount.Left = 406
     Me.lblItemAmount.Top = firstRowTop
-    Me.txtItemAmount.Left = 458
+    Me.txtItemAmount.Left = 406
     Me.txtItemAmount.Top = firstRowTop + labelOffset
-    Me.txtItemAmount.Width = 86
+    Me.txtItemAmount.Width = 74
 
-    Me.lblMatched1COperationNumber.Left = 560
+    GetControlByName("lblItemAssetCategory").Left = 494
+    GetControlByName("lblItemAssetCategory").Top = firstRowTop
+    GetControlByName("cmbItemAssetCategory").Left = 494
+    GetControlByName("cmbItemAssetCategory").Top = firstRowTop + labelOffset
+    GetControlByName("cmbItemAssetCategory").Width = 118
+
+    Me.lblMatched1COperationNumber.Left = 624
     Me.lblMatched1COperationNumber.Top = firstRowTop
-    Me.txtMatched1COperationNumber.Left = 560
+    Me.txtMatched1COperationNumber.Left = 624
     Me.txtMatched1COperationNumber.Top = firstRowTop + labelOffset
-    Me.txtMatched1COperationNumber.Width = 114
+    Me.txtMatched1COperationNumber.Width = 112
 
-    Me.lblMatched1COperationDate.Left = 688
+    Me.lblMatched1COperationDate.Left = 750
     Me.lblMatched1COperationDate.Top = firstRowTop
-    Me.txtMatched1COperationDate.Left = 688
+    Me.txtMatched1COperationDate.Left = 750
     Me.txtMatched1COperationDate.Top = firstRowTop + labelOffset
     Me.txtMatched1COperationDate.Width = 92
 
     secondRowTop = firstRowTop + 56
+    GetControlByName("lblItemQuantity").Left = marginX
+    GetControlByName("lblItemQuantity").Top = secondRowTop
+    GetControlByName("txtItemQuantity").Left = marginX
+    GetControlByName("txtItemQuantity").Top = secondRowTop + labelOffset
+    GetControlByName("txtItemQuantity").Width = 88
+
+    GetControlByName("lblItemUnit").Left = 114
+    GetControlByName("lblItemUnit").Top = secondRowTop
+    GetControlByName("txtItemUnit").Left = 114
+    GetControlByName("txtItemUnit").Top = secondRowTop + labelOffset
+    GetControlByName("txtItemUnit").Width = 88
+
+    GetControlByName("lblItemOrderInfo").Left = 228
+    GetControlByName("lblItemOrderInfo").Top = secondRowTop
+    GetControlByName("txtItemOrderInfo").Left = 228
+    GetControlByName("txtItemOrderInfo").Top = secondRowTop + labelOffset
+    GetControlByName("txtItemOrderInfo").Width = 246
+
+    GetControlByName("lblItemFrpNumber").Left = 500
+    GetControlByName("lblItemFrpNumber").Top = secondRowTop
+    GetControlByName("txtItemFrpNumber").Left = 500
+    GetControlByName("txtItemFrpNumber").Top = secondRowTop + labelOffset
+    GetControlByName("txtItemFrpNumber").Width = 156
+
+    GetControlByName("lblItemFrpDate").Left = 682
+    GetControlByName("lblItemFrpDate").Top = secondRowTop
+    GetControlByName("txtItemFrpDate").Left = 682
+    GetControlByName("txtItemFrpDate").Top = secondRowTop + labelOffset
+    GetControlByName("txtItemFrpDate").Width = 92
+
+    thirdRowTop = secondRowTop + 56
     Me.lblItemDescription.Left = marginX
-    Me.lblItemDescription.Top = secondRowTop
+    Me.lblItemDescription.Top = thirdRowTop
     Me.txtItemDescription.Left = marginX
-    Me.txtItemDescription.Top = secondRowTop + labelOffset
-    Me.txtItemDescription.Width = 390
+    Me.txtItemDescription.Top = thirdRowTop + labelOffset
+    Me.txtItemDescription.Width = 406
     Me.txtItemDescription.Height = 42
 
-    Me.lblMatched1CStatus.Left = 420
-    Me.lblMatched1CStatus.Top = secondRowTop
-    Me.cmbMatched1CStatus.Left = 420
-    Me.cmbMatched1CStatus.Top = secondRowTop + labelOffset
+    Me.lblMatched1CStatus.Left = 440
+    Me.lblMatched1CStatus.Top = thirdRowTop
+    Me.cmbMatched1CStatus.Left = 440
+    Me.cmbMatched1CStatus.Top = thirdRowTop + labelOffset
     Me.cmbMatched1CStatus.Width = 120
 
-    Me.lblMatched1CComment.Left = 556
-    Me.lblMatched1CComment.Top = secondRowTop
-    Me.txtMatched1CComment.Left = 556
-    Me.txtMatched1CComment.Top = secondRowTop + labelOffset
-    Me.txtMatched1CComment.Width = 224
+    Me.lblMatched1CComment.Left = 582
+    Me.lblMatched1CComment.Top = thirdRowTop
+    Me.txtMatched1CComment.Left = 582
+    Me.txtMatched1CComment.Top = thirdRowTop + labelOffset
+    Me.txtMatched1CComment.Width = 260
     Me.txtMatched1CComment.Height = 42
 
-    thirdRowTop = secondRowTop + 64
+    fourthRowTop = thirdRowTop + 64
     Me.lblReviewHint.Left = marginX
-    Me.lblReviewHint.Top = thirdRowTop
+    Me.lblReviewHint.Top = fourthRowTop
     Me.lblReviewHint.Width = contentWidth
     Me.lblReviewHint.Height = 22
     Me.lblReviewHint.WordWrap = True
 
-    notesTop = thirdRowTop + 32
+    notesTop = fourthRowTop + 32
     Me.lblItemNotes.Left = marginX
     Me.lblItemNotes.Top = notesTop
     Me.txtItemNotes.Left = marginX
     Me.txtItemNotes.Top = notesTop + labelOffset
     Me.txtItemNotes.Width = contentWidth
-    Me.txtItemNotes.Height = 54
+    Me.txtItemNotes.Height = 66
 
     Me.txtItemId.Left = contentWidth - 90
     Me.txtItemId.Top = Me.txtItemNotes.Top + Me.txtItemNotes.Height + 6
