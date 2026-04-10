@@ -250,7 +250,7 @@ Private Sub ApplyFormLayout()
     Me.lblPackageSummary.Left = marginX
     Me.lblPackageSummary.Top = 12
     Me.lblPackageSummary.Width = contentWidth
-    Me.lblPackageSummary.Height = 54
+    Me.lblPackageSummary.Height = 68
 
     currentTop = Me.lblPackageSummary.Top + Me.lblPackageSummary.Height + 8
     Me.lblPackageItemsTitle.Left = marginX

@@ -665,6 +665,7 @@ Public Sub LoadParentSummaryToForm(ByVal frm As Object, ByVal parentRowIndex As 
     Dim childCount As String
     Dim primaryStatusText As String
     Dim primaryOperationNumber As String
+    Dim reviewSummaryText As String
 
     Set parentTable = GetParentTable()
     If parentTable Is Nothing Then Exit Sub
@@ -676,6 +677,7 @@ Public Sub LoadParentSummaryToForm(ByVal frm As Object, ByVal parentRowIndex As 
     amountCheckText = TranslateAmountCheckStatus(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_AMOUNT_CHECK_STATUS))
     primaryStatusText = TranslatePrimaryMatchStatus(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_STATUS))
     primaryOperationNumber = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_NUMBER)
+    reviewSummaryText = BuildPackageReviewSummary(packageId)
 
     frm.lblPackageSummary.Caption = LocalizationManager.GetText("Package:") & " " & packageId & vbCrLf & _
         LocalizationManager.GetText("Counterparty:") & " " & counterparty & vbCrLf & _
@@ -683,7 +685,8 @@ Public Sub LoadParentSummaryToForm(ByVal frm As Object, ByVal parentRowIndex As 
         LocalizationManager.GetText("Children Total:") & " " & childrenTotal & "    " & _
         LocalizationManager.GetText("Items:") & " " & childCount & "    " & _
         LocalizationManager.GetText("Amount Check:") & " " & amountCheckText & vbCrLf & _
-        LocalizationManager.GetText("1C Status") & ": " & primaryStatusText & IIf(Len(Trim$(primaryOperationNumber)) > 0, "    " & LocalizationManager.GetText("1C Operation No.") & ": " & primaryOperationNumber, vbNullString)
+        LocalizationManager.GetText("1C Status") & ": " & primaryStatusText & IIf(Len(Trim$(primaryOperationNumber)) > 0, "    " & LocalizationManager.GetText("1C Operation No.") & ": " & primaryOperationNumber, vbNullString) & vbCrLf & _
+        reviewSummaryText
 End Sub
 
 Public Sub RefreshParentPackageSummary(ByVal parentRowIndex As Long)
@@ -914,6 +917,50 @@ Private Function GetActiveReviewFilter(ByVal frm As Object) As String
     On Error Resume Next
     GetActiveReviewFilter = Trim$(CStr(frm.cmbReviewFilter.Value))
     On Error GoTo 0
+End Function
+
+Private Function BuildPackageReviewSummary(ByVal packageId As String) As String
+    Dim itemsTable As ListObject
+    Dim rowIndex As Long
+    Dim candidateCount As Long
+    Dim notFoundCount As Long
+    Dim pendingCount As Long
+    Dim manualCount As Long
+    Dim statusValue As String
+
+    Set itemsTable = GetItemsTable()
+    If itemsTable Is Nothing Then
+        BuildPackageReviewSummary = LocalizationManager.GetText("Review:") & " " & _
+            LocalizationManager.GetText("Candidate") & ": 0 | " & _
+            LocalizationManager.GetText("Not found") & ": 0 | " & _
+            LocalizationManager.GetText("Pending") & ": 0 | " & _
+            LocalizationManager.GetText("Manual") & ": 0"
+        Exit Function
+    End If
+
+    If Not itemsTable.DataBodyRange Is Nothing Then
+        For rowIndex = 1 To itemsTable.ListRows.Count
+            If StrComp(Trim$(CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_PACKAGE_ID))), Trim$(packageId), vbTextCompare) = 0 Then
+                statusValue = LCase$(Trim$(CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_STATUS))))
+                Select Case statusValue
+                    Case "candidate"
+                        candidateCount = candidateCount + 1
+                    Case "not_found"
+                        notFoundCount = notFoundCount + 1
+                    Case "manual"
+                        manualCount = manualCount + 1
+                    Case Else
+                        If statusValue <> "exact" Then pendingCount = pendingCount + 1
+                End Select
+            End If
+        Next rowIndex
+    End If
+
+    BuildPackageReviewSummary = LocalizationManager.GetText("Review:") & " " & _
+        LocalizationManager.GetText("Candidate") & ": " & candidateCount & " | " & _
+        LocalizationManager.GetText("Not found") & ": " & notFoundCount & " | " & _
+        LocalizationManager.GetText("Pending") & ": " & pendingCount & " | " & _
+        LocalizationManager.GetText("Manual") & ": " & manualCount
 End Function
 
 Private Function GetSelectedPackageItemIdFromForm(ByVal frm As Object) As String
