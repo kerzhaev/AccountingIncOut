@@ -207,6 +207,7 @@ Public Sub RefreshPackageIndicatorsOnMainForm(ByVal frm As Object, ByVal parentR
     Dim primaryStatusValue As String
     Dim primaryStatusText As String
     Dim primaryOperationNumber As String
+    Dim reviewSummaryText As String
 
     On Error GoTo IndicatorError
 
@@ -235,11 +236,14 @@ Public Sub RefreshPackageIndicatorsOnMainForm(ByVal frm As Object, ByVal parentR
     primaryStatusValue = LCase$(Trim$(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_STATUS)))
     primaryStatusText = TranslatePrimaryMatchStatus(primaryStatusValue)
     primaryOperationNumber = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_NUMBER)
+    reviewSummaryText = BuildPackageReviewSummary(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PACKAGE_ID))
 
     frm.lblPackageIndicators.Caption = LocalizationManager.GetText("Items:") & " " & childCount & " | " & _
         LocalizationManager.GetText("Children Total:") & " " & childrenTotal & vbCrLf & _
         LocalizationManager.GetText("Amount Check:") & " " & statusText & " | " & _
-        LocalizationManager.GetText("1C Status") & ": " & primaryStatusText & IIf(Len(Trim$(primaryOperationNumber)) > 0, " | " & LocalizationManager.GetText("1C Operation No.") & ": " & primaryOperationNumber, vbNullString)
+        LocalizationManager.GetText("1C Status") & ": " & primaryStatusText & IIf(Len(Trim$(primaryOperationNumber)) > 0, " | " & LocalizationManager.GetText("1C Operation No.") & ": " & primaryOperationNumber, vbNullString) & vbCrLf & _
+        reviewSummaryText
+    frm.lblPackageIndicators.Height = 42
 
     Select Case statusValue
         Case "match"
@@ -259,6 +263,7 @@ Public Sub ClearPackageIndicatorsOnMainForm(ByVal frm As Object)
     On Error Resume Next
     If frm Is Nothing Then Exit Sub
     frm.lblPackageIndicators.Caption = ""
+    frm.lblPackageIndicators.Height = 42
     frm.lblPackageIndicators.ForeColor = RGB(96, 96, 96)
 End Sub
 
