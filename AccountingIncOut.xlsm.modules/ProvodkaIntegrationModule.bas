@@ -210,7 +210,7 @@ Private Function FindMatchInFile(suma As Double, Correspondent As String, ws1C A
         ' Normalized correspondent match
         If (currentStatus <> "1") And _
            (Abs(currentSuma - suma) < 0.01) And _
-           (CorrespondentsMatch(currentCorrespondent, Correspondent)) Then
+           (CommonUtilities.CorrespondentTextsMatch(currentCorrespondent, Correspondent)) Then
             
             CandidatesCount = CandidatesCount + 1
             
@@ -280,118 +280,6 @@ Public Sub FindMatchDetailsInFile(ByVal suma As Double, ByVal Correspondent As S
         provodkaDate = vbNullString
     End If
 End Sub
-
-Private Function CorrespondentsMatch(ByVal leftText As String, ByVal rightText As String) As Boolean
-    Dim leftMilitaryKey As String
-    Dim rightMilitaryKey As String
-    Dim leftNormalized As String
-    Dim rightNormalized As String
-
-    leftMilitaryKey = ExtractMilitaryUnitKey(leftText)
-    rightMilitaryKey = ExtractMilitaryUnitKey(rightText)
-
-    If Len(leftMilitaryKey) > 0 And Len(rightMilitaryKey) > 0 Then
-        CorrespondentsMatch = (StrComp(leftMilitaryKey, rightMilitaryKey, vbTextCompare) = 0)
-        Exit Function
-    End If
-
-    leftNormalized = NormalizeCorrespondentForMatch(leftText)
-    rightNormalized = NormalizeCorrespondentForMatch(rightText)
-
-    If Len(leftNormalized) = 0 Or Len(rightNormalized) = 0 Then Exit Function
-
-    If StrComp(leftNormalized, rightNormalized, vbTextCompare) = 0 Then
-        CorrespondentsMatch = True
-    ElseIf InStr(1, leftNormalized, rightNormalized, vbTextCompare) > 0 Then
-        CorrespondentsMatch = True
-    ElseIf InStr(1, rightNormalized, leftNormalized, vbTextCompare) > 0 Then
-        CorrespondentsMatch = True
-    End If
-End Function
-
-Private Function NormalizeCorrespondentForMatch(ByVal sourceText As String) As String
-    Dim normalized As String
-    Dim i As Long
-    Dim currentChar As String
-
-    normalized = UCase$(Trim$(sourceText))
-    normalized = Replace(normalized, "Ё", "Е")
-    normalized = Replace(normalized, vbCr, " ")
-    normalized = Replace(normalized, vbLf, " ")
-    normalized = Replace(normalized, Chr$(34), " ")
-
-    For i = 1 To Len(normalized)
-        currentChar = Mid$(normalized, i, 1)
-        If (currentChar >= "A" And currentChar <= "Z") Or _
-           (currentChar >= "А" And currentChar <= "Я") Or _
-           (currentChar >= "0" And currentChar <= "9") Then
-            NormalizeCorrespondentForMatch = NormalizeCorrespondentForMatch & currentChar
-        Else
-            NormalizeCorrespondentForMatch = NormalizeCorrespondentForMatch & " "
-        End If
-    Next i
-
-    Do While InStr(NormalizeCorrespondentForMatch, "  ") > 0
-        NormalizeCorrespondentForMatch = Replace(NormalizeCorrespondentForMatch, "  ", " ")
-    Loop
-
-    NormalizeCorrespondentForMatch = Trim$(NormalizeCorrespondentForMatch)
-End Function
-
-Private Function ExtractMilitaryUnitKey(ByVal sourceText As String) As String
-    Dim normalized As String
-    Dim digitsBuffer As String
-    Dim i As Long
-    Dim currentChar As String
-    Dim hasMilitaryMarker As Boolean
-
-    normalized = UCase$(Trim$(sourceText))
-    normalized = Replace(normalized, "Ё", "Е")
-
-    If IsStandaloneMilitaryDigits(normalized) Then
-        ExtractMilitaryUnitKey = normalized
-        Exit Function
-    End If
-
-    hasMilitaryMarker = (InStr(normalized, "ВОЙСКОВ") > 0) Or _
-                        (InStr(normalized, "ВОИНСК") > 0) Or _
-                        (InStr(normalized, "В/Ч") > 0) Or _
-                        (InStr(normalized, "ВЧ ") > 0) Or _
-                        (Left$(normalized, 3) = "ВЧ ")
-
-    If Not hasMilitaryMarker Then Exit Function
-
-    For i = 1 To Len(normalized)
-        currentChar = Mid$(normalized, i, 1)
-        If currentChar >= "0" And currentChar <= "9" Then
-            digitsBuffer = digitsBuffer & currentChar
-        Else
-            If Len(digitsBuffer) >= 4 And Len(digitsBuffer) <= 6 Then
-                ExtractMilitaryUnitKey = digitsBuffer
-                Exit Function
-            End If
-            digitsBuffer = vbNullString
-        End If
-    Next i
-
-    If Len(digitsBuffer) >= 4 And Len(digitsBuffer) <= 6 Then
-        ExtractMilitaryUnitKey = digitsBuffer
-    End If
-End Function
-
-Private Function IsStandaloneMilitaryDigits(ByVal sourceText As String) As Boolean
-    Dim i As Long
-    Dim currentChar As String
-
-    If Len(sourceText) < 4 Or Len(sourceText) > 6 Then Exit Function
-
-    For i = 1 To Len(sourceText)
-        currentChar = Mid$(sourceText, i, 1)
-        If currentChar < "0" Or currentChar > "9" Then Exit Function
-    Next i
-
-    IsStandaloneMilitaryDigits = True
-End Function
 
 ' Process single record (for manual search from form)
 Public Sub ProcessSingleRecord(RowIndex As Long)

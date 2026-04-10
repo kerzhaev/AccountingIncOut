@@ -22,7 +22,7 @@ Public Type AddressInfo
 End Type
 
 Public Type DoverennostInfo
-    RowNumber As Long
+    rowNumber As Long
     FIO As String
     VoyskovayaChast As String
     DoverennostNumber As String
@@ -33,6 +33,7 @@ End Type
 
 Public Type CorrespondentGroup
     CorrespondentName As String
+    CorrespondentKey As String
     Address As AddressInfo
     Doverennosti() As DoverennostInfo
     Count As Long
@@ -336,7 +337,7 @@ Private Sub FilterUnmatchedDoverennosti(WsDover As Worksheet, DoverData As Varia
                     ' Check 3-month period
                     If ShouldIncludeDoverennost(WsDover, i + 1) Then
                         With UnmatchedList(Count)
-                            .RowNumber = i + 1
+                            .rowNumber = i + 1
                             .FIO = Trim(CStr(DoverData(i, FIOCol)))
                             .VoyskovayaChast = Trim(CStr(DoverData(i, OrganizationCol)))
                             .DoverennostNumber = Trim(CStr(DoverData(i, NumberCol)))
@@ -675,6 +676,7 @@ End Function
 Private Sub GroupByCorrespondents(UnmatchedList() As DoverennostInfo, UnmatchedCount As Long, ByRef Groups() As CorrespondentGroup, ByRef GroupCount As Long)
     Dim i As Long, j As Long
     Dim CorrespondentName As String
+    Dim CorrespondentKey As String
     Dim GroupFound As Boolean
     
     GroupCount = 0
@@ -682,10 +684,11 @@ Private Sub GroupByCorrespondents(UnmatchedList() As DoverennostInfo, UnmatchedC
     
     For i = 0 To UnmatchedCount - 1
         CorrespondentName = ExtractCorrespondentName(UnmatchedList(i).Correspondent)
+        CorrespondentKey = CommonUtilities.BuildCorrespondentMatchKey(UnmatchedList(i).Correspondent)
         GroupFound = False
         
         For j = 0 To GroupCount - 1
-            If UCase(Groups(j).CorrespondentName) = UCase(CorrespondentName) Then
+            If StrComp(Groups(j).CorrespondentKey, CorrespondentKey, vbTextCompare) = 0 Then
                 GroupFound = True
                 Groups(j).Count = Groups(j).Count + 1
                 ReDim Preserve Groups(j).Doverennosti(Groups(j).Count - 1)
@@ -697,6 +700,7 @@ Private Sub GroupByCorrespondents(UnmatchedList() As DoverennostInfo, UnmatchedC
         If Not GroupFound Then
             With Groups(GroupCount)
                 .CorrespondentName = CorrespondentName
+                .CorrespondentKey = CorrespondentKey
                 .Count = 1
                 .AddressFound = False
                 ReDim .Doverennosti(0)
@@ -716,19 +720,23 @@ End Sub
 Private Sub FindCorrespondentAddresses(ByRef Groups() As CorrespondentGroup, GroupCount As Long, AddrData As Variant, ByRef NotFoundList As String)
     Dim i As Long, j As Long
     Dim CorrespondentName As String
+    Dim CorrespondentKey As String
     Dim AddressFound As Boolean
     
     NotFoundList = ""
     
     For i = 0 To GroupCount - 1
         CorrespondentName = Groups(i).CorrespondentName
+        CorrespondentKey = Groups(i).CorrespondentKey
         AddressFound = False
         
         For j = 1 To UBound(AddrData, 1)
             Dim AddressName As String
+            Dim AddressKey As String
             AddressName = Trim(CStr(AddrData(j, 1)))
+            AddressKey = CommonUtilities.BuildCorrespondentMatchKey(AddressName)
             
-            If UCase(AddressName) = UCase(CorrespondentName) Then
+            If StrComp(AddressKey, CorrespondentKey, vbTextCompare) = 0 Then
                 With Groups(i).Address
                     .CorrespondentName = CorrespondentName
                     .RecipientName = AddressName
@@ -777,6 +785,7 @@ Private Function ExtractCorrespondentName(FullCorrespondent As String) As String
     Dim LastValidPos As Long
     Dim CurrentChar As String
     Dim NextChar As String
+    Dim rpbsCode As String
     
     result = Trim(FullCorrespondent)
     
@@ -799,12 +808,12 @@ Private Function ExtractCorrespondentName(FullCorrespondent As String) As String
         ElseIf CurrentChar = "-" And InNumberSequence Then
             If NextChar >= "0" And NextChar <= "9" Then
                 LastValidPos = i
-            ElseIf (NextChar >= "A" And NextChar <= "Z") Or (NextChar >= "a" And NextChar <= "z") Then
+            ElseIf IsCorrespondentSuffixLetter(NextChar) Then
                 LastValidPos = i + 1
             Else
                 Exit For
             End If
-        ElseIf InNumberSequence And ((CurrentChar >= "A" And CurrentChar <= "Z") Or (CurrentChar >= "a" And CurrentChar <= "z")) Then
+        ElseIf InNumberSequence And IsCorrespondentSuffixLetter(CurrentChar) Then
             Dim j As Long
             Dim AfterDash As Boolean
             AfterDash = False
@@ -815,14 +824,14 @@ Private Function ExtractCorrespondentName(FullCorrespondent As String) As String
                 If CheckChar = "-" Then
                     AfterDash = True
                     Exit For
-                ElseIf Not ((CheckChar >= "A" And CheckChar <= "Z") Or (CheckChar >= "a" And CheckChar <= "z")) Then
+                ElseIf Not IsCorrespondentSuffixLetter(CheckChar) Then
                     Exit For
                 End If
             Next j
             
             If AfterDash Then
                 LastValidPos = i
-                If NextChar <> "" And NextChar <> " " And Not ((NextChar >= "A" And NextChar <= "Z") Or (NextChar >= "a" And NextChar <= "z")) Then
+                If NextChar <> "" And NextChar <> " " And Not IsCorrespondentSuffixLetter(NextChar) Then
                     Exit For
                 End If
             Else
@@ -838,8 +847,27 @@ Private Function ExtractCorrespondentName(FullCorrespondent As String) As String
     If LastValidPos > 0 Then
         result = Trim(Left(result, LastValidPos))
     End If
+
+    If CommonUtilities.IsBranchCorrespondent(FullCorrespondent) Then
+        rpbsCode = CommonUtilities.ExtractCorrespondentRpbsCode(FullCorrespondent)
+        If Len(rpbsCode) > 0 Then
+            result = Trim$(result & " [RPBS " & rpbsCode & "]")
+        End If
+    End If
     
     ExtractCorrespondentName = result
+End Function
+
+Private Function IsCorrespondentSuffixLetter(ByVal sourceChar As String) As Boolean
+    Dim codePoint As Long
+
+    If Len(sourceChar) = 0 Then Exit Function
+    codePoint = AscW(sourceChar)
+
+    IsCorrespondentSuffixLetter = ((codePoint >= 65 And codePoint <= 90) Or _
+                                   (codePoint >= 97 And codePoint <= 122) Or _
+                                   (codePoint >= 1040 And codePoint <= 1103) Or _
+                                   codePoint = 1025 Or codePoint = 1105)
 End Function
 
 Private Sub SortDoverennostiInGroup(ByRef Group As CorrespondentGroup)
@@ -1049,7 +1077,7 @@ Private Function FormatShortDate(ByVal InputDate As Date) As String
     On Error GoTo 0
 End Function
 
-Private Function ShouldIncludeDoverennost(WsDover As Worksheet, RowNumber As Long) As Boolean
+Private Function ShouldIncludeDoverennost(WsDover As Worksheet, rowNumber As Long) As Boolean
     Dim OperationDateCol As Long
     Dim OperationNumberCol As Long
     Dim ExistingDate As Date
@@ -1063,11 +1091,11 @@ Private Function ShouldIncludeDoverennost(WsDover As Worksheet, RowNumber As Lon
     
     If OperationDateCol = 0 Or OperationNumberCol = 0 Then Exit Function
     
-    ExistingNumber = Trim(CStr(WsDover.Cells(RowNumber, OperationNumberCol).value))
+    ExistingNumber = Trim(CStr(WsDover.Cells(rowNumber, OperationNumberCol).value))
     
     If Len(ExistingNumber) > 0 And InStr(ExistingNumber, "/") > 0 Then
         On Error Resume Next
-        ExistingDate = CDate(WsDover.Cells(RowNumber, OperationDateCol).value)
+        ExistingDate = CDate(WsDover.Cells(rowNumber, OperationDateCol).value)
         On Error GoTo 0
         
         If ExistingDate > DateSerial(1900, 1, 2) Then
@@ -1107,9 +1135,9 @@ Private Sub UpdateDoverennostiFile(WbDover As Workbook, GroupData As Corresponde
     
     For i = 0 To GroupData.Count - 1
         With GroupData.Doverennosti(i)
-            WsDover.Cells(.RowNumber, OperationNumberCol).NumberFormat = "@"
-            WsDover.Cells(.RowNumber, OperationNumberCol).value = LetterInfo.Number
-            WsDover.Cells(.RowNumber, OperationDateCol).value = LetterInfo.Date
+            WsDover.Cells(.rowNumber, OperationNumberCol).NumberFormat = "@"
+            WsDover.Cells(.rowNumber, OperationNumberCol).value = LetterInfo.Number
+            WsDover.Cells(.rowNumber, OperationDateCol).value = LetterInfo.Date
         End With
     Next i
     
