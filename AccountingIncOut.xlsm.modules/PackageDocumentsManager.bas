@@ -315,6 +315,13 @@ Public Sub ApplyPackageReviewFilterFromForm(ByVal frm As Object, ByVal packageId
     Call ClearPackageItemEditor(frm)
 End Sub
 
+Public Sub SetPackageReviewFilterFromForm(ByVal frm As Object, ByVal packageId As String, ByVal filterKey As String)
+    If frm Is Nothing Then Exit Sub
+
+    frm.cmbReviewFilter.Value = LocalizationManager.GetText(filterKey)
+    Call ApplyPackageReviewFilterFromForm(frm, packageId)
+End Sub
+
 Public Sub SelectNextReviewItemFromForm(ByVal frm As Object)
     Dim listIndex As Long
     Dim startIndex As Long

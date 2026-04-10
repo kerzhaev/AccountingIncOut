@@ -22,6 +22,7 @@ Attribute VB_Exposed = False
 
 
 
+
 Option Explicit
 
 #If VBA7 Then
@@ -103,6 +104,22 @@ End Sub
 
 Private Sub btnNextReview_Click()
     Call SelectNextReviewItemFromForm(Me)
+End Sub
+
+Private Sub btnFilterAll_Click()
+    Call SetPackageReviewFilterFromForm(Me, mPackageId, "All")
+End Sub
+
+Private Sub btnFilterPending_Click()
+    Call SetPackageReviewFilterFromForm(Me, mPackageId, "Pending")
+End Sub
+
+Private Sub btnFilterCandidate_Click()
+    Call SetPackageReviewFilterFromForm(Me, mPackageId, "Candidate")
+End Sub
+
+Private Sub btnFilterNotFound_Click()
+    Call SetPackageReviewFilterFromForm(Me, mPackageId, "Not found")
 End Sub
 
 Private Sub btnMarkManual_Click()
@@ -242,6 +259,7 @@ Private Sub ApplyFormLayout()
     Dim thirdRowTop As Single
     Dim labelOffset As Single
     Dim filterTop As Single
+    Dim quickFilterTop As Single
 
     marginX = 12
     labelOffset = 14
@@ -263,9 +281,23 @@ Private Sub ApplyFormLayout()
     Me.lblReviewFilter.Width = 72
     Me.cmbReviewFilter.Left = 544
     Me.cmbReviewFilter.Top = filterTop
-    Me.cmbReviewFilter.Width = 120
+    Me.cmbReviewFilter.Width = 108
 
-    currentTop = Me.lblPackageItemsTitle.Top + 20
+    quickFilterTop = filterTop
+    Me.btnFilterAll.Left = 658
+    Me.btnFilterAll.Top = quickFilterTop
+    Me.btnFilterAll.Width = 38
+    Me.btnFilterCandidate.Left = Me.btnFilterAll.Left + Me.btnFilterAll.Width + 4
+    Me.btnFilterCandidate.Top = quickFilterTop
+    Me.btnFilterCandidate.Width = 52
+    Me.btnFilterPending.Left = marginX
+    Me.btnFilterPending.Top = filterTop + 22
+    Me.btnFilterPending.Width = 68
+    Me.btnFilterNotFound.Left = Me.btnFilterPending.Left + Me.btnFilterPending.Width + 6
+    Me.btnFilterNotFound.Top = filterTop + 22
+    Me.btnFilterNotFound.Width = 82
+
+    currentTop = Me.lblPackageItemsTitle.Top + 42
     Me.lstPackageItems.Left = marginX
     Me.lstPackageItems.Top = currentTop
     Me.lstPackageItems.Width = contentWidth
