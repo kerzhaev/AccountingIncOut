@@ -61,6 +61,11 @@ Public Sub MassProcessWithFileSelection()
     Dim currentCorrespondent As String
     Dim currentOtmetka As String
     Dim MatchResult As MatchResult
+    Dim childProcessed As Long
+    Dim childFound As Long
+    Dim childCandidates As Long
+    Dim childNotFound As Long
+    Dim parentPrimaryStatus As String
     
     For i = 1 To tblData.ListRows.Count
         
@@ -71,23 +76,40 @@ Public Sub MassProcessWithFileSelection()
         currentOtmetka = Trim(CStr(tblData.DataBodyRange.Cells(i, 18).value)) ' Execution mark
         On Error GoTo MassProcessError
         
-        ' Skip records with already filled execution mark
-        If currentOtmetka = "" Then
-            
-            ' Search for match in 1C export
+        If PackageDocumentsManager.ShouldUseChildDocumentsForMatching(i) Then
+            If PackageDocumentsManager.CountPendingPackageChildMatches(i) > 0 Then
+                childProcessed = 0
+                childFound = 0
+                childCandidates = 0
+                childNotFound = 0
+
+                Call PackageDocumentsManager.ProcessPackageChildMatches(i, ws1C, childProcessed, childFound, childCandidates, childNotFound)
+
+                If childProcessed > 0 Then
+                    parentPrimaryStatus = PackageDocumentsManager.GetPackagePrimary1CStatus(i)
+                    Select Case parentPrimaryStatus
+                        Case "exact"
+                            FoundCount = FoundCount + 1
+                        Case "candidate", "manual"
+                            MultipleCount = MultipleCount + 1
+                    End Select
+                    ProcessedCount = ProcessedCount + 1
+                Else
+                    SkippedCount = SkippedCount + 1
+                End If
+            Else
+                SkippedCount = SkippedCount + 1
+            End If
+        ElseIf currentOtmetka = "" Then
             MatchResult = FindMatchInFile(currentSuma, currentCorrespondent, ws1C)
-            
+
             If MatchResult.Found Then
-                ' Write posting number to execution mark
                 tblData.DataBodyRange.Cells(i, 18).value = MatchResult.ProvodkaNumber
                 FoundCount = FoundCount + 1
-                
             ElseIf MatchResult.MatchCount > 1 Then
-                ' Multiple matches - require manual processing
                 MultipleCount = MultipleCount + 1
-                
             End If
-            
+
             ProcessedCount = ProcessedCount + 1
         Else
             SkippedCount = SkippedCount + 1
@@ -242,6 +264,23 @@ FindError:
     FindMatchInFile = result
 End Function
 
+Public Sub FindMatchDetailsInFile(ByVal suma As Double, ByVal Correspondent As String, ByVal ws1C As Worksheet, ByRef found As Boolean, ByRef provodkaNumber As String, ByRef provodkaDate As Variant, ByRef matchCount As Long, ByRef statusMessage As String, ByRef candidatesList As String)
+    Dim result As MatchResult
+
+    result = FindMatchInFile(suma, Correspondent, ws1C)
+    found = result.Found
+    provodkaNumber = result.ProvodkaNumber
+    matchCount = result.MatchCount
+    statusMessage = result.StatusMessage
+    candidatesList = result.candidatesList
+
+    If result.Found Or result.MatchCount > 1 Then
+        provodkaDate = result.ProvodkaDate
+    Else
+        provodkaDate = vbNullString
+    End If
+End Sub
+
 ' Process single record (for manual search from form)
 Public Sub ProcessSingleRecord(RowIndex As Long)
     Dim filePath As String
@@ -253,6 +292,12 @@ Public Sub ProcessSingleRecord(RowIndex As Long)
     Dim currentSuma As Double
     Dim currentCorrespondent As String
     Dim MatchResult As MatchResult
+    Dim childProcessed As Long
+    Dim childFound As Long
+    Dim childCandidates As Long
+    Dim childNotFound As Long
+    Dim parentPrimaryStatus As String
+    Dim parentPrimaryOperationNumber As String
     
     On Error GoTo SingleProcessError
     
@@ -282,45 +327,68 @@ Public Sub ProcessSingleRecord(RowIndex As Long)
     Set wb1C = Workbooks.Open(filePath, ReadOnly:=True)
     Set ws1C = wb1C.Worksheets(1)
     
-    ' Search for match
-    MatchResult = FindMatchInFile(currentSuma, currentCorrespondent, ws1C)
-    
-    ' Close file
-    wb1C.Close False
-    
-    ' Process result
-    If MatchResult.Found Then
-        ' Automatically fill field
-        tblData.DataBodyRange.Cells(RowIndex, 18).value = MatchResult.ProvodkaNumber
-        
-        MsgBox LocalizationManager.GetText("[OK] POSTING FOUND!") & vbCrLf & vbCrLf & _
-               LocalizationManager.GetText("Posting Number: ") & MatchResult.ProvodkaNumber & vbCrLf & _
-               LocalizationManager.GetText("Posting Date: ") & Format(MatchResult.ProvodkaDate, "dd.mm.yyyy") & vbCrLf & _
-               LocalizationManager.GetText("Amount: ") & currentSuma & vbCrLf & _
-               LocalizationManager.GetText("Correspondent: ") & currentCorrespondent & vbCrLf & vbCrLf & _
-               LocalizationManager.GetText("Posting number written to 'Execution Mark'"), _
-               vbInformation, LocalizationManager.GetText("Posting Search")
-               
-        ' If form is open, update display
-        If TableEventHandler.IsFormOpen("UserFormVhIsh") Then
-            UserFormVhIsh.txtOtmetkaIspolnenie.Text = MatchResult.ProvodkaNumber
-            UserFormVhIsh.txtOtmetkaIspolnenie.BackColor = RGB(200, 255, 200) ' Light green
+    If PackageDocumentsManager.ShouldUseChildDocumentsForMatching(RowIndex) Then
+        If PackageDocumentsManager.CountPendingPackageChildMatches(RowIndex) = 0 Then
+            wb1C.Close False
+            MsgBox LocalizationManager.GetText("All child documents are already matched."), vbInformation, LocalizationManager.GetText("Package child matching completed")
+            Application.StatusBar = LocalizationManager.GetText("Posting search completed")
+            Exit Sub
         End If
-        
-    ElseIf MatchResult.MatchCount > 1 Then
-        ' Show dialog to choose from multiple variants
-        Call ShowMultipleChoiceDialog(RowIndex, MatchResult, currentSuma, currentCorrespondent)
-        
+
+        childProcessed = 0
+        childFound = 0
+        childCandidates = 0
+        childNotFound = 0
+
+        Call PackageDocumentsManager.ProcessPackageChildMatches(RowIndex, ws1C, childProcessed, childFound, childCandidates, childNotFound)
+        wb1C.Close False
+
+        parentPrimaryStatus = PackageDocumentsManager.GetPackagePrimary1CStatus(RowIndex)
+        parentPrimaryOperationNumber = PackageDocumentsManager.GetPackagePrimary1COperationNumber(RowIndex)
+
+        MsgBox LocalizationManager.GetText("Package child documents processed.") & vbCrLf & vbCrLf & _
+               LocalizationManager.GetText("Child documents processed: ") & childProcessed & vbCrLf & _
+               LocalizationManager.GetText("Found automatically: ") & childFound & vbCrLf & _
+               LocalizationManager.GetText("Multiple matches: ") & childCandidates & vbCrLf & _
+               LocalizationManager.GetText("Not found: ") & childNotFound & vbCrLf & vbCrLf & _
+               LocalizationManager.GetText("Package-level 1C status: ") & parentPrimaryStatus & IIf(Len(Trim$(parentPrimaryOperationNumber)) > 0, vbCrLf & LocalizationManager.GetText("Posting Number: ") & parentPrimaryOperationNumber, vbNullString), _
+               vbInformation, LocalizationManager.GetText("Package child matching completed")
+
+        If TableEventHandler.IsFormOpen("UserFormVhIsh") Then
+            Call PackageDocumentsManager.RefreshPackageIndicatorsOnMainForm(UserFormVhIsh, RowIndex)
+        End If
     Else
-        MsgBox LocalizationManager.GetText("[WARN] POSTING NOT FOUND") & vbCrLf & vbCrLf & _
-               LocalizationManager.GetText("Search criteria:") & vbCrLf & _
-               LocalizationManager.GetText("Amount: ") & currentSuma & vbCrLf & _
-               LocalizationManager.GetText("Correspondent: ") & currentCorrespondent & vbCrLf & vbCrLf & _
-               LocalizationManager.GetText("Possible reasons:") & vbCrLf & _
-               LocalizationManager.GetText("- Document not yet posted in 1C") & vbCrLf & _
-               LocalizationManager.GetText("- Amount or correspondent name differs") & vbCrLf & _
-               LocalizationManager.GetText("- Document reversed in 1C"), _
-               vbExclamation, LocalizationManager.GetText("Posting Search")
+        MatchResult = FindMatchInFile(currentSuma, currentCorrespondent, ws1C)
+        wb1C.Close False
+
+        If MatchResult.Found Then
+            tblData.DataBodyRange.Cells(RowIndex, 18).value = MatchResult.ProvodkaNumber
+
+            MsgBox LocalizationManager.GetText("[OK] POSTING FOUND!") & vbCrLf & vbCrLf & _
+                   LocalizationManager.GetText("Posting Number: ") & MatchResult.ProvodkaNumber & vbCrLf & _
+                   LocalizationManager.GetText("Posting Date: ") & Format(MatchResult.ProvodkaDate, "dd.mm.yyyy") & vbCrLf & _
+                   LocalizationManager.GetText("Amount: ") & currentSuma & vbCrLf & _
+                   LocalizationManager.GetText("Correspondent: ") & currentCorrespondent & vbCrLf & vbCrLf & _
+                   LocalizationManager.GetText("Posting number written to 'Execution Mark'"), _
+                   vbInformation, LocalizationManager.GetText("Posting Search")
+
+            If TableEventHandler.IsFormOpen("UserFormVhIsh") Then
+                UserFormVhIsh.txtOtmetkaIspolnenie.Text = MatchResult.ProvodkaNumber
+                UserFormVhIsh.txtOtmetkaIspolnenie.BackColor = RGB(200, 255, 200)
+            End If
+        ElseIf MatchResult.MatchCount > 1 Then
+            Call ShowMultipleChoiceDialog(RowIndex, MatchResult, currentSuma, currentCorrespondent)
+        Else
+            MsgBox LocalizationManager.GetText("[WARN] POSTING NOT FOUND") & vbCrLf & vbCrLf & _
+                   LocalizationManager.GetText("Search criteria:") & vbCrLf & _
+                   LocalizationManager.GetText("Amount: ") & currentSuma & vbCrLf & _
+                   LocalizationManager.GetText("Correspondent: ") & currentCorrespondent & vbCrLf & vbCrLf & _
+                   LocalizationManager.GetText("Possible reasons:") & vbCrLf & _
+                   LocalizationManager.GetText("- Document not yet posted in 1C") & vbCrLf & _
+                   LocalizationManager.GetText("- Amount or correspondent name differs") & vbCrLf & _
+                   LocalizationManager.GetText("- Document reversed in 1C"), _
+                   vbExclamation, LocalizationManager.GetText("Posting Search")
+        End If
     End If
     
     Application.StatusBar = LocalizationManager.GetText("Posting search completed")

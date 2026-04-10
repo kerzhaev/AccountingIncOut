@@ -36,6 +36,7 @@ Private Const ITEM_COLUMN_BASE_DOCUMENT_DATE As String = "BaseDocumentDate"
 Private Const ITEM_COLUMN_MATCHED_OPERATION_NUMBER As String = "Matched1COperationNumber"
 Private Const ITEM_COLUMN_MATCHED_OPERATION_DATE As String = "Matched1COperationDate"
 Private Const ITEM_COLUMN_MATCHED_STATUS As String = "Matched1CMatchStatus"
+Private Const ITEM_COLUMN_MATCHED_CONFIDENCE As String = "Matched1CConfidence"
 Private Const ITEM_COLUMN_MATCHED_COMMENT As String = "Matched1CComment"
 Private Const ITEM_COLUMN_MATCHED_MODE As String = "Matched1CMode"
 Private Const ITEM_COLUMN_IS_POSTED_SEPARATELY As String = "IsPostedSeparately"
@@ -97,6 +98,105 @@ End Function
 Public Function ShouldUseChildDocumentsForMatching(ByVal parentRowIndex As Long) As Boolean
     ShouldUseChildDocumentsForMatching = (GetPackageChildDocumentCount(parentRowIndex) > 0)
 End Function
+
+Public Function CountPendingPackageChildMatches(ByVal parentRowIndex As Long) As Long
+    Dim parentTable As ListObject
+    Dim itemsTable As ListObject
+    Dim packageId As String
+    Dim rowIndex As Long
+
+    Set parentTable = GetParentTable()
+    Set itemsTable = GetItemsTable()
+    If parentTable Is Nothing Or itemsTable Is Nothing Then Exit Function
+    If parentRowIndex < 1 Or parentRowIndex > parentTable.ListRows.Count Then Exit Function
+    If itemsTable.DataBodyRange Is Nothing Then Exit Function
+
+    packageId = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PACKAGE_ID)
+    If Len(packageId) = 0 Then Exit Function
+
+    For rowIndex = 1 To itemsTable.ListRows.Count
+        If StrComp(Trim$(CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_PACKAGE_ID))), packageId, vbTextCompare) = 0 Then
+            If IsChildMatchPending(CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_STATUS))) Then
+                CountPendingPackageChildMatches = CountPendingPackageChildMatches + 1
+            End If
+        End If
+    Next rowIndex
+End Function
+
+Public Function GetPackagePrimary1CStatus(ByVal parentRowIndex As Long) As String
+    Dim parentTable As ListObject
+
+    Set parentTable = GetParentTable()
+    If parentTable Is Nothing Then Exit Function
+    If parentRowIndex < 1 Or parentRowIndex > parentTable.ListRows.Count Then Exit Function
+
+    GetPackagePrimary1CStatus = LCase$(Trim$(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_STATUS)))
+End Function
+
+Public Function GetPackagePrimary1COperationNumber(ByVal parentRowIndex As Long) As String
+    Dim parentTable As ListObject
+
+    Set parentTable = GetParentTable()
+    If parentTable Is Nothing Then Exit Function
+    If parentRowIndex < 1 Or parentRowIndex > parentTable.ListRows.Count Then Exit Function
+
+    GetPackagePrimary1COperationNumber = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_NUMBER)
+End Function
+
+Public Sub ProcessPackageChildMatches(ByVal parentRowIndex As Long, ByVal ws1C As Worksheet, ByRef processedCount As Long, ByRef foundCount As Long, ByRef candidateCount As Long, ByRef notFoundCount As Long)
+    Dim parentTable As ListObject
+    Dim itemsTable As ListObject
+    Dim packageId As String
+    Dim rowIndex As Long
+    Dim childAmount As Double
+    Dim childCorrespondent As String
+    Dim childFound As Boolean
+    Dim childProvodkaNumber As String
+    Dim childProvodkaDate As Variant
+    Dim childMatchCount As Long
+    Dim childStatusMessage As String
+    Dim childCandidatesList As String
+
+    Set parentTable = GetParentTable()
+    Set itemsTable = GetItemsTable()
+    If parentTable Is Nothing Or itemsTable Is Nothing Then Exit Sub
+    If ws1C Is Nothing Then Exit Sub
+    If parentRowIndex < 1 Or parentRowIndex > parentTable.ListRows.Count Then Exit Sub
+    If itemsTable.DataBodyRange Is Nothing Then Exit Sub
+
+    packageId = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PACKAGE_ID)
+    If Len(packageId) = 0 Then Exit Sub
+
+    For rowIndex = 1 To itemsTable.ListRows.Count
+        If StrComp(Trim$(CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_PACKAGE_ID))), packageId, vbTextCompare) = 0 Then
+            If IsChildMatchPending(CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_STATUS))) Then
+                childAmount = 0
+                If IsNumeric(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_AMOUNT)) Then
+                    childAmount = CDbl(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_AMOUNT))
+                End If
+
+                childCorrespondent = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_COUNTERPARTY_NAME))
+                If Len(Trim$(childCorrespondent)) = 0 Then
+                    childCorrespondent = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_COUNTERPARTY_NORMALIZED))
+                End If
+
+                Call ProvodkaIntegrationModule.FindMatchDetailsInFile(childAmount, childCorrespondent, ws1C, childFound, childProvodkaNumber, childProvodkaDate, childMatchCount, childStatusMessage, childCandidatesList)
+                processedCount = processedCount + 1
+                Call ApplyChildMatchResult(itemsTable, rowIndex, childFound, childProvodkaNumber, childProvodkaDate, childMatchCount, childStatusMessage, childCandidatesList)
+
+                If childFound Then
+                    foundCount = foundCount + 1
+                ElseIf childMatchCount > 1 Then
+                    candidateCount = candidateCount + 1
+                Else
+                    notFoundCount = notFoundCount + 1
+                End If
+            End If
+        End If
+    Next rowIndex
+
+    Call RefreshParentPackageSummary(parentRowIndex)
+End Sub
 
 Public Sub RefreshPackageIndicatorsOnMainForm(ByVal frm As Object, ByVal parentRowIndex As Long)
     Dim parentTable As ListObject
@@ -698,6 +798,57 @@ Private Function GetItemsTable() As ListObject
     Dim ws As Worksheet
     Set ws = CommonUtilities.GetWorksheetSafe(PACKAGE_ITEMS_SHEET_NAME)
     Set GetItemsTable = CommonUtilities.GetListObjectSafe(ws, PACKAGE_ITEMS_TABLE_NAME)
+End Function
+
+Private Function IsChildMatchPending(ByVal statusValue As String) As Boolean
+    Select Case LCase$(Trim$(statusValue))
+        Case "exact", "manual"
+            IsChildMatchPending = False
+        Case Else
+            IsChildMatchPending = True
+    End Select
+End Function
+
+Private Sub ApplyChildMatchResult(ByVal itemsTable As ListObject, ByVal rowIndex As Long, ByVal childFound As Boolean, ByVal childProvodkaNumber As String, ByVal childProvodkaDate As Variant, ByVal childMatchCount As Long, ByVal childStatusMessage As String, ByVal childCandidatesList As String)
+    Dim commentText As String
+
+    If itemsTable Is Nothing Then Exit Sub
+    If rowIndex < 1 Or rowIndex > itemsTable.ListRows.Count Then Exit Sub
+
+    commentText = BuildChildMatchComment(childStatusMessage, childMatchCount, childCandidatesList)
+
+    If childFound Then
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_NUMBER, childProvodkaNumber
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_DATE, childProvodkaDate
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_STATUS, "exact"
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_MODE, "auto"
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_CONFIDENCE, 100
+    ElseIf childMatchCount > 1 Then
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_NUMBER, childProvodkaNumber
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_DATE, childProvodkaDate
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_STATUS, "candidate"
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_MODE, "auto"
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_CONFIDENCE, 50
+    Else
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_NUMBER, vbNullString
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_DATE, vbNullString
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_STATUS, "not_found"
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_MODE, "auto"
+        SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_CONFIDENCE, 0
+    End If
+
+    SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_MATCHED_COMMENT, commentText
+    SetItemCellValue itemsTable, rowIndex, ITEM_COLUMN_UPDATED_AT, Now
+End Sub
+
+Private Function BuildChildMatchComment(ByVal childStatusMessage As String, ByVal childMatchCount As Long, ByVal childCandidatesList As String) As String
+    BuildChildMatchComment = Trim$(childStatusMessage)
+
+    If childMatchCount > 1 Then
+        If Len(Trim$(childCandidatesList)) > 0 Then
+            BuildChildMatchComment = BuildChildMatchComment & " | " & childCandidatesList
+        End If
+    End If
 End Function
 
 Private Function GetItemCellValue(ByVal itemsTable As ListObject, ByVal rowIndex As Long, ByVal columnName As String) As Variant
