@@ -79,7 +79,6 @@ Private Sub cmbMatched1CStatus_Change()
 End Sub
 
 Private Sub cmbItemDocumentTypeDisplay_DropButtonClick()
-    Call ResetDocumentTypeCombo
 End Sub
 
 Private Sub btnAddItem_Click()
