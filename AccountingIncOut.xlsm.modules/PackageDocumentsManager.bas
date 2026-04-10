@@ -515,24 +515,12 @@ End Sub
 
 Public Sub FillPackageItemEditorFromParent(ByVal frm As Object, ByVal parentRowIndex As Long)
     Dim parentTable As ListObject
-    Dim parentAmount As Variant
 
     Set parentTable = GetParentTable()
     If parentTable Is Nothing Then Exit Sub
     If parentRowIndex < 1 Or parentRowIndex > parentTable.ListRows.Count Then Exit Sub
 
     Call ClearPackageItemEditor(frm)
-
-    frm.cmbItemDocumentTypeDisplay.value = CStr(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DOCUMENT_TYPE_COLUMN))
-    frm.txtItemDocumentNumber.Text = CStr(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DOCUMENT_NUMBER_COLUMN))
-    frm.txtItemDocumentDate.Text = FormatItemDateValue(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_FRP_DATE_COLUMN))
-
-    parentAmount = GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_AMOUNT_COLUMN)
-    If IsNumeric(parentAmount) Then
-        frm.txtItemAmount.Text = FormatEditorAmountValue(parentAmount)
-    Else
-        frm.txtItemAmount.Text = ""
-    End If
 
     frm.txtItemDescription.Text = LocalizationManager.GetText("Copied from package")
     frm.txtItemNotes.Text = ""
