@@ -75,7 +75,7 @@ Private Sub btnPackageDocuments_Click()
     End If
 
     If CurrentRecordRow < 1 Then
-        MsgBox LocalizationManager.GetText("Unable to determine the current record row."), vbExclamation, LocalizationManager.GetText("Package Documents"))
+        MsgBox LocalizationManager.GetText("Unable to determine the current record row."), vbExclamation, LocalizationManager.GetText("Package Documents")
         Exit Sub
     End If
 
@@ -1589,6 +1589,45 @@ Private Sub ConstrainSearchAreaLayout()
 
 Cleanup:
 End Sub
+
+Private Sub ConstrainPackageAreaLayout()
+    Dim contentWidth As Single
+    Dim rightMargin As Single
+    Dim gap As Single
+    Dim indicatorWidth As Single
+    Dim indicatorTop As Single
+    Dim indicatorHeight As Single
+
+    On Error GoTo Cleanup
+
+    contentWidth = Me.InsideWidth
+    If contentWidth <= 0 Then contentWidth = Me.ScrollWidth
+    If contentWidth <= 0 Then contentWidth = Me.Width
+    If contentWidth <= 0 Then Exit Sub
+
+    rightMargin = 18
+    gap = 8
+
+    Me.btnPackageDocuments.Top = Me.btnNew.Top
+    Me.btnPackageDocuments.Width = 126
+    Me.btnPackageDocuments.Left = contentWidth - rightMargin - Me.btnPackageDocuments.Width
+    If Me.btnPackageDocuments.Left < Me.btnClear.Left + Me.btnClear.Width + gap Then
+        Me.btnPackageDocuments.Left = Me.btnClear.Left + Me.btnClear.Width + gap
+    End If
+
+    indicatorTop = Me.Frame6.Top - 46
+    indicatorHeight = 36
+
+    indicatorWidth = 240
+    Me.lblPackageIndicators.Width = indicatorWidth
+    Me.lblPackageIndicators.Left = contentWidth - rightMargin - indicatorWidth
+    Me.lblPackageIndicators.Top = indicatorTop
+    Me.lblPackageIndicators.Height = indicatorHeight
+    Me.lblPackageIndicators.WordWrap = True
+
+Cleanup:
+End Sub
+
 Private Sub ResizeAndCenterForm()
     On Error GoTo ErrorHandler
 
@@ -1681,6 +1720,7 @@ Private Sub ResizeAndCenterForm()
     Me.Top = newTop
     Me.StartUpPosition = 0
     Call ConstrainSearchAreaLayout
+    Call ConstrainPackageAreaLayout
     Call ApplySearchAreaReadability
 
     Exit Sub

@@ -48,8 +48,8 @@ End Sub
 
 Private Sub UserForm_Initialize()
     Me.Caption = "Package Documents"
-    Me.Width = 760
-    Me.Height = 520
+    Me.Width = 780
+    Me.Height = 560
     Call SetupPackageItemsList
     Call SetupMatchedStatusCombo
     Call SetupReviewFilterCombo
@@ -259,7 +259,6 @@ Private Sub ApplyFormLayout()
     Dim thirdRowTop As Single
     Dim labelOffset As Single
     Dim filterTop As Single
-    Dim quickFilterTop As Single
 
     marginX = 12
     labelOffset = 14
@@ -268,40 +267,39 @@ Private Sub ApplyFormLayout()
     Me.lblPackageSummary.Left = marginX
     Me.lblPackageSummary.Top = 12
     Me.lblPackageSummary.Width = contentWidth
-    Me.lblPackageSummary.Height = 68
+    Me.lblPackageSummary.Height = 74
 
     currentTop = Me.lblPackageSummary.Top + Me.lblPackageSummary.Height + 8
-    Me.lblPackageItemsTitle.Left = marginX
-    Me.lblPackageItemsTitle.Top = currentTop + 4
-    Me.lblPackageItemsTitle.Width = 180
-
     filterTop = currentTop
-    Me.lblReviewFilter.Left = 468
-    Me.lblReviewFilter.Top = filterTop + 4
-    Me.lblReviewFilter.Width = 72
-    Me.cmbReviewFilter.Left = 544
-    Me.cmbReviewFilter.Top = filterTop
-    Me.cmbReviewFilter.Width = 108
+    Me.lblPackageItemsTitle.Left = marginX
+    Me.lblPackageItemsTitle.Top = filterTop + 4
+    Me.lblPackageItemsTitle.Width = 90
 
-    quickFilterTop = filterTop
-    Me.btnFilterAll.Left = 658
-    Me.btnFilterAll.Top = quickFilterTop
-    Me.btnFilterAll.Width = 38
-    Me.btnFilterCandidate.Left = Me.btnFilterAll.Left + Me.btnFilterAll.Width + 4
-    Me.btnFilterCandidate.Top = quickFilterTop
-    Me.btnFilterCandidate.Width = 52
-    Me.btnFilterPending.Left = marginX
-    Me.btnFilterPending.Top = filterTop + 22
+    Me.btnFilterAll.Left = 108
+    Me.btnFilterAll.Top = filterTop
+    Me.btnFilterAll.Width = 42
+    Me.btnFilterCandidate.Left = Me.btnFilterAll.Left + Me.btnFilterAll.Width + 6
+    Me.btnFilterCandidate.Top = filterTop
+    Me.btnFilterCandidate.Width = 70
+    Me.btnFilterPending.Left = Me.btnFilterCandidate.Left + Me.btnFilterCandidate.Width + 6
+    Me.btnFilterPending.Top = filterTop
     Me.btnFilterPending.Width = 68
     Me.btnFilterNotFound.Left = Me.btnFilterPending.Left + Me.btnFilterPending.Width + 6
-    Me.btnFilterNotFound.Top = filterTop + 22
+    Me.btnFilterNotFound.Top = filterTop
     Me.btnFilterNotFound.Width = 82
 
-    currentTop = Me.lblPackageItemsTitle.Top + 42
+    Me.lblReviewFilter.Left = 496
+    Me.lblReviewFilter.Top = filterTop + 4
+    Me.lblReviewFilter.Width = 72
+    Me.cmbReviewFilter.Left = 572
+    Me.cmbReviewFilter.Top = filterTop
+    Me.cmbReviewFilter.Width = 110
+
+    currentTop = filterTop + 30
     Me.lstPackageItems.Left = marginX
     Me.lstPackageItems.Top = currentTop
     Me.lstPackageItems.Width = contentWidth
-    Me.lstPackageItems.Height = 112
+    Me.lstPackageItems.Height = 118
 
     buttonTop = Me.lstPackageItems.Top + Me.lstPackageItems.Height + 8
     buttonWidth = 78
@@ -325,16 +323,16 @@ Private Sub ApplyFormLayout()
     Me.btnMatchIn1C.Top = buttonTop
     Me.btnMatchIn1C.Width = 90
     
-    reviewButtonTop = buttonTop + 32
+    reviewButtonTop = buttonTop + 34
     Me.btnNextReview.Left = marginX
     Me.btnNextReview.Top = reviewButtonTop
-    Me.btnNextReview.Width = 96
+    Me.btnNextReview.Width = 118
     Me.btnMarkManual.Left = Me.btnNextReview.Left + Me.btnNextReview.Width + buttonGap
     Me.btnMarkManual.Top = reviewButtonTop
-    Me.btnMarkManual.Width = 102
+    Me.btnMarkManual.Width = 132
     Me.btnResetMatch.Left = Me.btnMarkManual.Left + Me.btnMarkManual.Width + buttonGap
     Me.btnResetMatch.Top = reviewButtonTop
-    Me.btnResetMatch.Width = 96
+    Me.btnResetMatch.Width = 132
     Me.btnClearItem.Left = Me.btnResetMatch.Left + Me.btnResetMatch.Width + buttonGap
     Me.btnClearItem.Top = reviewButtonTop
     Me.btnClearItem.Width = 78
@@ -342,7 +340,7 @@ Private Sub ApplyFormLayout()
     Me.btnClose.Top = reviewButtonTop
     Me.btnClose.Width = 78
 
-    firstRowTop = reviewButtonTop + 40
+    firstRowTop = reviewButtonTop + 42
     Me.lblItemDocumentType.Left = marginX
     Me.lblItemDocumentType.Top = firstRowTop
     Me.cmbItemDocumentTypeDisplay.Left = marginX
@@ -400,13 +398,13 @@ Private Sub ApplyFormLayout()
     Me.txtMatched1CComment.Width = 204
     Me.txtMatched1CComment.Height = 42
 
-    thirdRowTop = secondRowTop + 64
+    thirdRowTop = secondRowTop + 66
     Me.lblItemNotes.Left = marginX
     Me.lblItemNotes.Top = thirdRowTop
     Me.txtItemNotes.Left = marginX
     Me.txtItemNotes.Top = thirdRowTop + labelOffset
     Me.txtItemNotes.Width = contentWidth
-    Me.txtItemNotes.Height = 52
+    Me.txtItemNotes.Height = 48
 
     Me.txtItemId.Left = contentWidth - 90
     Me.txtItemId.Top = Me.txtItemNotes.Top + Me.txtItemNotes.Height + 6
