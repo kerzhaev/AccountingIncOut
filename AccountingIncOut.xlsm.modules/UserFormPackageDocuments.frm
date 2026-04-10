@@ -49,21 +49,23 @@ End Sub
 
 Private Sub UserForm_Initialize()
     Me.Caption = "Package Documents"
-    Me.Width = 900
-    Me.Height = 700
+    Me.Width = 860
+    Me.Height = 620
     Call SetupPackageItemsList
     Call SetupMatchedStatusCombo
     Call SetupReviewFilterCombo
     Call LoadDocumentTypeComboData
-    Call EnsureExtendedEditorControls
-    Call SetupAssetCategoryCombo
     Call LocalizationManager.TranslateForm(Me)
     Call ApplyFormLayout
+    Call HideOptionalEditorControls
+    Call ApplyEntryTabOrder
     Call ResizeAndCenterForm
 End Sub
 
 Private Sub UserForm_Activate()
     Call ApplyFormLayout
+    Call HideOptionalEditorControls
+    Call ApplyEntryTabOrder
     Call ResizeAndCenterForm
 End Sub
 
@@ -195,75 +197,87 @@ LoadError:
     mDocumentTypeItems = Empty
 End Sub
 
-Private Sub EnsureExtendedEditorControls()
-    Call EnsureLabelControl("lblItemAssetCategory", "Asset Category")
-    Call EnsureComboBoxControl("cmbItemAssetCategory")
-    Call EnsureLabelControl("lblItemQuantity", "Quantity")
-    Call EnsureTextBoxControl("txtItemQuantity")
-    Call EnsureLabelControl("lblItemUnit", "Unit")
-    Call EnsureTextBoxControl("txtItemUnit")
-    Call EnsureLabelControl("lblItemOrderInfo", "Order Info")
-    Call EnsureTextBoxControl("txtItemOrderInfo")
-    Call EnsureLabelControl("lblItemFrpNumber", "FRP Number")
-    Call EnsureTextBoxControl("txtItemFrpNumber")
-    Call EnsureLabelControl("lblItemFrpDate", "FRP Date")
-    Call EnsureTextBoxControl("txtItemFrpDate")
-End Sub
-
-Private Sub SetupAssetCategoryCombo()
-    Dim comboControl As Object
-
-    Set comboControl = GetControlByName("cmbItemAssetCategory")
-    If comboControl Is Nothing Then Exit Sub
-
-    With comboControl
-        .Clear
-        .Style = fmStyleDropDownList
-        .AddItem vbNullString
-        .AddItem LocalizationManager.GetText("Inventory")
-        .AddItem LocalizationManager.GetText("Fixed assets")
-        .listIndex = 0
-    End With
-End Sub
-
-Private Sub EnsureLabelControl(ByVal controlName As String, ByVal captionText As String)
-    Dim ctrl As Object
-
-    Set ctrl = GetControlByName(controlName)
-    If ctrl Is Nothing Then
-        Set ctrl = Me.Controls.Add("Forms.Label.1", controlName, True)
-    End If
-
-    ctrl.Caption = captionText
-    ctrl.BackStyle = fmBackStyleTransparent
-End Sub
-
-Private Sub EnsureTextBoxControl(ByVal controlName As String)
-    Dim ctrl As Object
-
-    Set ctrl = GetControlByName(controlName)
-    If ctrl Is Nothing Then
-        Set ctrl = Me.Controls.Add("Forms.TextBox.1", controlName, True)
-    End If
-
-    ctrl.MultiLine = False
-    ctrl.EnterKeyBehavior = False
-End Sub
-
-Private Sub EnsureComboBoxControl(ByVal controlName As String)
-    Dim ctrl As Object
-
-    Set ctrl = GetControlByName(controlName)
-    If ctrl Is Nothing Then
-        Set ctrl = Me.Controls.Add("Forms.ComboBox.1", controlName, True)
-    End If
-End Sub
-
 Private Function GetControlByName(ByVal controlName As String) As Object
     On Error Resume Next
     Set GetControlByName = Me.Controls(controlName)
     On Error GoTo 0
 End Function
+
+Private Sub HideOptionalEditorControls()
+    Call SetControlVisible("lblItemNotes", False)
+    Call SetControlVisible("txtItemNotes", False)
+    Call SetControlVisible("lblItemAssetCategory", False)
+    Call SetControlVisible("cmbItemAssetCategory", False)
+    Call SetControlVisible("lblItemQuantity", False)
+    Call SetControlVisible("txtItemQuantity", False)
+    Call SetControlVisible("lblItemUnit", False)
+    Call SetControlVisible("txtItemUnit", False)
+    Call SetControlVisible("lblItemOrderInfo", False)
+    Call SetControlVisible("txtItemOrderInfo", False)
+    Call SetControlVisible("lblItemFrpNumber", False)
+    Call SetControlVisible("txtItemFrpNumber", False)
+    Call SetControlVisible("lblItemFrpDate", False)
+    Call SetControlVisible("txtItemFrpDate", False)
+    Call SetTabStopIfExists("lstPackageItems", False)
+    Call SetTabStopIfExists("cmbReviewFilter", False)
+    Call SetTabStopIfExists("btnFilterAll", False)
+    Call SetTabStopIfExists("btnFilterCandidate", False)
+    Call SetTabStopIfExists("btnFilterPending", False)
+    Call SetTabStopIfExists("btnFilterNotFound", False)
+    Call SetTabStopIfExists("btnAddItem", False)
+    Call SetTabStopIfExists("btnUpdateItem", False)
+    Call SetTabStopIfExists("btnDeleteItem", False)
+    Call SetTabStopIfExists("btnDuplicateItem", False)
+    Call SetTabStopIfExists("btnFillFromPackage", False)
+    Call SetTabStopIfExists("btnMatchIn1C", False)
+    Call SetTabStopIfExists("btnNextReview", False)
+    Call SetTabStopIfExists("btnMarkManual", False)
+    Call SetTabStopIfExists("btnResetMatch", False)
+    Call SetTabStopIfExists("btnClearItem", False)
+    Call SetTabStopIfExists("btnClose", False)
+    Call SetTabStopIfExists("txtItemId", False)
+End Sub
+
+Private Sub SetControlVisible(ByVal controlName As String, ByVal isVisible As Boolean)
+    Dim ctrl As Object
+    Set ctrl = GetControlByName(controlName)
+    If ctrl Is Nothing Then Exit Sub
+    ctrl.Visible = isVisible
+    On Error Resume Next
+    ctrl.TabStop = isVisible
+    On Error GoTo 0
+End Sub
+
+Private Sub ApplyEntryTabOrder()
+    Call SetTabIndexIfExists("cmbItemDocumentTypeDisplay", 0)
+    Call SetTabIndexIfExists("txtItemDocumentNumber", 1)
+    Call SetTabIndexIfExists("txtItemDocumentDate", 2)
+    Call SetTabIndexIfExists("txtItemAmount", 3)
+    Call SetTabIndexIfExists("txtItemDescription", 4)
+    Call SetTabIndexIfExists("txtMatched1COperationNumber", 5)
+    Call SetTabIndexIfExists("txtMatched1COperationDate", 6)
+    Call SetTabIndexIfExists("cmbMatched1CStatus", 7)
+    Call SetTabIndexIfExists("txtMatched1CComment", 8)
+End Sub
+
+Private Sub SetTabIndexIfExists(ByVal controlName As String, ByVal tabIndexValue As Integer)
+    Dim ctrl As Object
+    Set ctrl = GetControlByName(controlName)
+    If ctrl Is Nothing Then Exit Sub
+    On Error Resume Next
+    ctrl.TabIndex = tabIndexValue
+    ctrl.TabStop = True
+    On Error GoTo 0
+End Sub
+
+Private Sub SetTabStopIfExists(ByVal controlName As String, ByVal tabStopValue As Boolean)
+    Dim ctrl As Object
+    Set ctrl = GetControlByName(controlName)
+    If ctrl Is Nothing Then Exit Sub
+    On Error Resume Next
+    ctrl.TabStop = tabStopValue
+    On Error GoTo 0
+End Sub
 
 Private Function GetComboItems(TargetCombo As MSForms.ComboBox) As Variant
     Dim result() As String
@@ -333,8 +347,6 @@ Private Sub ApplyFormLayout()
     Dim firstRowTop As Single
     Dim secondRowTop As Single
     Dim thirdRowTop As Single
-    Dim fourthRowTop As Single
-    Dim notesTop As Single
     Dim labelOffset As Single
     Dim filterTop As Single
     Dim comboWidth As Single
@@ -447,93 +459,48 @@ Private Sub ApplyFormLayout()
     Me.txtItemAmount.Top = firstRowTop + labelOffset
     Me.txtItemAmount.Width = 74
 
-    GetControlByName("lblItemAssetCategory").Left = 494
-    GetControlByName("lblItemAssetCategory").Top = firstRowTop
-    GetControlByName("cmbItemAssetCategory").Left = 494
-    GetControlByName("cmbItemAssetCategory").Top = firstRowTop + labelOffset
-    GetControlByName("cmbItemAssetCategory").Width = 118
-
-    Me.lblMatched1COperationNumber.Left = 624
+    Me.lblMatched1COperationNumber.Left = 498
     Me.lblMatched1COperationNumber.Top = firstRowTop
-    Me.txtMatched1COperationNumber.Left = 624
+    Me.txtMatched1COperationNumber.Left = 498
     Me.txtMatched1COperationNumber.Top = firstRowTop + labelOffset
-    Me.txtMatched1COperationNumber.Width = 112
+    Me.txtMatched1COperationNumber.Width = 126
 
-    Me.lblMatched1COperationDate.Left = 750
+    Me.lblMatched1COperationDate.Left = 638
     Me.lblMatched1COperationDate.Top = firstRowTop
-    Me.txtMatched1COperationDate.Left = 750
+    Me.txtMatched1COperationDate.Left = 638
     Me.txtMatched1COperationDate.Top = firstRowTop + labelOffset
     Me.txtMatched1COperationDate.Width = 92
 
     secondRowTop = firstRowTop + 56
-    GetControlByName("lblItemQuantity").Left = marginX
-    GetControlByName("lblItemQuantity").Top = secondRowTop
-    GetControlByName("txtItemQuantity").Left = marginX
-    GetControlByName("txtItemQuantity").Top = secondRowTop + labelOffset
-    GetControlByName("txtItemQuantity").Width = 88
-
-    GetControlByName("lblItemUnit").Left = 114
-    GetControlByName("lblItemUnit").Top = secondRowTop
-    GetControlByName("txtItemUnit").Left = 114
-    GetControlByName("txtItemUnit").Top = secondRowTop + labelOffset
-    GetControlByName("txtItemUnit").Width = 88
-
-    GetControlByName("lblItemOrderInfo").Left = 228
-    GetControlByName("lblItemOrderInfo").Top = secondRowTop
-    GetControlByName("txtItemOrderInfo").Left = 228
-    GetControlByName("txtItemOrderInfo").Top = secondRowTop + labelOffset
-    GetControlByName("txtItemOrderInfo").Width = 246
-
-    GetControlByName("lblItemFrpNumber").Left = 500
-    GetControlByName("lblItemFrpNumber").Top = secondRowTop
-    GetControlByName("txtItemFrpNumber").Left = 500
-    GetControlByName("txtItemFrpNumber").Top = secondRowTop + labelOffset
-    GetControlByName("txtItemFrpNumber").Width = 156
-
-    GetControlByName("lblItemFrpDate").Left = 682
-    GetControlByName("lblItemFrpDate").Top = secondRowTop
-    GetControlByName("txtItemFrpDate").Left = 682
-    GetControlByName("txtItemFrpDate").Top = secondRowTop + labelOffset
-    GetControlByName("txtItemFrpDate").Width = 92
-
-    thirdRowTop = secondRowTop + 56
     Me.lblItemDescription.Left = marginX
-    Me.lblItemDescription.Top = thirdRowTop
+    Me.lblItemDescription.Top = secondRowTop
     Me.txtItemDescription.Left = marginX
-    Me.txtItemDescription.Top = thirdRowTop + labelOffset
-    Me.txtItemDescription.Width = 406
-    Me.txtItemDescription.Height = 42
+    Me.txtItemDescription.Top = secondRowTop + labelOffset
+    Me.txtItemDescription.Width = 520
+    Me.txtItemDescription.Height = 46
 
-    Me.lblMatched1CStatus.Left = 440
-    Me.lblMatched1CStatus.Top = thirdRowTop
-    Me.cmbMatched1CStatus.Left = 440
-    Me.cmbMatched1CStatus.Top = thirdRowTop + labelOffset
+    Me.lblMatched1CStatus.Left = 556
+    Me.lblMatched1CStatus.Top = secondRowTop
+    Me.cmbMatched1CStatus.Left = 556
+    Me.cmbMatched1CStatus.Top = secondRowTop + labelOffset
     Me.cmbMatched1CStatus.Width = 120
 
-    Me.lblMatched1CComment.Left = 582
-    Me.lblMatched1CComment.Top = thirdRowTop
-    Me.txtMatched1CComment.Left = 582
-    Me.txtMatched1CComment.Top = thirdRowTop + labelOffset
-    Me.txtMatched1CComment.Width = 260
-    Me.txtMatched1CComment.Height = 42
+    Me.lblMatched1CComment.Left = 692
+    Me.lblMatched1CComment.Top = secondRowTop
+    Me.txtMatched1CComment.Left = 692
+    Me.txtMatched1CComment.Top = secondRowTop + labelOffset
+    Me.txtMatched1CComment.Width = 140
+    Me.txtMatched1CComment.Height = 46
 
-    fourthRowTop = thirdRowTop + 64
+    thirdRowTop = secondRowTop + 68
     Me.lblReviewHint.Left = marginX
-    Me.lblReviewHint.Top = fourthRowTop
+    Me.lblReviewHint.Top = thirdRowTop
     Me.lblReviewHint.Width = contentWidth
     Me.lblReviewHint.Height = 22
     Me.lblReviewHint.WordWrap = True
 
-    notesTop = fourthRowTop + 32
-    Me.lblItemNotes.Left = marginX
-    Me.lblItemNotes.Top = notesTop
-    Me.txtItemNotes.Left = marginX
-    Me.txtItemNotes.Top = notesTop + labelOffset
-    Me.txtItemNotes.Width = contentWidth
-    Me.txtItemNotes.Height = 66
-
     Me.txtItemId.Left = contentWidth - 90
-    Me.txtItemId.Top = Me.txtItemNotes.Top + Me.txtItemNotes.Height + 6
+    Me.txtItemId.Top = Me.lblReviewHint.Top + Me.lblReviewHint.Height + 6
     Me.txtItemId.Width = 72
     Me.txtItemId.Visible = False
 End Sub
