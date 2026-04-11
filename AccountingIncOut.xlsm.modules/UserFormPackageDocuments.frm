@@ -56,6 +56,8 @@ Private Sub UserForm_Initialize()
     Call SetupReviewFilterCombo
     Call LoadDocumentTypeComboData
     Call LocalizationManager.TranslateForm(Me)
+    Call ApplyLocalizedCaptions
+    Call ConfigureEditorFields
     Call ApplyFormLayout
     Call HideOptionalEditorControls
     Call ApplyEntryTabOrder
@@ -63,6 +65,8 @@ Private Sub UserForm_Initialize()
 End Sub
 
 Private Sub UserForm_Activate()
+    Call ApplyLocalizedCaptions
+    Call ConfigureEditorFields
     Call ApplyFormLayout
     Call HideOptionalEditorControls
     Call ApplyEntryTabOrder
@@ -195,6 +199,21 @@ Private Sub LoadDocumentTypeComboData()
 LoadError:
     Me.cmbItemDocumentTypeDisplay.Clear
     mDocumentTypeItems = Empty
+End Sub
+
+Private Sub ApplyLocalizedCaptions()
+    Me.btnFillFromPackage.Caption = LocalizationManager.GetText("Apply Package Match")
+End Sub
+
+Private Sub ConfigureEditorFields()
+    On Error Resume Next
+    Me.txtItemDescription.MultiLine = True
+    Me.txtItemDescription.WordWrap = True
+    Me.txtMatched1CComment.MultiLine = True
+    Me.txtMatched1CComment.WordWrap = True
+    Me.txtMatched1CComment.EnterKeyBehavior = True
+    Me.txtMatched1CComment.ScrollBars = fmScrollBarsVertical
+    On Error GoTo 0
 End Sub
 
 Private Function GetControlByName(ByVal controlName As String) As Object
@@ -347,6 +366,7 @@ Private Sub ApplyFormLayout()
     Dim firstRowTop As Single
     Dim secondRowTop As Single
     Dim thirdRowTop As Single
+    Dim fourthRowTop As Single
     Dim labelOffset As Single
     Dim filterTop As Single
     Dim comboWidth As Single
@@ -476,25 +496,26 @@ Private Sub ApplyFormLayout()
     Me.lblItemDescription.Top = secondRowTop
     Me.txtItemDescription.Left = marginX
     Me.txtItemDescription.Top = secondRowTop + labelOffset
-    Me.txtItemDescription.Width = 520
-    Me.txtItemDescription.Height = 46
+    Me.txtItemDescription.Width = 552
+    Me.txtItemDescription.Height = 38
 
-    Me.lblMatched1CStatus.Left = 556
+    Me.lblMatched1CStatus.Left = 584
     Me.lblMatched1CStatus.Top = secondRowTop
-    Me.cmbMatched1CStatus.Left = 556
+    Me.cmbMatched1CStatus.Left = 584
     Me.cmbMatched1CStatus.Top = secondRowTop + labelOffset
     Me.cmbMatched1CStatus.Width = 120
 
-    Me.lblMatched1CComment.Left = 692
-    Me.lblMatched1CComment.Top = secondRowTop
-    Me.txtMatched1CComment.Left = 692
-    Me.txtMatched1CComment.Top = secondRowTop + labelOffset
-    Me.txtMatched1CComment.Width = 140
-    Me.txtMatched1CComment.Height = 46
+    thirdRowTop = secondRowTop + 58
+    Me.lblMatched1CComment.Left = marginX
+    Me.lblMatched1CComment.Top = thirdRowTop
+    Me.txtMatched1CComment.Left = marginX
+    Me.txtMatched1CComment.Top = thirdRowTop + labelOffset
+    Me.txtMatched1CComment.Width = contentWidth
+    Me.txtMatched1CComment.Height = 62
 
-    thirdRowTop = secondRowTop + 68
+    fourthRowTop = thirdRowTop + 88
     Me.lblReviewHint.Left = marginX
-    Me.lblReviewHint.Top = thirdRowTop
+    Me.lblReviewHint.Top = fourthRowTop
     Me.lblReviewHint.Width = contentWidth
     Me.lblReviewHint.Height = 22
     Me.lblReviewHint.WordWrap = True

@@ -520,10 +520,86 @@ DuplicateError:
     MsgBox LocalizationManager.GetText("Error duplicating package document item: ") & Err.description, vbCritical, LocalizationManager.GetText("Package Documents")
 End Sub
 
-Public Sub FillPackageItemEditorFromParent(ByVal frm As Object, ByVal parentRowIndex As Long)
-    Call ClearPackageItemEditor(frm)
-    frm.txtItemDescription.Text = LocalizationManager.GetText("Copied from package")
-    frm.cmbItemDocumentTypeDisplay.SetFocus
+Public Sub FillPackageItemEditorFromParent(ByVal frm As Object, ByVal parentRowIndex As Long, Optional ByVal showMessages As Boolean = True)
+    On Error GoTo ApplyError
+
+    Dim parentTable As ListObject
+    Dim itemsTable As ListObject
+    Dim packageId As String
+    Dim childCount As Long
+    Dim selectedItemId As String
+    Dim itemRowIndex As Long
+    Dim parentAmount As Double
+    Dim childAmount As Double
+    Dim primaryStatus As String
+    Dim primaryOperationNumber As String
+    Dim primaryOperationDate As Variant
+
+    Set parentTable = GetParentTable()
+    Set itemsTable = GetItemsTable()
+    If frm Is Nothing Or parentTable Is Nothing Or itemsTable Is Nothing Then Exit Sub
+
+    packageId = EnsurePackageIdForParentRow(parentTable, parentRowIndex)
+    childCount = GetPackageChildDocumentCount(parentRowIndex)
+    If childCount <> 1 Then
+        If showMessages Then MsgBox LocalizationManager.GetText("Package-level match can only be applied when the package has exactly one child document."), vbExclamation, LocalizationManager.GetText("Package Documents")
+        Exit Sub
+    End If
+
+    selectedItemId = GetSelectedPackageItemIdFromForm(frm)
+    If Len(selectedItemId) = 0 Then
+        If frm.lstPackageItems.listCount = 1 Then
+            frm.lstPackageItems.listIndex = 0
+            selectedItemId = Trim$(CStr(frm.lstPackageItems.List(0, 7)))
+        End If
+    End If
+
+    If Len(selectedItemId) = 0 Then
+        If showMessages Then MsgBox LocalizationManager.GetText("Select a package document item first."), vbExclamation, LocalizationManager.GetText("Package Documents")
+        Exit Sub
+    End If
+
+    itemRowIndex = FindItemRowIndexById(itemsTable, selectedItemId)
+    If itemRowIndex = 0 Then Exit Sub
+
+    If IsNumeric(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_AMOUNT_COLUMN)) Then
+        parentAmount = CDbl(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_AMOUNT_COLUMN))
+    End If
+    If IsNumeric(GetItemCellValue(itemsTable, itemRowIndex, ITEM_COLUMN_AMOUNT)) Then
+        childAmount = CDbl(GetItemCellValue(itemsTable, itemRowIndex, ITEM_COLUMN_AMOUNT))
+    End If
+
+    If Abs(parentAmount - childAmount) >= 0.01 Then
+        If showMessages Then MsgBox LocalizationManager.GetText("Package-level match can only be applied when the single child amount matches the package amount."), vbExclamation, LocalizationManager.GetText("Package Documents")
+        Exit Sub
+    End If
+
+    primaryStatus = GetPackagePrimary1CStatus(parentRowIndex)
+    primaryOperationNumber = GetPackagePrimary1COperationNumber(parentRowIndex)
+    primaryOperationDate = GetPackagePrimary1COperationDate(parentRowIndex)
+
+    If Len(Trim$(primaryOperationNumber)) = 0 Or Not IsApplicablePackageMatchStatus(primaryStatus) Then
+        If showMessages Then MsgBox LocalizationManager.GetText("No package-level 1C match is available to apply."), vbInformation, LocalizationManager.GetText("Package Documents")
+        Exit Sub
+    End If
+
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_OPERATION_NUMBER, primaryOperationNumber
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_OPERATION_DATE, primaryOperationDate
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_STATUS, primaryStatus
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_MODE, "package"
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_CONFIDENCE, GetPackageMatchConfidence(primaryStatus)
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_MATCHED_COMMENT, LocalizationManager.GetText("Applied from package-level 1C match.")
+    SetItemCellValue itemsTable, itemRowIndex, ITEM_COLUMN_UPDATED_AT, Now
+
+    Call RefreshParentPackageSummary(parentRowIndex)
+    Call BindPackageDocumentsForm(frm, parentRowIndex, packageId)
+    Call SelectPackageItemInList(frm, selectedItemId)
+
+    If showMessages Then MsgBox LocalizationManager.GetText("Package-level 1C match applied to the child document."), vbInformation, LocalizationManager.GetText("Package Documents")
+    Exit Sub
+
+ApplyError:
+    If showMessages Then MsgBox LocalizationManager.GetText("Error applying package-level 1C match: ") & Err.description, vbCritical, LocalizationManager.GetText("Package Documents")
 End Sub
 
 Public Function DuplicatePackageItemRecord(ByVal parentRowIndex As Long, ByVal packageId As String, ByVal itemId As String) As String
@@ -778,6 +854,9 @@ Public Sub RefreshParentPackageSummary(ByVal parentRowIndex As Long)
     Dim matchedOperationCount As Long
     Dim matchedOperationNumber As String
     Dim matchedOperationDate As Variant
+    Dim existingPrimaryStatus As String
+    Dim existingPrimaryNumber As String
+    Dim existingPrimaryDate As Variant
 
     Set parentTable = GetParentTable()
     Set itemsTable = GetItemsTable()
@@ -785,6 +864,10 @@ Public Sub RefreshParentPackageSummary(ByVal parentRowIndex As Long)
 
     packageId = EnsurePackageIdForParentRow(parentTable, parentRowIndex)
     If Len(packageId) = 0 Then Exit Sub
+
+    existingPrimaryStatus = LCase$(Trim$(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_STATUS)))
+    existingPrimaryNumber = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_NUMBER)
+    existingPrimaryDate = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_DATE)
 
     If IsNumeric(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_AMOUNT_COLUMN)) Then
         parentAmount = CDbl(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_AMOUNT_COLUMN))
@@ -849,6 +932,10 @@ Public Sub RefreshParentPackageSummary(ByVal parentRowIndex As Long)
         primaryStatusValue = "not_found"
     ElseIf (exactCount + candidateCount + manualCount) > 0 Then
         primaryStatusValue = "candidate"
+    ElseIf childCount > 0 And notCheckedCount = childCount And IsApplicablePackageMatchStatus(existingPrimaryStatus) And Len(Trim$(existingPrimaryNumber)) > 0 Then
+        primaryStatusValue = existingPrimaryStatus
+        matchedOperationNumber = existingPrimaryNumber
+        matchedOperationDate = existingPrimaryDate
     Else
         primaryStatusValue = "not_checked"
     End If
@@ -1251,6 +1338,36 @@ Private Function BuildChildMatchComment(ByVal childStatusMessage As String, ByVa
             BuildChildMatchComment = BuildChildMatchComment & " | " & childCandidatesList
         End If
     End If
+End Function
+
+Private Function GetPackagePrimary1COperationDate(ByVal parentRowIndex As Long) As Variant
+    Dim parentTable As ListObject
+
+    Set parentTable = GetParentTable()
+    If parentTable Is Nothing Then
+        GetPackagePrimary1COperationDate = vbNullString
+        Exit Function
+    End If
+
+    GetPackagePrimary1COperationDate = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_DATE)
+End Function
+
+Private Function IsApplicablePackageMatchStatus(ByVal statusValue As String) As Boolean
+    Select Case LCase$(Trim$(statusValue))
+        Case "exact", "candidate", "manual"
+            IsApplicablePackageMatchStatus = True
+    End Select
+End Function
+
+Private Function GetPackageMatchConfidence(ByVal statusValue As String) As Long
+    Select Case LCase$(Trim$(statusValue))
+        Case "exact", "manual"
+            GetPackageMatchConfidence = 100
+        Case "candidate"
+            GetPackageMatchConfidence = 50
+        Case Else
+            GetPackageMatchConfidence = 0
+    End Select
 End Function
 
 Private Function GetItemCellValue(ByVal itemsTable As ListObject, ByVal rowIndex As Long, ByVal columnName As String) As Variant
