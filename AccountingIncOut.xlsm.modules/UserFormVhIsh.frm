@@ -13,28 +13,6 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
-
-
-
-
-
-
-
-
-
-
-
-
-
-'==============================================
-' FORM MANAGEMENT MODULE "IncOut" - UserFormVhIsh
-' Purpose: Fully functional form for adding, editing, and searching records
-' State: FIXED "Expected array" ERROR IN IsNaryadOnlyMode FUNCTION
-' Version: 3.2.1
-' Date: 09.08.2025
-' Author: Evgeniy Kerzhaev, FKU "95 FES" MO RF
-'==============================================
-
 Option Explicit
 
 ' PATCH_MARK_2026_03_11_2318_AUTOCOMPLETE_IMPORT_READY
@@ -86,6 +64,10 @@ Private Sub btnPackageDocuments_Click()
     If IsParentPackageAmountMismatch(CurrentRecordRow) Then
         MsgBox LocalizationManager.GetText("Amount Check:") & " " & LocalizationManager.GetText("Amount mismatch"), vbExclamation, LocalizationManager.GetText("Package Documents")
     End If
+End Sub
+
+Private Sub btnLegacyBackfill_Click()
+    Call LegacyPackageBackfillManager.OpenLegacyPackageBackfillReviewForm
 End Sub
 
 
@@ -154,9 +136,9 @@ Private Sub UserForm_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift
                 Me.txtSearch.SetFocus
         End Select
     ElseIf KeyCode = vbKeyF3 Then ' F3 = Next search result
-        If Me.lstSearchResults.Visible And Me.lstSearchResults.listCount > 0 Then
+        If Me.lstSearchResults.Visible And Me.lstSearchResults.ListCount > 0 Then
             With Me.lstSearchResults
-                If .listIndex < .listCount - 1 Then
+                If .listIndex < .ListCount - 1 Then
                     .listIndex = .listIndex + 1
                 Else
                     .listIndex = 0
@@ -220,8 +202,8 @@ Private Sub SetupNewComboBoxes()
         .Clear
         .Style = fmStyleDropDownCombo
         .MatchRequired = False
-        .AddItem "Inc."
-        .AddItem "Out."
+        .AddItem LocalizationManager.GetText("Inc.")
+        .AddItem LocalizationManager.GetText("Out.")
         .listIndex = -1
     End With
     
@@ -231,8 +213,8 @@ Private Sub SetupNewComboBoxes()
         .Style = fmStyleDropDownCombo
         .MatchRequired = False
         .AddItem ""
-        .AddItem "Confirmed"
-        .AddItem "Sent Out."
+        .AddItem LocalizationManager.GetText("Confirmed")
+        .AddItem LocalizationManager.GetText("Sent Out.")
         .listIndex = 0
     End With
 End Sub
@@ -240,7 +222,7 @@ End Sub
 ' Setup search results list
 Private Sub SetupSearchResultsList()
     With Me.lstSearchResults
-        .ColumnCount = 2
+        .columnCount = 2
         .ColumnWidths = "740;0"
         .Font.Name = "Segoe UI"
         .Font.Size = 13
@@ -294,11 +276,11 @@ Private Sub LoadAutoCompleteData()
     Dim i As Long
     Dim cellValue As String
     Dim uniqueValues As Collection
-    Dim CurrentValue As String
+    Dim currentValue As String
     
     On Error GoTo LoadAutoError
     
-    CurrentValue = CStr(Me.cmbOtKogoPostupil.value)
+    currentValue = CStr(Me.cmbOtKogoPostupil.value)
     
     Set wsData = ThisWorkbook.Worksheets("IncOut")
     Set tblData = wsData.ListObjects("TableIncOut")
@@ -328,8 +310,8 @@ Private Sub LoadAutoCompleteData()
             .AddItem item
         Next item
         
-        If Trim(CurrentValue) <> "" Then
-            .value = CurrentValue
+        If Trim(currentValue) <> "" Then
+            .value = currentValue
         Else
             .listIndex = -1
         End If
@@ -338,8 +320,8 @@ Private Sub LoadAutoCompleteData()
     Exit Sub
     
 LoadAutoError:
-    If Trim(CurrentValue) <> "" Then
-        Me.cmbOtKogoPostupil.value = CurrentValue
+    If Trim(currentValue) <> "" Then
+        Me.cmbOtKogoPostupil.value = currentValue
     End If
 End Sub
 
@@ -353,14 +335,14 @@ Private Function GetComboItems(TargetCombo As MSForms.ComboBox) As Variant
     Dim result() As String
     Dim i As Long
 
-    If TargetCombo.listCount = 0 Then
+    If TargetCombo.ListCount = 0 Then
         GetComboItems = Empty
         Exit Function
     End If
 
-    ReDim result(0 To TargetCombo.listCount - 1)
+    ReDim result(0 To TargetCombo.ListCount - 1)
 
-    For i = 0 To TargetCombo.listCount - 1
+    For i = 0 To TargetCombo.ListCount - 1
         result(i) = CStr(TargetCombo.List(i))
     Next i
 
@@ -430,7 +412,7 @@ Private Sub FilterComboByText(TargetCombo As MSForms.ComboBox, SourceItems As Va
         TargetCombo.SelLength = 0
     End If
 
-    If TargetCombo.listCount > 0 Then
+    If TargetCombo.ListCount > 0 Then
         TargetCombo.DropDown
     End If
 
@@ -544,7 +526,7 @@ Private Sub btnNew_Click()
 End Sub
 
 Private Sub btnDelete_Click()
-    MsgBox "Delete function temporarily disabled", vbInformation, "Information"
+    MsgBox LocalizationManager.GetText("Delete function temporarily disabled"), vbInformation, LocalizationManager.GetText("Information")
 End Sub
 
 ' ===============================================
@@ -563,16 +545,16 @@ Private Sub txtSearch_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shif
     If KeyCode = vbKeyEscape Then
         Call ClearSearch
     ElseIf KeyCode = vbKeyReturn Then
-        If Me.lstSearchResults.Visible And Me.lstSearchResults.listCount > 0 Then
+        If Me.lstSearchResults.Visible And Me.lstSearchResults.ListCount > 0 Then
             Me.lstSearchResults.listIndex = 0
             Call SelectSearchResult
         End If
     ElseIf KeyCode = vbKeyDown Then
-        If Me.lstSearchResults.Visible And Me.lstSearchResults.listCount > 0 Then
+        If Me.lstSearchResults.Visible And Me.lstSearchResults.ListCount > 0 Then
             Call NavigateSearchResults("DOWN")
         End If
     ElseIf KeyCode = vbKeyUp Then
-        If Me.lstSearchResults.Visible And Me.lstSearchResults.listCount > 0 Then
+        If Me.lstSearchResults.Visible And Me.lstSearchResults.ListCount > 0 Then
             Call NavigateSearchResults("UP")
         End If
     End If
@@ -924,7 +906,7 @@ Private Sub SaveCurrentRecord()
 
     If IsNewRecord Then
         Set newRow = tblData.ListRows.Add
-        targetRowIndex = newRow.Index
+        targetRowIndex = newRow.index
         CurrentRecordRow = targetRowIndex
 
         Me.txtNomerPP.Text = CStr(targetRowIndex)
@@ -1345,10 +1327,10 @@ End Sub
 
 Private Sub SetupNavigationButtons()
     With Me
-        .btnFirst.Caption = "|< First"
-        .btnPrevious.Caption = "< Prev"
-        .btnNext.Caption = "Next >"
-        .btnLast.Caption = "Last >|"
+        .btnFirst.Caption = "|< " & LocalizationManager.GetText("First")
+        .btnPrevious.Caption = "< " & LocalizationManager.GetText("Prev")
+        .btnNext.Caption = LocalizationManager.GetText("Next") & " >"
+        .btnLast.Caption = LocalizationManager.GetText("Last") & " >|"
         
         .btnFirst.Width = 70
         .btnPrevious.Width = 70
@@ -1466,7 +1448,7 @@ Private Sub ApplyControlScale(ByVal ctrl As Object, ByVal ctrlKey As String, ByV
     Dim scaledFontSize As Double
 
     If ControlLayoutCache Is Nothing Then Exit Sub
-    If Not ControlLayoutCache.Exists(ctrlKey) Then Exit Sub
+    If Not ControlLayoutCache.exists(ctrlKey) Then Exit Sub
 
     layout = ControlLayoutCache(ctrlKey)
 
@@ -1598,6 +1580,10 @@ Private Sub ConstrainPackageAreaLayout()
     Dim indicatorWidth As Single
     Dim indicatorTop As Single
     Dim indicatorHeight As Single
+    Dim packageButtonLeft As Single
+    Dim legacyButtonLeft As Single
+    Dim minButtonLeft As Single
+    Dim buttonAnchorTop As Single
 
     On Error GoTo Cleanup
 
@@ -1610,21 +1596,46 @@ Private Sub ConstrainPackageAreaLayout()
     gap = 8
 
     Me.btnPackageDocuments.Visible = True
+    Me.btnLegacyBackfill.Visible = True
     Me.lblPackageIndicators.Visible = True
+
     Me.btnPackageDocuments.Top = Me.btnNew.Top
+    Me.btnLegacyBackfill.Top = Me.btnNew.Top
     Me.btnPackageDocuments.Width = 126
-    Me.btnPackageDocuments.Left = contentWidth - rightMargin - Me.btnPackageDocuments.Width
-    If Me.btnPackageDocuments.Left < Me.btnClear.Left + Me.btnClear.Width + gap Then
-        Me.btnPackageDocuments.Left = Me.btnClear.Left + Me.btnClear.Width + gap
+    Me.btnLegacyBackfill.Width = 118
+
+    packageButtonLeft = contentWidth - rightMargin - Me.btnPackageDocuments.Width
+    legacyButtonLeft = packageButtonLeft - gap - Me.btnLegacyBackfill.Width
+    minButtonLeft = Me.btnClear.Left + Me.btnClear.Width + gap
+
+    If legacyButtonLeft < minButtonLeft Then
+        legacyButtonLeft = minButtonLeft
+        packageButtonLeft = legacyButtonLeft + Me.btnLegacyBackfill.Width + gap
     End If
+
+    If packageButtonLeft + Me.btnPackageDocuments.Width > contentWidth - rightMargin Then
+        packageButtonLeft = contentWidth - rightMargin - Me.btnPackageDocuments.Width
+        legacyButtonLeft = packageButtonLeft - gap - Me.btnLegacyBackfill.Width
+    End If
+
+    If legacyButtonLeft < minButtonLeft Then
+        legacyButtonLeft = packageButtonLeft
+        Me.btnLegacyBackfill.Top = Me.btnPackageDocuments.Top - Me.btnLegacyBackfill.Height - 6
+    End If
+
+    Me.btnPackageDocuments.Left = packageButtonLeft
+    Me.btnLegacyBackfill.Left = legacyButtonLeft
+
+    buttonAnchorTop = Me.btnPackageDocuments.Top
+    If Me.btnLegacyBackfill.Top < buttonAnchorTop Then buttonAnchorTop = Me.btnLegacyBackfill.Top
 
     indicatorHeight = 54
     indicatorTop = Me.Frame6.Top - indicatorHeight - 16
     If indicatorTop < Me.lstSearchResults.Top + Me.lstSearchResults.Height + 10 Then
         indicatorTop = Me.lstSearchResults.Top + Me.lstSearchResults.Height + 10
     End If
-    If indicatorTop + indicatorHeight > Me.btnPackageDocuments.Top - 4 Then
-        indicatorTop = Me.btnPackageDocuments.Top - indicatorHeight - 4
+    If indicatorTop + indicatorHeight > buttonAnchorTop - 4 Then
+        indicatorTop = buttonAnchorTop - indicatorHeight - 4
     End If
 
     indicatorWidth = 260
@@ -1740,6 +1751,8 @@ Private Sub ResizeAndCenterForm()
 ErrorHandler:
     Me.StartUpPosition = 1
 End Sub
+
+
 
 
 

@@ -96,6 +96,18 @@ MatchError:
     MsgBox LocalizationManager.GetText("Doverennosti matching error:") & vbCrLf & Err.description, vbCritical, LocalizationManager.GetText("Error")
 End Sub
 
+Public Sub btnLegacyBackfill_Click(control As IRibbonControl)
+    On Error GoTo OpenError
+
+    Call LegacyPackageBackfillManager.OpenLegacyPackageBackfillReviewForm
+    Call SafeLogOperation("LegacyBackfill", LocalizationManager.GetText("Legacy package backfill opened"), "INFO", 0)
+    Exit Sub
+
+OpenError:
+    Call SafeLogOperation("LegacyBackfill", "Error: " & Err.description, "ERROR", 0)
+    MsgBox LocalizationManager.GetText("Legacy package backfill error: ") & Err.description, vbCritical, LocalizationManager.GetText("Error")
+End Sub
+
 Public Sub btnGenerateWordLetters_Click(control As IRibbonControl)
     Dim StartTime As Double
 

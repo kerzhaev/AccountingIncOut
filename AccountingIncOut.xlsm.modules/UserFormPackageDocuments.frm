@@ -44,13 +44,13 @@ Public Sub OpenForParentRow(ByVal parentRowIndex As Long, ByVal packageId As Str
     mParentRowIndex = parentRowIndex
     mPackageId = packageId
     Call BindPackageDocumentsForm(Me, mParentRowIndex, mPackageId)
-    Me.Show
+    Me.Show vbModeless
 End Sub
 
 Private Sub UserForm_Initialize()
     Me.Caption = "Package Documents"
-    Me.Width = 860
-    Me.Height = 620
+    Me.Width = 1120
+    Me.Height = 660
     Call SetupPackageItemsList
     Call SetupMatchedStatusCombo
     Call SetupReviewFilterCombo
@@ -159,15 +159,7 @@ Private Sub SetupPackageItemsList()
 End Sub
 
 Private Sub SetupMatchedStatusCombo()
-    With Me.cmbMatched1CStatus
-        .Clear
-        .AddItem "not_checked"
-        .AddItem "exact"
-        .AddItem "candidate"
-        .AddItem "manual"
-        .AddItem "not_found"
-        .Text = "not_checked"
-    End With
+    Call PackageDocumentsManager.PopulateMatchedStatusCombo(Me.cmbMatched1CStatus, "not_checked")
 End Sub
 
 Private Sub SetupReviewFilterCombo()
@@ -202,7 +194,27 @@ LoadError:
 End Sub
 
 Private Sub ApplyLocalizedCaptions()
+    Me.Caption = LocalizationManager.GetText("Package Documents")
+    Me.lblPackageItemsTitle.Caption = LocalizationManager.GetText("Package Items")
+    Me.lblReviewFilter.Caption = LocalizationManager.GetText("Review filter")
+    Me.btnFilterAll.Caption = LocalizationManager.GetText("All")
+    Me.btnFilterCandidate.Caption = LocalizationManager.GetText("Candidate")
+    Me.btnFilterPending.Caption = LocalizationManager.GetText("Pending")
+    Me.btnFilterNotFound.Caption = LocalizationManager.GetText("Not found")
+    Me.btnAddItem.Caption = LocalizationManager.GetText("Add Item")
+    Me.btnUpdateItem.Caption = LocalizationManager.GetText("Update Item")
+    Me.btnDeleteItem.Caption = LocalizationManager.GetText("Delete Item")
+    Me.btnDuplicateItem.Caption = LocalizationManager.GetText("Duplicate")
     Me.btnFillFromPackage.Caption = LocalizationManager.GetText("Apply Package Match")
+    Me.btnMatchIn1C.Caption = LocalizationManager.GetText("Match in 1C")
+    Me.btnNextReview.Caption = LocalizationManager.GetText("Next review")
+    Me.btnMarkManual.Caption = LocalizationManager.GetText("Mark as manual")
+    Me.btnResetMatch.Caption = LocalizationManager.GetText("Reset match")
+    Me.btnClearItem.Caption = LocalizationManager.GetText("Clear")
+    Me.btnClose.Caption = LocalizationManager.GetText("Close")
+    Me.lblMatched1COperationNumber.Caption = LocalizationManager.GetText("1C Operation No.")
+    Me.lblMatched1COperationDate.Caption = LocalizationManager.GetText("1C Operation Date")
+    Me.lblMatched1CStatus.Caption = LocalizationManager.GetText("1C Status")
 End Sub
 
 Private Sub ConfigureEditorFields()
@@ -359,6 +371,7 @@ Private Sub ApplyFormLayout()
     Dim marginX As Single
     Dim currentTop As Single
     Dim contentWidth As Single
+    Dim innerWidth As Single
     Dim buttonTop As Single
     Dim reviewButtonTop As Single
     Dim buttonWidth As Single
@@ -371,10 +384,26 @@ Private Sub ApplyFormLayout()
     Dim filterTop As Single
     Dim comboWidth As Single
     Dim filterLabelWidth As Single
+    Dim editorRightEdge As Single
+    Dim statusColumnWidth As Single
+    Dim operationDateWidth As Single
+    Dim operationNumberWidth As Single
+    Dim amountWidth As Single
+    Dim dateWidth As Single
+    Dim numberWidth As Single
+    Dim typeWidth As Single
+    Dim descriptionGap As Single
+    Dim minFormWidth As Single
 
     marginX = 12
     labelOffset = 14
-    contentWidth = Me.Width - (marginX * 2) - 18
+    minFormWidth = 1120
+    If Me.Width < minFormWidth Then Me.Width = minFormWidth
+
+    innerWidth = Me.InsideWidth
+    If innerWidth <= 0 Then innerWidth = Me.Width - 18
+    contentWidth = innerWidth - (marginX * 2)
+    editorRightEdge = marginX + contentWidth
 
     Me.lblPackageSummary.Left = marginX
     Me.lblPackageSummary.Top = 12
@@ -387,7 +416,7 @@ Private Sub ApplyFormLayout()
     Me.lblPackageItemsTitle.Top = filterTop + 4
     Me.lblPackageItemsTitle.Width = 92
 
-    Me.btnFilterAll.Left = 108
+    Me.btnFilterAll.Left = marginX + Me.lblPackageItemsTitle.Width + 10
     Me.btnFilterAll.Top = filterTop
     Me.btnFilterAll.Width = 50
     Me.btnFilterCandidate.Left = Me.btnFilterAll.Left + Me.btnFilterAll.Width + 6
@@ -455,55 +484,65 @@ Private Sub ApplyFormLayout()
     Me.btnClearItem.Top = reviewButtonTop
 
     firstRowTop = reviewButtonTop + 40
+    statusColumnWidth = 128
+    operationDateWidth = 120
+    operationNumberWidth = 168
+    amountWidth = 96
+    dateWidth = 104
+    numberWidth = 138
+    typeWidth = editorRightEdge - marginX - (statusColumnWidth + operationDateWidth + operationNumberWidth + amountWidth + dateWidth + numberWidth + (buttonGap * 6))
+    If typeWidth < 178 Then typeWidth = 178
+    descriptionGap = 10
+
     Me.lblItemDocumentType.Left = marginX
     Me.lblItemDocumentType.Top = firstRowTop
     Me.cmbItemDocumentTypeDisplay.Left = marginX
     Me.cmbItemDocumentTypeDisplay.Top = firstRowTop + labelOffset
-    Me.cmbItemDocumentTypeDisplay.Width = 154
+    Me.cmbItemDocumentTypeDisplay.Width = typeWidth
 
-    Me.lblItemDocumentNumber.Left = 178
+    Me.lblItemDocumentNumber.Left = Me.cmbItemDocumentTypeDisplay.Left + Me.cmbItemDocumentTypeDisplay.Width + buttonGap
     Me.lblItemDocumentNumber.Top = firstRowTop
-    Me.txtItemDocumentNumber.Left = 178
+    Me.txtItemDocumentNumber.Left = Me.lblItemDocumentNumber.Left
     Me.txtItemDocumentNumber.Top = firstRowTop + labelOffset
-    Me.txtItemDocumentNumber.Width = 118
+    Me.txtItemDocumentNumber.Width = numberWidth
 
-    Me.lblItemDocumentDate.Left = 310
+    Me.lblItemDocumentDate.Left = Me.txtItemDocumentNumber.Left + Me.txtItemDocumentNumber.Width + buttonGap
     Me.lblItemDocumentDate.Top = firstRowTop
-    Me.txtItemDocumentDate.Left = 310
+    Me.txtItemDocumentDate.Left = Me.lblItemDocumentDate.Left
     Me.txtItemDocumentDate.Top = firstRowTop + labelOffset
-    Me.txtItemDocumentDate.Width = 82
+    Me.txtItemDocumentDate.Width = dateWidth
 
-    Me.lblItemAmount.Left = 406
+    Me.lblItemAmount.Left = Me.txtItemDocumentDate.Left + Me.txtItemDocumentDate.Width + buttonGap
     Me.lblItemAmount.Top = firstRowTop
-    Me.txtItemAmount.Left = 406
+    Me.txtItemAmount.Left = Me.lblItemAmount.Left
     Me.txtItemAmount.Top = firstRowTop + labelOffset
-    Me.txtItemAmount.Width = 74
+    Me.txtItemAmount.Width = amountWidth
 
-    Me.lblMatched1COperationNumber.Left = 498
+    Me.lblMatched1COperationNumber.Left = Me.txtItemAmount.Left + Me.txtItemAmount.Width + buttonGap
     Me.lblMatched1COperationNumber.Top = firstRowTop
-    Me.txtMatched1COperationNumber.Left = 498
+    Me.txtMatched1COperationNumber.Left = Me.lblMatched1COperationNumber.Left
     Me.txtMatched1COperationNumber.Top = firstRowTop + labelOffset
-    Me.txtMatched1COperationNumber.Width = 126
+    Me.txtMatched1COperationNumber.Width = operationNumberWidth
 
-    Me.lblMatched1COperationDate.Left = 638
+    Me.lblMatched1COperationDate.Left = Me.txtMatched1COperationNumber.Left + Me.txtMatched1COperationNumber.Width + buttonGap
     Me.lblMatched1COperationDate.Top = firstRowTop
-    Me.txtMatched1COperationDate.Left = 638
+    Me.txtMatched1COperationDate.Left = Me.lblMatched1COperationDate.Left
     Me.txtMatched1COperationDate.Top = firstRowTop + labelOffset
-    Me.txtMatched1COperationDate.Width = 92
+    Me.txtMatched1COperationDate.Width = operationDateWidth
 
     secondRowTop = firstRowTop + 56
     Me.lblItemDescription.Left = marginX
     Me.lblItemDescription.Top = secondRowTop
     Me.txtItemDescription.Left = marginX
     Me.txtItemDescription.Top = secondRowTop + labelOffset
-    Me.txtItemDescription.Width = 552
+    Me.txtItemDescription.Width = contentWidth - statusColumnWidth - descriptionGap
     Me.txtItemDescription.Height = 38
 
-    Me.lblMatched1CStatus.Left = 584
+    Me.lblMatched1CStatus.Left = Me.txtItemDescription.Left + Me.txtItemDescription.Width + descriptionGap
     Me.lblMatched1CStatus.Top = secondRowTop
-    Me.cmbMatched1CStatus.Left = 584
+    Me.cmbMatched1CStatus.Left = Me.lblMatched1CStatus.Left
     Me.cmbMatched1CStatus.Top = secondRowTop + labelOffset
-    Me.cmbMatched1CStatus.Width = 120
+    Me.cmbMatched1CStatus.Width = statusColumnWidth
 
     thirdRowTop = secondRowTop + 58
     Me.lblMatched1CComment.Left = marginX

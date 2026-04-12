@@ -10,6 +10,7 @@ Private Const PARENT_SOURCE_FRP_NUMBER_COLUMN As Long = 7
 Private Const PARENT_SOURCE_FRP_DATE_COLUMN As Long = 8
 Private Const PARENT_SOURCE_COUNTERPARTY_COLUMN As Long = 9
 Private Const PARENT_SOURCE_EXECUTOR_COLUMN As Long = 11
+Private Const PARENT_SOURCE_CONFIRMATION_STATUS_COLUMN As Long = 19
 Private Const PARENT_SOURCE_ORDER_INFO_COLUMN As Long = 20
 
 Private Const ITEM_COLUMN_ITEM_ID As String = "ItemId"
@@ -209,6 +210,8 @@ Public Sub RefreshPackageIndicatorsOnMainForm(ByVal frm As Object, ByVal parentR
     Dim primaryStatusValue As String
     Dim primaryStatusText As String
     Dim primaryOperationNumber As String
+    Dim stageValue As String
+    Dim stageText As String
     Dim reviewSummaryText As String
 
     On Error GoTo IndicatorError
@@ -238,14 +241,17 @@ Public Sub RefreshPackageIndicatorsOnMainForm(ByVal frm As Object, ByVal parentR
     primaryStatusValue = LCase$(Trim$(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_STATUS)))
     primaryStatusText = TranslatePrimaryMatchStatus(primaryStatusValue)
     primaryOperationNumber = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_NUMBER)
+    stageValue = LCase$(Trim$(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_DOCUMENT_STAGE)))
+    stageText = TranslateDocumentStage(stageValue)
     reviewSummaryText = BuildPackageReviewSummary(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PACKAGE_ID))
 
     frm.lblPackageIndicators.Caption = LocalizationManager.GetText("Items:") & " " & childCount & " | " & _
         LocalizationManager.GetText("Children Total:") & " " & childrenTotal & vbCrLf & _
         LocalizationManager.GetText("Amount Check:") & " " & statusText & " | " & _
         LocalizationManager.GetText("1C Status") & ": " & primaryStatusText & IIf(Len(Trim$(primaryOperationNumber)) > 0, " | " & LocalizationManager.GetText("1C Operation No.") & ": " & primaryOperationNumber, vbNullString) & vbCrLf & _
+        LocalizationManager.GetText("Package Stage") & ": " & stageText & vbCrLf & _
         reviewSummaryText
-        frm.lblPackageIndicators.Height = 54
+        frm.lblPackageIndicators.Height = 68
 
     Select Case statusValue
         Case "match"
@@ -265,7 +271,7 @@ Public Sub ClearPackageIndicatorsOnMainForm(ByVal frm As Object)
     On Error Resume Next
     If frm Is Nothing Then Exit Sub
     frm.lblPackageIndicators.Caption = ""
-    frm.lblPackageIndicators.Height = 54
+    frm.lblPackageIndicators.Height = 68
     frm.lblPackageIndicators.ForeColor = RGB(96, 96, 96)
 End Sub
 
@@ -309,7 +315,7 @@ Public Sub LoadPackageItemsToList(ByVal frm As Object, ByVal packageId As String
             frm.lstPackageItems.List(listIndex, 2) = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_DOCUMENT_NUMBER))
             frm.lstPackageItems.List(listIndex, 3) = FormatItemDateValue(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_DOCUMENT_DATE))
             frm.lstPackageItems.List(listIndex, 4) = FormatItemAmountValue(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_AMOUNT))
-            frm.lstPackageItems.List(listIndex, 5) = statusValue
+            frm.lstPackageItems.List(listIndex, 5) = GetLocalizedMatchStatusText(statusValue)
             frm.lstPackageItems.List(listIndex, 6) = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_MATCHED_OPERATION_NUMBER))
             frm.lstPackageItems.List(listIndex, 7) = CStr(GetItemCellValue(itemsTable, dataRow.Row - itemsTable.DataBodyRange.Row + 1, ITEM_COLUMN_ITEM_ID))
         End If
@@ -411,7 +417,7 @@ Public Sub LoadSelectedPackageItemIntoForm(ByVal frm As Object, ByVal packageId 
     frm.txtItemDescription.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_DESCRIPTION))
     frm.txtMatched1COperationNumber.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_NUMBER))
     frm.txtMatched1COperationDate.Text = FormatItemDateValue(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_OPERATION_DATE))
-    frm.cmbMatched1CStatus.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_STATUS))
+    frm.cmbMatched1CStatus.Text = GetLocalizedMatchStatusText(CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_STATUS)))
     frm.txtMatched1CComment.Text = CStr(GetItemCellValue(itemsTable, rowIndex, ITEM_COLUMN_MATCHED_COMMENT))
     Call UpdatePackageItemReviewHint(frm)
     Exit Sub
@@ -449,7 +455,7 @@ Public Sub SavePackageItemFromForm(ByVal frm As Object, ByVal parentRowIndex As 
         vbNullString, _
         Trim$(frm.txtMatched1COperationNumber.Text), _
         matchedOperationDateValue, _
-        Trim$(frm.cmbMatched1CStatus.Text), _
+        GetNormalizedMatchStatusValue(Trim$(frm.cmbMatched1CStatus.Text)), _
         Trim$(frm.txtMatched1CComment.Text), _
         updateExisting)
 
@@ -736,7 +742,7 @@ Public Sub ClearPackageItemEditor(ByVal frm As Object)
     frm.txtItemDescription.Text = ""
     frm.txtMatched1COperationNumber.Text = ""
     frm.txtMatched1COperationDate.Text = ""
-    frm.cmbMatched1CStatus.Text = "not_checked"
+    frm.cmbMatched1CStatus.Text = GetLocalizedMatchStatusText("not_checked")
     frm.txtMatched1CComment.Text = ""
     If frm.lstPackageItems.listCount > 0 Then frm.lstPackageItems.listIndex = -1
     Call UpdatePackageItemReviewHint(frm)
@@ -752,7 +758,7 @@ Public Sub UpdatePackageItemReviewHint(ByVal frm As Object)
 
     If frm Is Nothing Then Exit Sub
 
-    statusValue = LCase$(Trim$(CStr(frm.cmbMatched1CStatus.Text)))
+    statusValue = GetNormalizedMatchStatusValue(CStr(frm.cmbMatched1CStatus.Text))
     warningColor = RGB(255, 242, 204)
     dangerColor = RGB(255, 199, 206)
     accentColor = RGB(226, 239, 218)
@@ -807,6 +813,7 @@ Public Sub LoadParentSummaryToForm(ByVal frm As Object, ByVal parentRowIndex As 
     Dim childCount As String
     Dim primaryStatusText As String
     Dim primaryOperationNumber As String
+    Dim stageText As String
     Dim reviewSummaryText As String
 
     Set parentTable = GetParentTable()
@@ -819,6 +826,7 @@ Public Sub LoadParentSummaryToForm(ByVal frm As Object, ByVal parentRowIndex As 
     amountCheckText = TranslateAmountCheckStatus(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_AMOUNT_CHECK_STATUS))
     primaryStatusText = TranslatePrimaryMatchStatus(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_STATUS))
     primaryOperationNumber = GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_NUMBER)
+    stageText = TranslateDocumentStage(GetParentPackageText(parentTable, parentRowIndex, PACKAGE_COLUMN_DOCUMENT_STAGE))
     reviewSummaryText = BuildPackageReviewSummary(packageId)
 
     frm.lblPackageSummary.Caption = LocalizationManager.GetText("Package:") & " " & packageId & vbCrLf & _
@@ -828,6 +836,7 @@ Public Sub LoadParentSummaryToForm(ByVal frm As Object, ByVal parentRowIndex As 
         LocalizationManager.GetText("Items:") & " " & childCount & "    " & _
         LocalizationManager.GetText("Amount Check:") & " " & amountCheckText & vbCrLf & _
         LocalizationManager.GetText("1C Status") & ": " & primaryStatusText & IIf(Len(Trim$(primaryOperationNumber)) > 0, "    " & LocalizationManager.GetText("1C Operation No.") & ": " & primaryOperationNumber, vbNullString) & vbCrLf & _
+        LocalizationManager.GetText("Package Stage") & ": " & stageText & vbCrLf & _
         reviewSummaryText
 End Sub
 
@@ -857,6 +866,7 @@ Public Sub RefreshParentPackageSummary(ByVal parentRowIndex As Long)
     Dim existingPrimaryStatus As String
     Dim existingPrimaryNumber As String
     Dim existingPrimaryDate As Variant
+    Dim documentStageValue As String
 
     Set parentTable = GetParentTable()
     Set itemsTable = GetItemsTable()
@@ -947,6 +957,8 @@ Public Sub RefreshParentPackageSummary(ByVal parentRowIndex As Long)
     SetParentPackageValue parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_STATUS, primaryStatusValue
     SetParentPackageValue parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_NUMBER, matchedOperationNumber
     SetParentPackageValue parentTable, parentRowIndex, PACKAGE_COLUMN_PRIMARY_1C_DATE, matchedOperationDate
+    documentStageValue = GetDerivedPackageDocumentStage(parentTable, parentRowIndex, childCount, statusValue, primaryStatusValue, exactCount, candidateCount, manualCount, notFoundCount, notCheckedCount)
+    SetParentPackageValue parentTable, parentRowIndex, PACKAGE_COLUMN_DOCUMENT_STAGE, documentStageValue
     Exit Sub
 
 RefreshError:
@@ -1002,7 +1014,7 @@ Private Function ValidateMatchedFields(ByVal frm As Object, ByRef matchedOperati
     End If
 
     If Len(Trim$(frm.cmbMatched1CStatus.Text)) = 0 Then
-        frm.cmbMatched1CStatus.Text = "not_checked"
+        frm.cmbMatched1CStatus.Text = GetLocalizedMatchStatusText("not_checked")
     End If
 
     ValidateMatchedFields = True
@@ -1166,7 +1178,7 @@ Private Function IsChildMatchPending(ByVal statusValue As String) As Boolean
 End Function
 
 Private Function IsReviewTargetStatus(ByVal statusValue As String) As Boolean
-    Select Case LCase$(Trim$(statusValue))
+    Select Case GetNormalizedMatchStatusValue(statusValue)
         Case "candidate", "not_found", "not_checked", vbNullString
             IsReviewTargetStatus = True
     End Select
@@ -1213,6 +1225,55 @@ Private Sub SetReviewFieldsColor(ByVal frm As Object, ByVal backColorValue As Lo
     On Error GoTo 0
 End Sub
 
+Private Function GetLocalizedMatchStatusText(ByVal statusValue As String) As String
+    Select Case LCase$(Trim$(statusValue))
+        Case "exact"
+            GetLocalizedMatchStatusText = LocalizationManager.GetText("Exact")
+        Case "candidate"
+            GetLocalizedMatchStatusText = LocalizationManager.GetText("Candidate")
+        Case "manual"
+            GetLocalizedMatchStatusText = LocalizationManager.GetText("Manual")
+        Case "not_found"
+            GetLocalizedMatchStatusText = LocalizationManager.GetText("Not found")
+        Case Else
+            GetLocalizedMatchStatusText = LocalizationManager.GetText("Not checked")
+    End Select
+End Function
+
+Private Function GetNormalizedMatchStatusValue(ByVal displayValue As String) As String
+    Dim normalizedValue As String
+
+    normalizedValue = LCase$(Trim$(displayValue))
+
+    If normalizedValue = "exact" Or normalizedValue = LCase$(LocalizationManager.GetText("Exact")) Then
+        GetNormalizedMatchStatusValue = "exact"
+    ElseIf normalizedValue = "candidate" Or normalizedValue = LCase$(LocalizationManager.GetText("Candidate")) Then
+        GetNormalizedMatchStatusValue = "candidate"
+    ElseIf normalizedValue = "manual" Or normalizedValue = LCase$(LocalizationManager.GetText("Manual")) Then
+        GetNormalizedMatchStatusValue = "manual"
+    ElseIf normalizedValue = "not_found" Or normalizedValue = LCase$(LocalizationManager.GetText("Not found")) Then
+        GetNormalizedMatchStatusValue = "not_found"
+    Else
+        GetNormalizedMatchStatusValue = "not_checked"
+    End If
+End Function
+
+Public Sub PopulateMatchedStatusCombo(ByVal targetCombo As MSForms.ComboBox, Optional ByVal selectedStatusValue As String = "not_checked")
+    If targetCombo Is Nothing Then Exit Sub
+
+    With targetCombo
+        .Clear
+        .Style = fmStyleDropDownList
+        .AddItem GetLocalizedMatchStatusText("not_checked")
+        .AddItem GetLocalizedMatchStatusText("exact")
+        .AddItem GetLocalizedMatchStatusText("candidate")
+        .AddItem GetLocalizedMatchStatusText("manual")
+        .AddItem GetLocalizedMatchStatusText("not_found")
+        .Value = GetLocalizedMatchStatusText(selectedStatusValue)
+    End With
+End Sub
+
+
 Private Function BuildPackageReviewSummary(ByVal packageId As String) As String
     Dim itemsTable As ListObject
     Dim rowIndex As Long
@@ -1255,6 +1316,84 @@ Private Function BuildPackageReviewSummary(ByVal packageId As String) As String
         LocalizationManager.GetText("Not found") & ": " & notFoundCount & " | " & _
         LocalizationManager.GetText("Pending") & ": " & pendingCount & " | " & _
         LocalizationManager.GetText("Manual") & ": " & manualCount
+End Function
+
+Private Function TranslateDocumentStage(ByVal stageValue As String) As String
+    Select Case LCase$(Trim$(stageValue))
+        Case "awaiting_confirmation"
+            TranslateDocumentStage = LocalizationManager.GetText("Awaiting confirmation")
+        Case "confirmed_by_counterparty"
+            TranslateDocumentStage = LocalizationManager.GetText("Confirmed by counterparty")
+        Case "matched_in_1c"
+            TranslateDocumentStage = LocalizationManager.GetText("Matched in 1C")
+        Case "partially_matched"
+            TranslateDocumentStage = LocalizationManager.GetText("Partially matched")
+        Case "needs_review"
+            TranslateDocumentStage = LocalizationManager.GetText("Needs review")
+        Case Else
+            TranslateDocumentStage = LocalizationManager.GetText("Awaiting 1C match")
+    End Select
+End Function
+
+Private Function GetDerivedPackageDocumentStage(ByVal parentTable As ListObject, ByVal parentRowIndex As Long, ByVal childCount As Long, ByVal amountStatus As String, ByVal primaryStatus As String, ByVal exactCount As Long, ByVal candidateCount As Long, ByVal manualCount As Long, ByVal notFoundCount As Long, ByVal notCheckedCount As Long) As String
+    Dim directionKey As String
+
+    directionKey = GetParentDirectionKey(parentTable, parentRowIndex)
+
+    If IsOutgoingDirectionKey(directionKey) Then
+        If HasConfirmedCounterpartyStatus(parentTable, parentRowIndex) Then
+            GetDerivedPackageDocumentStage = "confirmed_by_counterparty"
+        ElseIf childCount <= 0 Or LCase$(Trim$(primaryStatus)) = "not_checked" Then
+            GetDerivedPackageDocumentStage = "awaiting_1c_match"
+        ElseIf LCase$(Trim$(amountStatus)) = "match" And (exactCount + manualCount) = childCount And childCount > 0 Then
+            GetDerivedPackageDocumentStage = "awaiting_confirmation"
+        Else
+            GetDerivedPackageDocumentStage = "needs_review"
+        End If
+        Exit Function
+    End If
+
+    If childCount <= 0 Or LCase$(Trim$(primaryStatus)) = "not_checked" Then
+        GetDerivedPackageDocumentStage = "awaiting_1c_match"
+    ElseIf LCase$(Trim$(amountStatus)) = "match" And (exactCount + manualCount) = childCount And childCount > 0 Then
+        GetDerivedPackageDocumentStage = "matched_in_1c"
+    ElseIf candidateCount > 0 Or notFoundCount > 0 Or LCase$(Trim$(amountStatus)) <> "match" Then
+        GetDerivedPackageDocumentStage = "needs_review"
+    ElseIf exactCount + manualCount > 0 And notCheckedCount > 0 Then
+        GetDerivedPackageDocumentStage = "partially_matched"
+    Else
+        GetDerivedPackageDocumentStage = "awaiting_1c_match"
+    End If
+End Function
+
+Private Function GetParentDirectionKey(ByVal parentTable As ListObject, ByVal parentRowIndex As Long) As String
+    GetParentDirectionKey = LCase$(Trim$(CStr(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_DIRECTION_COLUMN))))
+End Function
+
+Private Function IsOutgoingDirectionKey(ByVal directionKey As String) As Boolean
+    Dim normalizedKey As String
+
+    normalizedKey = Replace$(directionKey, ".", vbNullString)
+    IsOutgoingDirectionKey = (InStr(normalizedKey, "out") > 0) _
+        Or (InStr(normalizedKey, "исх") > 0) _
+        Or (normalizedKey = "èñõ") _
+        Or (normalizedKey = "исх")
+End Function
+
+Private Function HasConfirmedCounterpartyStatus(ByVal parentTable As ListObject, ByVal parentRowIndex As Long) As Boolean
+    Dim confirmationStatus As String
+    Dim normalizedStatus As String
+
+    confirmationStatus = Trim$(CStr(GetParentSourceValue(parentTable, parentRowIndex, PARENT_SOURCE_CONFIRMATION_STATUS_COLUMN)))
+    normalizedStatus = UCase$(confirmationStatus)
+
+    If Len(confirmationStatus) = 0 Then Exit Function
+
+    If InStr(normalizedStatus, "CONFIRM") > 0 Then
+        HasConfirmedCounterpartyStatus = True
+    ElseIf InStr(normalizedStatus, ChrW$(1055) & ChrW$(1054) & ChrW$(1044) & ChrW$(1058) & ChrW$(1042) & ChrW$(1045) & ChrW$(1056)) > 0 Then
+        HasConfirmedCounterpartyStatus = True
+    End If
 End Function
 
 Private Function GetSelectedPackageItemIdFromForm(ByVal frm As Object) As String

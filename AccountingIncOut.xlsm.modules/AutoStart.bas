@@ -26,6 +26,8 @@ Public Sub InitializeSystem()
     
     ' 0.1 Ensure package document schema
     Call EnsurePackageDocumentsSchema
+    Call EnsureLegacyMatchReviewSchema
+    Call EnsureLegacyPackageBackfillSchema
 
     ' 1. Initialize table event handler
     Call TableEventHandler.InitializeTableEvents
