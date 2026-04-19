@@ -80,6 +80,24 @@ End Sub
 Public Function BuildLegacyMatchReviewQueueFromFile(ByVal filePath As String) As String
     Dim wb1C As Workbook
     Dim ws1C As Worksheet
+
+    On Error GoTo BuildError
+
+    Set wb1C = Workbooks.Open(filePath, ReadOnly:=True)
+    Set ws1C = wb1C.Worksheets(1)
+    BuildLegacyMatchReviewQueueFromFile = BuildLegacyMatchReviewQueueFromWorksheet(ws1C, False)
+
+    Application.StatusBar = LocalizationManager.GetText("Legacy review queue completed.")
+    Exit Function
+
+BuildError:
+    On Error Resume Next
+    If Not wb1C Is Nothing Then wb1C.Close False
+    Application.StatusBar = False
+    BuildLegacyMatchReviewQueueFromFile = LocalizationManager.GetText("Legacy review build error: ") & Err.Description
+End Function
+
+Public Function BuildLegacyMatchReviewQueueFromWorksheet(ByVal ws1C As Worksheet, Optional ByVal skipBackfillCandidates As Boolean = False, Optional ByRef processedCount As Long = 0, Optional ByRef exactCount As Long = 0, Optional ByRef multipleCount As Long = 0, Optional ByRef notFoundCount As Long = 0) As String
     Dim wsData As Worksheet
     Dim tblData As ListObject
     Dim reviewTable As ListObject
@@ -88,10 +106,6 @@ Public Function BuildLegacyMatchReviewQueueFromFile(ByVal filePath As String) As
     Dim currentCorrespondent As String
     Dim currentExecutionMark As String
     Dim reviewResult As LegacyReviewMatchResult
-    Dim processedCount As Long
-    Dim exactCount As Long
-    Dim multipleCount As Long
-    Dim notFoundCount As Long
 
     On Error GoTo BuildError
 
@@ -99,19 +113,21 @@ Public Function BuildLegacyMatchReviewQueueFromFile(ByVal filePath As String) As
     Set reviewTable = GetLegacyReviewTable()
     Set wsData = ThisWorkbook.Worksheets("IncOut")
     Set tblData = wsData.ListObjects("TableIncOut")
-    If reviewTable Is Nothing Or tblData Is Nothing Then Exit Function
-
-    Call ClearLegacyReviewQueue(reviewTable)
+    If reviewTable Is Nothing Or tblData Is Nothing Or ws1C Is Nothing Then Exit Function
 
     Application.StatusBar = LocalizationManager.GetText("Building legacy review queue...")
-    Set wb1C = Workbooks.Open(filePath, ReadOnly:=True)
-    Set ws1C = wb1C.Worksheets(1)
 
     For rowIndex = 1 To tblData.ListRows.Count
         If PackageDocumentsManager.ShouldUseChildDocumentsForMatching(rowIndex) Then GoTo ContinueLoop
+        If skipBackfillCandidates Then
+            If LegacyPackageBackfillManager.IsLegacyPackageBackfillCandidateRowIndex(rowIndex) Then GoTo ContinueLoop
+        End If
 
         currentExecutionMark = Trim$(CStr(tblData.DataBodyRange.Cells(rowIndex, 18).Value))
-        If Len(currentExecutionMark) > 0 Then GoTo ContinueLoop
+        If Len(currentExecutionMark) > 0 Then
+            Call MarkLegacyReviewRowsResolved(reviewTable, rowIndex, "resolved_execution")
+            GoTo ContinueLoop
+        End If
 
         If Not IsNumeric(tblData.DataBodyRange.Cells(rowIndex, 6).Value) Then GoTo ContinueLoop
         currentAmount = CDbl(tblData.DataBodyRange.Cells(rowIndex, 6).Value)
@@ -123,9 +139,10 @@ Public Function BuildLegacyMatchReviewQueueFromFile(ByVal filePath As String) As
 
         If reviewResult.Found Then
             tblData.DataBodyRange.Cells(rowIndex, 18).Value = reviewResult.BestNumber
+            Call MarkLegacyReviewRowsResolved(reviewTable, rowIndex, "resolved_exact")
             exactCount = exactCount + 1
         ElseIf reviewResult.MatchCount > 1 Then
-            Call AddLegacyReviewRow(reviewTable, tblData, rowIndex, reviewResult)
+            Call UpsertLegacyReviewRow(reviewTable, tblData, rowIndex, reviewResult)
             multipleCount = multipleCount + 1
         Else
             notFoundCount = notFoundCount + 1
@@ -134,25 +151,18 @@ Public Function BuildLegacyMatchReviewQueueFromFile(ByVal filePath As String) As
 ContinueLoop:
     Next rowIndex
 
-    wb1C.Close False
     Call FormatLegacyReviewSheet(reviewTable.Parent, reviewTable)
-    reviewTable.Parent.Activate
 
-    BuildLegacyMatchReviewQueueFromFile = LocalizationManager.GetText("Legacy review queue completed.") & vbCrLf & vbCrLf & _
+    BuildLegacyMatchReviewQueueFromWorksheet = LocalizationManager.GetText("Legacy review queue completed.") & vbCrLf & vbCrLf & _
         LocalizationManager.GetText("Legacy records processed: ") & processedCount & vbCrLf & _
         LocalizationManager.GetText("Exact matches written: ") & exactCount & vbCrLf & _
         LocalizationManager.GetText("Multiple matches queued: ") & multipleCount & vbCrLf & _
         LocalizationManager.GetText("Not found: ") & notFoundCount & vbCrLf & vbCrLf & _
         LocalizationManager.GetText("Queue sheet opened for manual review.")
-
-    Application.StatusBar = LocalizationManager.GetText("Legacy review queue completed.")
     Exit Function
 
 BuildError:
-    On Error Resume Next
-    If Not wb1C Is Nothing Then wb1C.Close False
-    Application.StatusBar = False
-    BuildLegacyMatchReviewQueueFromFile = LocalizationManager.GetText("Legacy review build error: ") & Err.Description
+    BuildLegacyMatchReviewQueueFromWorksheet = LocalizationManager.GetText("Legacy review build error: ") & Err.Description
 End Function
 
 Public Function ApplyLegacyMatchReviewSelections() As String
@@ -477,6 +487,62 @@ Private Sub AddLegacyReviewRow(ByVal reviewTable As ListObject, ByVal dataTable 
     Call SetLegacyReviewValue(reviewTable, reviewRowIndex, LEGACY_COLUMN_CANDIDATES_LIST, reviewResult.CandidatesList)
     Call SetLegacyReviewValue(reviewTable, reviewRowIndex, LEGACY_COLUMN_USE_BEST, False)
     Call SetLegacyReviewValue(reviewTable, reviewRowIndex, LEGACY_COLUMN_REVIEW_STATUS, "pending")
+End Sub
+
+Private Sub UpsertLegacyReviewRow(ByVal reviewTable As ListObject, ByVal dataTable As ListObject, ByVal rowIndex As Long, ByRef reviewResult As LegacyReviewMatchResult)
+    Dim existingRowIndex As Long
+
+    existingRowIndex = FindExistingLegacyReviewRow(reviewTable, rowIndex)
+    If existingRowIndex > 0 Then
+        Call SetLegacyReviewValue(reviewTable, existingRowIndex, LEGACY_COLUMN_RECORD_NUMBER, dataTable.DataBodyRange.Cells(rowIndex, 1).Value)
+        Call SetLegacyReviewValue(reviewTable, existingRowIndex, LEGACY_COLUMN_SERVICE, dataTable.DataBodyRange.Cells(rowIndex, 2).Value)
+        Call SetLegacyReviewValue(reviewTable, existingRowIndex, LEGACY_COLUMN_DOCUMENT_TYPE, dataTable.DataBodyRange.Cells(rowIndex, 4).Value)
+        Call SetLegacyReviewValue(reviewTable, existingRowIndex, LEGACY_COLUMN_DOCUMENT_NUMBER, dataTable.DataBodyRange.Cells(rowIndex, 5).Value)
+        Call SetLegacyReviewValue(reviewTable, existingRowIndex, LEGACY_COLUMN_DOCUMENT_DATE, dataTable.DataBodyRange.Cells(rowIndex, 8).Value)
+        Call SetLegacyReviewValue(reviewTable, existingRowIndex, LEGACY_COLUMN_AMOUNT, dataTable.DataBodyRange.Cells(rowIndex, 6).Value)
+        Call SetLegacyReviewValue(reviewTable, existingRowIndex, LEGACY_COLUMN_COUNTERPARTY, dataTable.DataBodyRange.Cells(rowIndex, 9).Value)
+        Call SetLegacyReviewValue(reviewTable, existingRowIndex, LEGACY_COLUMN_BEST_NUMBER, reviewResult.BestNumber)
+        Call SetLegacyReviewValue(reviewTable, existingRowIndex, LEGACY_COLUMN_BEST_DATE, reviewResult.BestDate)
+        Call SetLegacyReviewValue(reviewTable, existingRowIndex, LEGACY_COLUMN_BEST_COMMENT, reviewResult.BestComment)
+        Call SetLegacyReviewValue(reviewTable, existingRowIndex, LEGACY_COLUMN_CANDIDATES_COUNT, reviewResult.MatchCount)
+        Call SetLegacyReviewValue(reviewTable, existingRowIndex, LEGACY_COLUMN_CANDIDATES_LIST, reviewResult.CandidatesList)
+        Call SetLegacyReviewValue(reviewTable, existingRowIndex, LEGACY_COLUMN_REVIEW_STATUS, "pending")
+        Call SetLegacyReviewValue(reviewTable, existingRowIndex, LEGACY_COLUMN_APPLY_ERROR, vbNullString)
+    Else
+        Call AddLegacyReviewRow(reviewTable, dataTable, rowIndex, reviewResult)
+    End If
+End Sub
+
+Private Function FindExistingLegacyReviewRow(ByVal reviewTable As ListObject, ByVal incOutRowIndex As Long) As Long
+    Dim rowIndex As Long
+
+    If reviewTable Is Nothing Then Exit Function
+    If reviewTable.DataBodyRange Is Nothing Then Exit Function
+
+    For rowIndex = 1 To reviewTable.ListRows.Count
+        If CLng(Val(CStr(GetLegacyReviewValue(reviewTable, rowIndex, LEGACY_COLUMN_INCOUT_ROW)))) = incOutRowIndex Then
+            FindExistingLegacyReviewRow = rowIndex
+            Exit Function
+        End If
+    Next rowIndex
+End Function
+
+Private Sub MarkLegacyReviewRowsResolved(ByVal reviewTable As ListObject, ByVal incOutRowIndex As Long, ByVal targetStatus As String)
+    Dim rowIndex As Long
+    Dim currentStatus As String
+
+    If reviewTable Is Nothing Then Exit Sub
+    If reviewTable.DataBodyRange Is Nothing Then Exit Sub
+
+    For rowIndex = 1 To reviewTable.ListRows.Count
+        If CLng(Val(CStr(GetLegacyReviewValue(reviewTable, rowIndex, LEGACY_COLUMN_INCOUT_ROW)))) = incOutRowIndex Then
+            currentStatus = LCase$(Trim$(CStr(GetLegacyReviewValue(reviewTable, rowIndex, LEGACY_COLUMN_REVIEW_STATUS))))
+            If currentStatus <> "applied" Then
+                Call SetLegacyReviewValue(reviewTable, rowIndex, LEGACY_COLUMN_REVIEW_STATUS, targetStatus)
+                Call SetLegacyReviewValue(reviewTable, rowIndex, LEGACY_COLUMN_APPLY_ERROR, vbNullString)
+            End If
+        End If
+    Next rowIndex
 End Sub
 
 Private Sub ClearLegacyReviewQueue(ByVal reviewTable As ListObject)

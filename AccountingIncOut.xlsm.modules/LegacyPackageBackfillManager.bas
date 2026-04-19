@@ -103,19 +103,34 @@ End Sub
 Public Function BuildLegacyPackageBackfillQueueFromFile(ByVal filePath As String) As String
     Dim wb1C As Workbook
     Dim ws1C As Worksheet
+
+    On Error GoTo BuildError
+
+    Application.StatusBar = LocalizationManager.GetText("Building legacy package backfill queue...")
+    Set wb1C = Workbooks.Open(filePath, ReadOnly:=True)
+    Set ws1C = wb1C.Worksheets(1)
+    BuildLegacyPackageBackfillQueueFromFile = BuildLegacyPackageBackfillQueueFromWorksheet(ws1C)
+
+    Application.StatusBar = LocalizationManager.GetText("Legacy package backfill completed.")
+    Exit Function
+
+BuildError:
+    On Error Resume Next
+    If Not wb1C Is Nothing Then wb1C.Close False
+    Application.StatusBar = False
+    BuildLegacyPackageBackfillQueueFromFile = LocalizationManager.GetText("Legacy package backfill error: ") & Err.Description
+End Function
+
+Public Function BuildLegacyPackageBackfillQueueFromWorksheet(ByVal ws1C As Worksheet, Optional ByRef parentCount As Long = 0, Optional ByRef proposalCount As Long = 0, Optional ByRef skippedCount As Long = 0, Optional ByRef reusedCount As Long = 0) As String
     Dim wsData As Worksheet
     Dim parentTable As ListObject
     Dim backfillTable As ListObject
     Dim rowIndex As Long
-    Dim parentCount As Long
-    Dim proposalCount As Long
-    Dim skippedCount As Long
     Dim packageId As String
     Dim parentDocumentNumber As String
     Dim parentCorrespondent As String
     Dim parentAmount As Double
     Dim parentDateValue As Variant
-    Dim reusedCount As Long
 
     On Error GoTo BuildError
 
@@ -125,13 +140,11 @@ Public Function BuildLegacyPackageBackfillQueueFromFile(ByVal filePath As String
     Set backfillTable = GetLegacyPackageBackfillTable()
     Set wsData = ThisWorkbook.Worksheets("IncOut")
     Set parentTable = wsData.ListObjects(PACKAGE_PARENT_TABLE_NAME)
-    If backfillTable Is Nothing Or parentTable Is Nothing Then Exit Function
-
-    Application.StatusBar = LocalizationManager.GetText("Building legacy package backfill queue...")
-    Set wb1C = Workbooks.Open(filePath, ReadOnly:=True)
-    Set ws1C = wb1C.Worksheets(1)
+    If backfillTable Is Nothing Or parentTable Is Nothing Or ws1C Is Nothing Then Exit Function
 
     For rowIndex = 1 To parentTable.ListRows.Count
+        If Not IsLegacyPackageBackfillCandidateRow(parentTable, rowIndex) Then GoTo ContinueLoop
+
         packageId = EnsurePackageIdForParentRow(parentTable, rowIndex)
         If Len(packageId) = 0 Then
             skippedCount = skippedCount + 1
@@ -163,26 +176,53 @@ Public Function BuildLegacyPackageBackfillQueueFromFile(ByVal filePath As String
 ContinueLoop:
     Next rowIndex
 
-    wb1C.Close False
     Call UpdateBackfillGroupMetrics(backfillTable)
     Call FormatLegacyPackageBackfillSheet(backfillTable.Parent, backfillTable)
-    backfillTable.Parent.Activate
 
-    BuildLegacyPackageBackfillQueueFromFile = LocalizationManager.GetText("Legacy package backfill completed.") & vbCrLf & vbCrLf & _
+    BuildLegacyPackageBackfillQueueFromWorksheet = LocalizationManager.GetText("Legacy package backfill completed.") & vbCrLf & vbCrLf & _
         LocalizationManager.GetText("Legacy parent rows processed: ") & parentCount & vbCrLf & _
         LocalizationManager.GetText("Backfill proposals created: ") & proposalCount & vbCrLf & _
         LocalizationManager.GetText("Backfill proposals reused: ") & reusedCount & vbCrLf & _
         LocalizationManager.GetText("Skipped rows: ") & skippedCount & vbCrLf & vbCrLf & _
         LocalizationManager.GetText("Queue sheet opened for review.")
-
-    Application.StatusBar = LocalizationManager.GetText("Legacy package backfill completed.")
     Exit Function
 
 BuildError:
-    On Error Resume Next
-    If Not wb1C Is Nothing Then wb1C.Close False
-    Application.StatusBar = False
-    BuildLegacyPackageBackfillQueueFromFile = LocalizationManager.GetText("Legacy package backfill error: ") & Err.Description
+    BuildLegacyPackageBackfillQueueFromWorksheet = LocalizationManager.GetText("Legacy package backfill error: ") & Err.Description
+End Function
+
+Public Function IsLegacyPackageBackfillCandidateRowIndex(ByVal parentRowIndex As Long) As Boolean
+    Dim wsData As Worksheet
+    Dim parentTable As ListObject
+
+    On Error GoTo Fail
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set parentTable = wsData.ListObjects(PACKAGE_PARENT_TABLE_NAME)
+    If parentTable Is Nothing Then Exit Function
+
+    IsLegacyPackageBackfillCandidateRowIndex = IsLegacyPackageBackfillCandidateRow(parentTable, parentRowIndex)
+    Exit Function
+
+Fail:
+    IsLegacyPackageBackfillCandidateRowIndex = False
+End Function
+
+Public Function IsLegacyPackageBackfillCandidateRow(ByVal parentTable As ListObject, ByVal parentRowIndex As Long) As Boolean
+    Dim documentTypeValue As String
+    Dim normalizedType As String
+
+    If parentTable Is Nothing Then Exit Function
+    If parentTable.DataBodyRange Is Nothing Then Exit Function
+    If parentRowIndex < 1 Or parentRowIndex > parentTable.ListRows.Count Then Exit Function
+
+    documentTypeValue = Trim$(CStr(parentTable.DataBodyRange.Cells(parentRowIndex, 4).Value))
+    normalizedType = LCase$(documentTypeValue)
+
+    If InStr(normalizedType, "извещ") > 0 Then
+        IsLegacyPackageBackfillCandidateRow = True
+    ElseIf InStr(normalizedType, "сверк") > 0 Then
+        IsLegacyPackageBackfillCandidateRow = True
+    End If
 End Function
 
 Public Function ApplyLegacyPackageBackfillSelections() As String

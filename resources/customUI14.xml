@@ -5,12 +5,12 @@
         
         <group id="grpProcessing" label="Обработка">
           <button id="btnMassProcess" 
-                  label="Массовая обработка" 
+                  label="Периодическая сверка" 
                   imageMso="DatabaseUpdate"
                   size="large" 
                   onAction="RibbonCallbacks.btnMassProcess_Click"
-                  screentip="Массовая обработка записей"
-                  supertip="Автоматическое сопоставление записей IncOut с проводками 1С"/>
+                  screentip="Периодический запуск сопоставления"
+                  supertip="Единый запуск: пакетный matching, Legacy Match Review и Legacy Package Backfill по одной выгрузке 1С"/>
           
           <separator id="sep1"/>
           
@@ -29,6 +29,14 @@
                   onAction="RibbonCallbacks.btnLegacyBackfill_Click"
                   screentip="Восстановление legacy-пакетов"
                   supertip="Построение и проверка предложений восстановления пакетов для старых строк IncOut"/>
+
+          <button id="btnLegacyReview"
+                  label="Проверка legacy"
+                  imageMso="ReviewReviewingPane"
+                  size="normal"
+                  onAction="RibbonCallbacks.btnLegacyReview_Click"
+                  screentip="Проверка legacy-совпадений"
+                  supertip="Ручной разбор старых плоских строк, для которых найдено несколько вариантов проводок 1С"/>
         </group>
         
         <group id="grpAnalysis" label="Анализ и отчеты">

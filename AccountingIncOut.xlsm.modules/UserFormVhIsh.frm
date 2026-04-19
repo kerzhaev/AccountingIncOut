@@ -67,7 +67,7 @@ Private Sub btnPackageDocuments_Click()
 End Sub
 
 Private Sub btnLegacyBackfill_Click()
-    Call LegacyPackageBackfillManager.OpenLegacyPackageBackfillReviewForm
+    Call PeriodicMatchingManager.RunPeriodicMatchingWithFileSelection
 End Sub
 
 
@@ -88,6 +88,7 @@ End Sub
 Private Sub UserForm_Initialize()
     Call EnsureResponsiveLayoutInitialized
     Call LocalizationManager.TranslateForm(Me)
+    Call ApplyActionButtonCaptions
     Call ApplyFormCaption
     Call InitializeForm
     Call LoadSettings
@@ -1343,6 +1344,11 @@ Private Sub ApplyFormCaption()
     Me.Caption = BuildFormCaption()
 End Sub
 
+Private Sub ApplyActionButtonCaptions()
+    Me.btnLegacyBackfill.Caption = LocalizationManager.GetText("Periodic matching...")
+    Me.btnPackageDocuments.Caption = LocalizationManager.GetText("Package Docs...")
+End Sub
+
 Private Function BuildFormCaption() As String
     BuildFormCaption = _
         ChrW(&H421) & ChrW(&H438) & ChrW(&H441) & ChrW(&H442) & ChrW(&H435) & ChrW(&H43C) & ChrW(&H430) & " " & _
@@ -1602,7 +1608,7 @@ Private Sub ConstrainPackageAreaLayout()
     Me.btnPackageDocuments.Top = Me.btnNew.Top
     Me.btnLegacyBackfill.Top = Me.btnNew.Top
     Me.btnPackageDocuments.Width = 126
-    Me.btnLegacyBackfill.Width = 118
+    Me.btnLegacyBackfill.Width = 132
 
     packageButtonLeft = contentWidth - rightMargin - Me.btnPackageDocuments.Width
     legacyButtonLeft = packageButtonLeft - gap - Me.btnLegacyBackfill.Width

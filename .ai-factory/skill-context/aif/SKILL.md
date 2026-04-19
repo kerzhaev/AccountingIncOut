@@ -47,6 +47,16 @@ When project context changes, update `.spec/PROJECT_CONTEXT.md` or another proje
 - When changing Excel VBA UserForms, always account for the end user's screen resolution.
 - UserForms must open within the visible screen area, center on screen, and avoid clipping critical controls on low-resolution displays.
 - Prefer responsive resizing with scrollable fallback over fixed large layouts.
+- For `UserFormPackageDocuments`, do not constrain `lstPackageItems` width to the right edge of the left-side button block. This made the package list look artificially narrow in runtime even when the form had wider usable space.
+- Runtime probe on `UserFormPackageDocuments` showed `lstPackageItems.Width` can already be wide in runtime while the list still looks narrow to the user. In that case, inspect `ColumnWidths` before changing the control width again.
+- For `UserFormPackageDocuments`, if records make `lstPackageItems` look visually narrow while the empty list looks fine, treat that as a `ColumnWidths` problem first, not a `Width` problem.
+- For `UserFormPackageDocuments`, `lstPackageItems.ColumnWidths` may revert to designer-era values during form startup. If a runtime probe shows old widths despite updated code, re-apply `ColumnWidths` after `Show`/final resize instead of only during `Initialize`.
+- When debugging UserForm layout regressions, distinguish between:
+  - designer geometry stored in `.frm/.frx`
+  - runtime geometry set by layout procedures such as `ApplyFormLayout`
+  - viewport clipping/scrollbar behavior applied by responsive resize logic
+- Do not treat a failed runtime layout hypothesis as resolved just because the exported `.frm` or workbook import contains the patch. Re-check the visible runtime outcome before keeping the change.
+- Do not keep obsolete public VBA launch procedures after routing changes. They stay visible in `Alt+F8`, still participate in compilation, and stale variables inside them can break unrelated workflows. Replace them with a hidden compatibility wrapper or remove them.
 
 
 ## Code Language Rule

@@ -1426,8 +1426,8 @@ Public Sub AddProvodkaIntegrationControls()
         .Range("A35").Font.Bold = True
         .Range("A35").Font.Size = 12
         
-        .Range("A37").value = LocalizationManager.GetText("Mass Processing")
-        .Hyperlinks.Add .Range("A37"), "", "ProvodkaIntegrationModule.MassProcessWithFileSelection", , LocalizationManager.GetText("Mass Processing")
+        .Range("A37").value = LocalizationManager.GetText("Periodic matching...")
+        .Hyperlinks.Add .Range("A37"), "", "PeriodicMatchingManager.RunPeriodicMatchingWithFileSelection", , LocalizationManager.GetText("Periodic matching...")
         
         .Range("C37").value = LocalizationManager.GetText("Statistics")
         .Hyperlinks.Add .Range("C37"), "", "ProvodkaIntegrationModule.ShowMatchingStatistics", , LocalizationManager.GetText("Statistics")

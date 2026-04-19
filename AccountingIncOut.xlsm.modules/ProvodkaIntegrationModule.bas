@@ -20,63 +20,52 @@ Public Type MatchResult
     candidatesList As String
 End Type
 
-' Mass processing of all IncOut records with 1C export file
-Public Sub MassProcessWithFileSelection()
-    Dim filePath As String
-    Dim wb1C As Workbook
-    Dim ws1C As Worksheet
+' Legacy compatibility wrapper.
+' Keep this procedure hidden from the macro dialog to avoid routing confusion.
+Private Sub MassProcessWithFileSelection()
+    On Error GoTo MassProcessError
+
+    Call PeriodicMatchingManager.RunPeriodicMatchingWithFileSelection
+    Exit Sub
+
+MassProcessError:
+    Application.StatusBar = LocalizationManager.GetText("Mass processing error")
+    MsgBox LocalizationManager.GetText("Mass processing error:") & vbCrLf & _
+           LocalizationManager.GetText("Error: ") & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
+           LocalizationManager.GetText("Use Periodic matching to route package rows, Legacy Match Review and Legacy Package Backfill automatically."), _
+           vbCritical, LocalizationManager.GetText("Critical Error")
+End Sub
+
+Public Function MassProcessFromWorksheet(ByVal ws1C As Worksheet, Optional ByVal processFlatRows As Boolean = True, Optional ByVal processPackageRows As Boolean = True, Optional ByVal skipBackfillCandidates As Boolean = False, Optional ByRef processedCount As Long = 0, Optional ByRef foundCount As Long = 0, Optional ByRef skippedCount As Long = 0, Optional ByRef multipleCount As Long = 0, Optional ByRef notFoundCount As Long = 0) As String
     Dim wsData As Worksheet
     Dim tblData As ListObject
-    
-    Dim ProcessedCount As Long
-    Dim FoundCount As Long
-    Dim SkippedCount As Long
-    Dim MultipleCount As Long
-    Dim errorCount As Long
-    
-    On Error GoTo MassProcessError
-    
-    ' Select 1C export file
-    filePath = Application.GetOpenFilename( _
-        "Excel Files (*.xlsx),*.xlsx,CSV Files (*.csv),*.csv,All Files (*.*),*.*", _
-        , LocalizationManager.GetText("Select 1C export file"))
-    
-    If filePath = "False" Then Exit Sub
-    
-    ' Open 1C export file
-    Application.StatusBar = LocalizationManager.GetText("Opening 1C export file...")
-    Set wb1C = Workbooks.Open(filePath, ReadOnly:=True)
-    Set ws1C = wb1C.Worksheets(1) ' First sheet of the file
-    
-    ' Get IncOut table
-    Set wsData = ThisWorkbook.Worksheets("IncOut")
-    Set tblData = wsData.ListObjects("TableIncOut")
-    
-    Application.StatusBar = LocalizationManager.GetText("Starting mass processing...")
-    Application.ScreenUpdating = False
-    
-    ' Process each IncOut record
     Dim i As Long
     Dim currentSuma As Double
     Dim currentCorrespondent As String
     Dim currentOtmetka As String
-    Dim MatchResult As MatchResult
+    Dim matchSearchResult As MatchResult
     Dim childProcessed As Long
     Dim childFound As Long
     Dim childCandidates As Long
     Dim childNotFound As Long
     Dim parentPrimaryStatus As String
-    
+
+    On Error GoTo ProcessError
+
+    Set wsData = ThisWorkbook.Worksheets("IncOut")
+    Set tblData = wsData.ListObjects("TableIncOut")
+
+    Application.StatusBar = LocalizationManager.GetText("Starting mass processing...")
+    Application.ScreenUpdating = False
+
     For i = 1 To tblData.ListRows.Count
-        
-        ' Get data of current IncOut record
         On Error Resume Next
-        currentSuma = CDbl(tblData.DataBodyRange.Cells(i, 6).value)          ' Document amount
-        currentCorrespondent = CStr(tblData.DataBodyRange.Cells(i, 9).value) ' Received from
-        currentOtmetka = Trim(CStr(tblData.DataBodyRange.Cells(i, 18).value)) ' Execution mark
-        On Error GoTo MassProcessError
-        
-        If PackageDocumentsManager.ShouldUseChildDocumentsForMatching(i) Then
+        currentSuma = CDbl(tblData.DataBodyRange.Cells(i, 6).Value)
+        currentCorrespondent = CStr(tblData.DataBodyRange.Cells(i, 9).Value)
+        currentOtmetka = Trim$(CStr(tblData.DataBodyRange.Cells(i, 18).Value))
+        On Error GoTo ProcessError
+
+        If processPackageRows And PackageDocumentsManager.ShouldUseChildDocumentsForMatching(i) Then
             If PackageDocumentsManager.CountPendingPackageChildMatches(i) > 0 Then
                 childProcessed = 0
                 childFound = 0
@@ -89,72 +78,69 @@ Public Sub MassProcessWithFileSelection()
                     parentPrimaryStatus = PackageDocumentsManager.GetPackagePrimary1CStatus(i)
                     Select Case parentPrimaryStatus
                         Case "exact"
-                            FoundCount = FoundCount + 1
+                            foundCount = foundCount + 1
                         Case "candidate", "manual"
-                            MultipleCount = MultipleCount + 1
+                            multipleCount = multipleCount + 1
+                        Case Else
+                            notFoundCount = notFoundCount + 1
                     End Select
-                    ProcessedCount = ProcessedCount + 1
+                    processedCount = processedCount + 1
                 Else
-                    SkippedCount = SkippedCount + 1
+                    skippedCount = skippedCount + 1
                 End If
             Else
-                SkippedCount = SkippedCount + 1
+                skippedCount = skippedCount + 1
             End If
-        ElseIf currentOtmetka = "" Then
-            MatchResult = FindMatchInFile(currentSuma, currentCorrespondent, ws1C)
-
-            If MatchResult.Found Then
-                tblData.DataBodyRange.Cells(i, 18).value = MatchResult.ProvodkaNumber
-                FoundCount = FoundCount + 1
-            ElseIf MatchResult.MatchCount > 1 Then
-                MultipleCount = MultipleCount + 1
+        ElseIf processFlatRows And currentOtmetka = vbNullString Then
+            If skipBackfillCandidates Then
+                If LegacyPackageBackfillManager.IsLegacyPackageBackfillCandidateRowIndex(i) Then
+                    skippedCount = skippedCount + 1
+                    GoTo ContinueLoop
+                End If
             End If
 
-            ProcessedCount = ProcessedCount + 1
+            matchSearchResult = FindMatchInFile(currentSuma, currentCorrespondent, ws1C)
+
+            If matchSearchResult.Found Then
+                tblData.DataBodyRange.Cells(i, 18).Value = matchSearchResult.ProvodkaNumber
+                foundCount = foundCount + 1
+            ElseIf matchSearchResult.MatchCount > 1 Then
+                multipleCount = multipleCount + 1
+            Else
+                notFoundCount = notFoundCount + 1
+            End If
+
+            processedCount = processedCount + 1
         Else
-            SkippedCount = SkippedCount + 1
+            skippedCount = skippedCount + 1
         End If
-        
-        ' Update progress every 25 records
-        If (ProcessedCount + SkippedCount) Mod 25 = 0 Then
-            Application.StatusBar = LocalizationManager.GetText("Processed ") & (ProcessedCount + SkippedCount) & LocalizationManager.GetText(" of ") & tblData.ListRows.Count & LocalizationManager.GetText(" records")
+
+ContinueLoop:
+        If (processedCount + skippedCount) Mod 25 = 0 Then
+            Application.StatusBar = LocalizationManager.GetText("Processed ") & (processedCount + skippedCount) & LocalizationManager.GetText(" of ") & tblData.ListRows.Count & LocalizationManager.GetText(" records")
         End If
-        
     Next i
-    
-    ' Close 1C export file
-    wb1C.Close False
-    
+
     Application.ScreenUpdating = True
-    
-    ' Show processing results
-    MsgBox LocalizationManager.GetText("MASS PROCESSING COMPLETED:") & vbCrLf & vbCrLf & _
-           LocalizationManager.GetText("--- STATISTICS:") & vbCrLf & _
-           LocalizationManager.GetText("Total records in table: ") & tblData.ListRows.Count & vbCrLf & _
-           LocalizationManager.GetText("Processed (without mark): ") & ProcessedCount & vbCrLf & _
-           LocalizationManager.GetText("Skipped (already filled): ") & SkippedCount & vbCrLf & vbCrLf & _
-           LocalizationManager.GetText("--- RESULTS:") & vbCrLf & _
-           LocalizationManager.GetText("Found automatically: ") & FoundCount & vbCrLf & _
-           LocalizationManager.GetText("Multiple matches: ") & MultipleCount & vbCrLf & _
-           LocalizationManager.GetText("Not found: ") & (ProcessedCount - FoundCount - MultipleCount) & vbCrLf & vbCrLf & _
-           LocalizationManager.GetText("--- Success rate: ") & Format(IIf(ProcessedCount > 0, FoundCount / ProcessedCount, 0), "0.0%"), _
-           vbInformation, LocalizationManager.GetText("1C Integration Results")
-           
-    Application.StatusBar = LocalizationManager.GetText("Integration completed. Found ") & FoundCount & LocalizationManager.GetText(" matches out of ") & ProcessedCount & LocalizationManager.GetText(" records.")
-    
-    Exit Sub
-    
-MassProcessError:
+    Application.StatusBar = LocalizationManager.GetText("Integration completed. Found ") & foundCount & LocalizationManager.GetText(" matches out of ") & processedCount & LocalizationManager.GetText(" records.")
+
+    MassProcessFromWorksheet = LocalizationManager.GetText("MASS PROCESSING COMPLETED:") & vbCrLf & vbCrLf & _
+        LocalizationManager.GetText("--- STATISTICS:") & vbCrLf & _
+        LocalizationManager.GetText("Total records in table: ") & tblData.ListRows.Count & vbCrLf & _
+        LocalizationManager.GetText("Processed (without mark): ") & processedCount & vbCrLf & _
+        LocalizationManager.GetText("Skipped (already filled): ") & skippedCount & vbCrLf & vbCrLf & _
+        LocalizationManager.GetText("--- RESULTS:") & vbCrLf & _
+        LocalizationManager.GetText("Found automatically: ") & foundCount & vbCrLf & _
+        LocalizationManager.GetText("Multiple matches: ") & multipleCount & vbCrLf & _
+        LocalizationManager.GetText("Not found: ") & notFoundCount & vbCrLf & vbCrLf & _
+        LocalizationManager.GetText("--- Success rate: ") & Format(IIf(processedCount > 0, foundCount / processedCount, 0), "0.0%")
+    Exit Function
+
+ProcessError:
     Application.ScreenUpdating = True
-    If Not wb1C Is Nothing Then wb1C.Close False
-    
-    MsgBox LocalizationManager.GetText("Mass processing error:") & vbCrLf & _
-           LocalizationManager.GetText("Error: ") & Err.Number & " - " & Err.description & vbCrLf & _
-           LocalizationManager.GetText("Processed records: ") & ProcessedCount, _
-           vbCritical, LocalizationManager.GetText("Critical Error")
-           
     Application.StatusBar = LocalizationManager.GetText("Mass processing error")
-End Sub
+    MassProcessFromWorksheet = LocalizationManager.GetText("Mass processing error:") & " " & Err.Number & " - " & Err.Description
+End Function
 
 ' Search for matching posting in 1C export file
 Private Function FindMatchInFile(suma As Double, Correspondent As String, ws1C As Worksheet) As MatchResult

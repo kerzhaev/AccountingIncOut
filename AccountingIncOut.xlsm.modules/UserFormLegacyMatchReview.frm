@@ -23,6 +23,11 @@ Option Explicit
 
 Private Const SM_CXSCREEN As Long = 0
 Private Const SM_CYSCREEN As Long = 1
+Private Const DESIGN_FORM_WIDTH As Single = 860
+Private Const DESIGN_FORM_HEIGHT As Single = 560
+Private Const SCREEN_POINTS_PER_PIXEL As Double = 72 / 96
+Private Const VIEWPORT_WIDTH_RATIO As Double = 0.92
+Private Const VIEWPORT_HEIGHT_RATIO As Double = 0.88
 Private Const REVIEW_MODE_MATCH As String = "legacy_match"
 Private Const REVIEW_MODE_BACKFILL As String = "legacy_backfill"
 
@@ -54,11 +59,13 @@ End Sub
 Private Sub UserForm_Initialize()
     If Len(mReviewMode) = 0 Then mReviewMode = REVIEW_MODE_MATCH
     Me.Caption = "Legacy Match Review"
-    Me.Width = 860
-    Me.Height = 650
+    Me.Width = DESIGN_FORM_WIDTH
+    Me.Height = DESIGN_FORM_HEIGHT
 End Sub
 
 Private Sub UserForm_Activate()
+    Me.Width = DESIGN_FORM_WIDTH
+    Me.Height = DESIGN_FORM_HEIGHT
     Call LocalizationManager.TranslateForm(Me)
     If mReviewMode = REVIEW_MODE_BACKFILL Then Call ApplyBackfillCaptions
     Call ConfigureEditorFields
@@ -286,11 +293,14 @@ Private Sub ApplyFormLayout()
     Dim rightColumnWidth As Single
     Dim fieldWidth As Single
     Dim buttonTop As Single
+    Dim parentTypeWidth As Single
+    Dim parentNumberWidth As Single
+    Dim parentDateWidth As Single
 
     marginX = 12
     labelOffset = 14
-    contentWidth = Me.Width - (marginX * 2) - 18
-    leftColumnWidth = 336
+    contentWidth = DESIGN_FORM_WIDTH - (marginX * 2) - 18
+    leftColumnWidth = 430
     rightColumnLeft = marginX + leftColumnWidth + 16
     rightColumnWidth = contentWidth - leftColumnWidth - 16
     fieldWidth = 104
@@ -304,7 +314,7 @@ Private Sub ApplyFormLayout()
     Me.txtQueueSummary.Width = contentWidth
     If mReviewMode = REVIEW_MODE_BACKFILL Then
         Me.txtQueueSummary.Height = 52
-        currentTop = 88
+        currentTop = 84
     Else
         Me.txtQueueSummary.Height = 28
         currentTop = 64
@@ -314,17 +324,20 @@ Private Sub ApplyFormLayout()
     PlaceField Me.lblIncOutRow, Me.txtIncOutRow, marginX + 118, currentTop, 72
     PlaceField Me.lblCurrentStatus, Me.txtCurrentStatus, marginX + 200, currentTop, 136
 
-    currentTop = currentTop + 42
+    currentTop = currentTop + 40
     PlaceField Me.lblRecordNumber, Me.txtRecordNumber, marginX, currentTop, 96
     PlaceField Me.lblService, Me.txtService, marginX + 108, currentTop, 92
     PlaceField Me.lblAmount, Me.txtAmount, marginX + 212, currentTop, 112
 
-    currentTop = currentTop + 42
-    PlaceField Me.lblDocumentType, Me.txtDocumentType, marginX, currentTop, 146
-    PlaceField Me.lblDocumentNumber, Me.txtDocumentNumber, marginX + 158, currentTop, 86
-    PlaceField Me.lblDocumentDate, Me.txtDocumentDate, marginX + 256, currentTop, 80
+    currentTop = currentTop + 40
+    parentTypeWidth = 200
+    parentNumberWidth = 108
+    parentDateWidth = 106
+    PlaceField Me.lblDocumentType, Me.txtDocumentType, marginX, currentTop, parentTypeWidth
+    PlaceField Me.lblDocumentNumber, Me.txtDocumentNumber, marginX + parentTypeWidth + 12, currentTop, parentNumberWidth
+    PlaceField Me.lblDocumentDate, Me.txtDocumentDate, marginX + parentTypeWidth + parentNumberWidth + 24, currentTop, parentDateWidth
 
-    currentTop = currentTop + 42
+    currentTop = currentTop + 40
     Me.lblCounterparty.Left = marginX
     Me.lblCounterparty.Top = currentTop
     Me.lblCounterparty.Width = 110
@@ -343,9 +356,9 @@ Private Sub ApplyFormLayout()
     Me.lstCandidates.Left = rightColumnLeft
     Me.lstCandidates.Top = 82
     Me.lstCandidates.Width = rightColumnWidth
-    Me.lstCandidates.Height = 174
+    Me.lstCandidates.Height = 166
 
-    currentTop = Me.txtCounterparty.Top + Me.txtCounterparty.Height + 12
+    currentTop = Me.txtCounterparty.Top + Me.txtCounterparty.Height + 8
     PlaceField Me.lblBestCandidateNumber, Me.txtBestCandidateNumber, marginX, currentTop, 126
     PlaceField Me.lblBestCandidateDate, Me.txtBestCandidateDate, marginX + 138, currentTop, 110
     If mReviewMode <> REVIEW_MODE_BACKFILL Then
@@ -357,18 +370,18 @@ Private Sub ApplyFormLayout()
         Me.chkUseBestCandidate.Visible = False
     End If
 
-    currentTop = currentTop + 42
+    currentTop = currentTop + 38
     PlaceField Me.lblSelectedOperationNumber, Me.txtSelectedOperationNumber, marginX, currentTop, 148
     PlaceField Me.lblSelectedOperationDate, Me.txtSelectedOperationDate, marginX + 160, currentTop, 118
 
-    currentTop = currentTop + 42
+    currentTop = currentTop + 38
     Me.lblBestCandidateComment.Left = marginX
     Me.lblBestCandidateComment.Top = currentTop
     Me.lblBestCandidateComment.Width = leftColumnWidth
     Me.txtBestCandidateComment.Left = marginX
     Me.txtBestCandidateComment.Top = currentTop + labelOffset
     Me.txtBestCandidateComment.Width = leftColumnWidth
-    Me.txtBestCandidateComment.Height = 108
+    Me.txtBestCandidateComment.Height = 94
 
     Me.lblCandidateComment.Left = rightColumnLeft
     Me.lblCandidateComment.Top = currentTop
@@ -376,23 +389,23 @@ Private Sub ApplyFormLayout()
     Me.txtCandidateComment.Left = rightColumnLeft
     Me.txtCandidateComment.Top = currentTop + labelOffset
     Me.txtCandidateComment.Width = rightColumnWidth
-    Me.txtCandidateComment.Height = 108
+    Me.txtCandidateComment.Height = 94
 
-    buttonTop = currentTop + 140
+    buttonTop = currentTop + 118
     Me.btnApply.Left = marginX
     Me.btnApply.Top = buttonTop
-    Me.btnApply.Width = 90
+    Me.btnApply.Width = 98
     Me.btnApplyNext.Left = Me.btnApply.Left + Me.btnApply.Width + 8
     Me.btnApplyNext.Top = buttonTop
-    Me.btnApplyNext.Width = 122
+    Me.btnApplyNext.Width = 132
     Me.btnNextPending.Left = Me.btnApplyNext.Left + Me.btnApplyNext.Width + 8
     Me.btnNextPending.Top = buttonTop
-    Me.btnNextPending.Width = 122
+    Me.btnNextPending.Width = 132
     If mReviewMode = REVIEW_MODE_BACKFILL Then
         Call EnsureBackfillOpenRowButton
         mOpenSourceButton.Left = Me.btnNextPending.Left + Me.btnNextPending.Width + 8
         mOpenSourceButton.Top = buttonTop
-        mOpenSourceButton.Width = 108
+        mOpenSourceButton.Width = 132
         mOpenSourceButton.Height = Me.btnNextPending.Height
         mOpenSourceButton.Visible = True
     ElseIf Not mOpenSourceButton Is Nothing Then
@@ -442,21 +455,77 @@ End Sub
 Private Sub ResizeAndCenterForm()
     Dim screenWidthPoints As Double
     Dim screenHeightPoints As Double
-    Dim maxWidth As Double
-    Dim maxHeight As Double
+    Dim viewportWidth As Single
+    Dim viewportHeight As Single
+    Dim contentWidth As Single
+    Dim contentHeight As Single
+    Dim usableWidth As Single
+    Dim usableHeight As Single
+    Dim scrollMode As fmScrollBars
+    Dim needsHorizontalScroll As Boolean
+    Dim needsVerticalScroll As Boolean
 
-    screenWidthPoints = GetSystemMetrics(SM_CXSCREEN) * (72 / 96)
-    screenHeightPoints = GetSystemMetrics(SM_CYSCREEN) * (72 / 96)
-    maxWidth = screenWidthPoints * 0.9
-    maxHeight = screenHeightPoints * 0.85
+    screenWidthPoints = GetSystemMetrics(SM_CXSCREEN) * SCREEN_POINTS_PER_PIXEL
+    screenHeightPoints = GetSystemMetrics(SM_CYSCREEN) * SCREEN_POINTS_PER_PIXEL
+    usableWidth = CSng(screenWidthPoints * VIEWPORT_WIDTH_RATIO)
+    usableHeight = CSng(screenHeightPoints * VIEWPORT_HEIGHT_RATIO)
 
-    If Me.Width > maxWidth Then Me.Width = maxWidth
-    If Me.Height > maxHeight Then Me.Height = maxHeight
+    Me.ScrollBars = fmScrollBarsNone
+    Me.KeepScrollBarsVisible = fmScrollBarsNone
+    Me.ScrollLeft = 0
+    Me.ScrollTop = 0
+    Me.Width = DESIGN_FORM_WIDTH
+    Me.Height = DESIGN_FORM_HEIGHT
+    Call ApplyFormLayout
+    Call EnsureBackfillOpenRowButton
+
+    contentWidth = DESIGN_FORM_WIDTH
+    contentHeight = GetFormContentHeight
+
+    viewportWidth = contentWidth
+    viewportHeight = contentHeight
+    If viewportWidth > usableWidth Then viewportWidth = usableWidth
+    If viewportHeight > usableHeight Then viewportHeight = usableHeight
+
+    needsHorizontalScroll = (contentWidth > viewportWidth)
+    needsVerticalScroll = (contentHeight > viewportHeight)
+
+    scrollMode = fmScrollBarsNone
+    If needsHorizontalScroll And needsVerticalScroll Then
+        scrollMode = fmScrollBarsBoth
+    ElseIf needsHorizontalScroll Then
+        scrollMode = fmScrollBarsHorizontal
+    ElseIf needsVerticalScroll Then
+        scrollMode = fmScrollBarsVertical
+    End If
+
+    Me.Width = viewportWidth
+    Me.Height = viewportHeight
+    Me.ScrollBars = scrollMode
+    Me.KeepScrollBarsVisible = scrollMode
+    Me.ScrollWidth = contentWidth
+    Me.ScrollHeight = contentHeight
+    Me.ScrollLeft = 0
+    Me.ScrollTop = 0
 
     Me.StartUpPosition = 0
-    Me.Left = (screenWidthPoints - Me.Width) / 2
-    Me.Top = (screenHeightPoints - Me.Height) / 2
+    Me.Left = (screenWidthPoints - viewportWidth) / 2
+    Me.Top = (screenHeightPoints - viewportHeight) / 2
     If Me.Left < 0 Then Me.Left = 0
     If Me.Top < 0 Then Me.Top = 0
 End Sub
 
+Private Function GetFormContentHeight() As Single
+    Dim ctrl As MSForms.Control
+    Dim bottomEdge As Single
+
+    bottomEdge = 0
+    For Each ctrl In Me.Controls
+        If ctrl.Visible Then
+            If ctrl.Top + ctrl.Height > bottomEdge Then bottomEdge = ctrl.Top + ctrl.Height
+        End If
+    Next ctrl
+
+    If bottomEdge <= 0 Then bottomEdge = DESIGN_FORM_HEIGHT
+    GetFormContentHeight = bottomEdge + 34
+End Function

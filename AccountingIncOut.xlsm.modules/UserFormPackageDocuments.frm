@@ -34,6 +34,11 @@ Option Explicit
 
 Private Const SM_CXSCREEN As Long = 0
 Private Const SM_CYSCREEN As Long = 1
+Private Const DESIGN_FORM_WIDTH As Single = 1020
+Private Const DESIGN_FORM_HEIGHT As Single = 560
+Private Const SCREEN_POINTS_PER_PIXEL As Double = 72 / 96
+Private Const VIEWPORT_WIDTH_RATIO As Double = 0.92
+Private Const VIEWPORT_HEIGHT_RATIO As Double = 0.88
 
 Private mParentRowIndex As Long
 Private mPackageId As String
@@ -45,12 +50,14 @@ Public Sub OpenForParentRow(ByVal parentRowIndex As Long, ByVal packageId As Str
     mPackageId = packageId
     Call BindPackageDocumentsForm(Me, mParentRowIndex, mPackageId)
     Me.Show vbModeless
+    DoEvents
+    Call ApplyPackageItemsColumnLayout
 End Sub
 
 Private Sub UserForm_Initialize()
     Me.Caption = "Package Documents"
-    Me.Width = 1120
-    Me.Height = 660
+    Me.Width = DESIGN_FORM_WIDTH
+    Me.Height = DESIGN_FORM_HEIGHT
     Call SetupPackageItemsList
     Call SetupMatchedStatusCombo
     Call SetupReviewFilterCombo
@@ -65,6 +72,8 @@ Private Sub UserForm_Initialize()
 End Sub
 
 Private Sub UserForm_Activate()
+    Me.Width = DESIGN_FORM_WIDTH
+    Me.Height = DESIGN_FORM_HEIGHT
     Call ApplyLocalizedCaptions
     Call ConfigureEditorFields
     Call ApplyFormLayout
@@ -153,9 +162,9 @@ End Sub
 Private Sub SetupPackageItemsList()
     With Me.lstPackageItems
         .ColumnCount = 8
-        .ColumnWidths = "28 pt;128 pt;96 pt;62 pt;74 pt;84 pt;116 pt;0 pt"
         .MultiSelect = fmMultiSelectSingle
     End With
+    Call ApplyPackageItemsColumnLayout
 End Sub
 
 Private Sub SetupMatchedStatusCombo()
@@ -394,23 +403,25 @@ Private Sub ApplyFormLayout()
     Dim typeWidth As Single
     Dim descriptionGap As Single
     Dim minFormWidth As Single
+    Dim rightColumnEdge As Single
+    Dim descriptionWidth As Single
 
     marginX = 12
     labelOffset = 14
-    minFormWidth = 1120
+    minFormWidth = DESIGN_FORM_WIDTH
     If Me.Width < minFormWidth Then Me.Width = minFormWidth
 
-    innerWidth = Me.InsideWidth
-    If innerWidth <= 0 Then innerWidth = Me.Width - 18
+    innerWidth = DESIGN_FORM_WIDTH - 18
     contentWidth = innerWidth - (marginX * 2)
     editorRightEdge = marginX + contentWidth
+    rightColumnEdge = editorRightEdge - 26
 
     Me.lblPackageSummary.Left = marginX
     Me.lblPackageSummary.Top = 12
     Me.lblPackageSummary.Width = contentWidth
-    Me.lblPackageSummary.Height = 74
+    Me.lblPackageSummary.Height = 68
 
-    currentTop = Me.lblPackageSummary.Top + Me.lblPackageSummary.Height + 8
+    currentTop = Me.lblPackageSummary.Top + Me.lblPackageSummary.Height + 6
     filterTop = currentTop
     Me.lblPackageItemsTitle.Left = marginX
     Me.lblPackageItemsTitle.Top = filterTop + 4
@@ -429,23 +440,24 @@ Private Sub ApplyFormLayout()
     Me.btnFilterNotFound.Top = filterTop
     Me.btnFilterNotFound.Width = 86
 
-    comboWidth = 112
+    comboWidth = 102
     filterLabelWidth = 86
-    Me.cmbReviewFilter.Left = marginX + contentWidth - comboWidth
-    Me.cmbReviewFilter.Top = filterTop
-    Me.cmbReviewFilter.Width = comboWidth
+    Me.cmbReviewFilter.Left = rightColumnEdge - comboWidth
     Me.lblReviewFilter.Left = Me.cmbReviewFilter.Left - filterLabelWidth - 6
     Me.lblReviewFilter.Top = filterTop + 4
     Me.lblReviewFilter.Width = filterLabelWidth
+    Me.cmbReviewFilter.Top = filterTop
+    Me.cmbReviewFilter.Width = comboWidth
 
     currentTop = filterTop + 30
     Me.lstPackageItems.Left = marginX
     Me.lstPackageItems.Top = currentTop
     Me.lstPackageItems.Width = contentWidth
-    Me.lstPackageItems.Height = 126
+    Me.lstPackageItems.Height = 112
+    Call ApplyPackageItemsColumnLayout
 
     buttonTop = Me.lstPackageItems.Top + Me.lstPackageItems.Height + 8
-    buttonWidth = 82
+    buttonWidth = 76
     buttonGap = 6
     Me.btnAddItem.Left = marginX
     Me.btnAddItem.Top = buttonTop
@@ -461,12 +473,12 @@ Private Sub ApplyFormLayout()
     Me.btnDuplicateItem.Width = buttonWidth
     Me.btnFillFromPackage.Left = Me.btnDuplicateItem.Left + buttonWidth + buttonGap
     Me.btnFillFromPackage.Top = buttonTop
-    Me.btnFillFromPackage.Width = 112
+    Me.btnFillFromPackage.Width = 108
     Me.btnMatchIn1C.Left = Me.btnFillFromPackage.Left + Me.btnFillFromPackage.Width + buttonGap
     Me.btnMatchIn1C.Top = buttonTop
-    Me.btnMatchIn1C.Width = 94
+    Me.btnMatchIn1C.Width = 90
 
-    reviewButtonTop = buttonTop + 34
+    reviewButtonTop = buttonTop + 30
     Me.btnNextReview.Left = marginX
     Me.btnNextReview.Top = reviewButtonTop
     Me.btnNextReview.Width = 124
@@ -477,22 +489,22 @@ Private Sub ApplyFormLayout()
     Me.btnResetMatch.Top = reviewButtonTop
     Me.btnResetMatch.Width = 132
     Me.btnClose.Width = 82
-    Me.btnClose.Left = marginX + contentWidth - Me.btnClose.Width
+    Me.btnClose.Left = rightColumnEdge - Me.btnClose.Width
     Me.btnClose.Top = reviewButtonTop
     Me.btnClearItem.Width = 82
     Me.btnClearItem.Left = Me.btnClose.Left - buttonGap - Me.btnClearItem.Width
     Me.btnClearItem.Top = reviewButtonTop
 
-    firstRowTop = reviewButtonTop + 40
-    statusColumnWidth = 128
-    operationDateWidth = 120
-    operationNumberWidth = 168
-    amountWidth = 96
-    dateWidth = 104
-    numberWidth = 138
-    typeWidth = editorRightEdge - marginX - (statusColumnWidth + operationDateWidth + operationNumberWidth + amountWidth + dateWidth + numberWidth + (buttonGap * 6))
-    If typeWidth < 178 Then typeWidth = 178
-    descriptionGap = 10
+    firstRowTop = reviewButtonTop + 28
+    statusColumnWidth = 118
+    operationDateWidth = 124
+    operationNumberWidth = 102
+    amountWidth = 92
+    dateWidth = 82
+    numberWidth = 92
+    typeWidth = (rightColumnEdge - operationDateWidth - operationNumberWidth - amountWidth - dateWidth - numberWidth - (buttonGap * 5)) - marginX
+    If typeWidth < 156 Then typeWidth = 156
+    descriptionGap = 8
 
     Me.lblItemDocumentType.Left = marginX
     Me.lblItemDocumentType.Top = firstRowTop
@@ -524,35 +536,48 @@ Private Sub ApplyFormLayout()
     Me.txtMatched1COperationNumber.Top = firstRowTop + labelOffset
     Me.txtMatched1COperationNumber.Width = operationNumberWidth
 
-    Me.lblMatched1COperationDate.Left = Me.txtMatched1COperationNumber.Left + Me.txtMatched1COperationNumber.Width + buttonGap
+    Me.txtMatched1COperationDate.Left = rightColumnEdge - operationDateWidth
+    Me.lblMatched1COperationDate.Left = Me.txtMatched1COperationDate.Left
     Me.lblMatched1COperationDate.Top = firstRowTop
-    Me.txtMatched1COperationDate.Left = Me.lblMatched1COperationDate.Left
     Me.txtMatched1COperationDate.Top = firstRowTop + labelOffset
     Me.txtMatched1COperationDate.Width = operationDateWidth
 
-    secondRowTop = firstRowTop + 56
+    Me.txtMatched1COperationNumber.Left = Me.txtMatched1COperationDate.Left - buttonGap - operationNumberWidth
+    Me.lblMatched1COperationNumber.Left = Me.txtMatched1COperationNumber.Left
+
+    Me.txtItemAmount.Left = Me.txtMatched1COperationNumber.Left - buttonGap - amountWidth
+    Me.lblItemAmount.Left = Me.txtItemAmount.Left
+
+    Me.txtItemDocumentDate.Left = Me.txtItemAmount.Left - buttonGap - dateWidth
+    Me.lblItemDocumentDate.Left = Me.txtItemDocumentDate.Left
+
+    Me.txtItemDocumentNumber.Left = Me.txtItemDocumentDate.Left - buttonGap - numberWidth
+    Me.lblItemDocumentNumber.Left = Me.txtItemDocumentNumber.Left
+
+    secondRowTop = firstRowTop + 48
+    descriptionWidth = Me.cmbMatched1CStatus.Left - marginX - descriptionGap
     Me.lblItemDescription.Left = marginX
     Me.lblItemDescription.Top = secondRowTop
     Me.txtItemDescription.Left = marginX
     Me.txtItemDescription.Top = secondRowTop + labelOffset
-    Me.txtItemDescription.Width = contentWidth - statusColumnWidth - descriptionGap
-    Me.txtItemDescription.Height = 38
+    Me.txtItemDescription.Width = descriptionWidth
+    Me.txtItemDescription.Height = 34
 
-    Me.lblMatched1CStatus.Left = Me.txtItemDescription.Left + Me.txtItemDescription.Width + descriptionGap
+    Me.cmbMatched1CStatus.Left = rightColumnEdge - statusColumnWidth
+    Me.lblMatched1CStatus.Left = Me.cmbMatched1CStatus.Left
     Me.lblMatched1CStatus.Top = secondRowTop
-    Me.cmbMatched1CStatus.Left = Me.lblMatched1CStatus.Left
     Me.cmbMatched1CStatus.Top = secondRowTop + labelOffset
     Me.cmbMatched1CStatus.Width = statusColumnWidth
 
-    thirdRowTop = secondRowTop + 58
+    thirdRowTop = secondRowTop + 50
     Me.lblMatched1CComment.Left = marginX
     Me.lblMatched1CComment.Top = thirdRowTop
     Me.txtMatched1CComment.Left = marginX
     Me.txtMatched1CComment.Top = thirdRowTop + labelOffset
-    Me.txtMatched1CComment.Width = contentWidth
-    Me.txtMatched1CComment.Height = 62
+    Me.txtMatched1CComment.Width = descriptionWidth
+    Me.txtMatched1CComment.Height = 60
 
-    fourthRowTop = thirdRowTop + 88
+    fourthRowTop = thirdRowTop + 78
     Me.lblReviewHint.Left = marginX
     Me.lblReviewHint.Top = fourthRowTop
     Me.lblReviewHint.Width = contentWidth
@@ -568,21 +593,122 @@ End Sub
 Private Sub ResizeAndCenterForm()
     Dim screenWidthPoints As Double
     Dim screenHeightPoints As Double
-    Dim maxWidth As Double
-    Dim maxHeight As Double
+    Dim viewportWidth As Single
+    Dim viewportHeight As Single
+    Dim contentWidth As Single
+    Dim contentHeight As Single
+    Dim usableWidth As Single
+    Dim usableHeight As Single
+    Dim scrollMode As fmScrollBars
+    Dim needsHorizontalScroll As Boolean
+    Dim needsVerticalScroll As Boolean
 
-    screenWidthPoints = GetSystemMetrics(SM_CXSCREEN) * (72 / 96)
-    screenHeightPoints = GetSystemMetrics(SM_CYSCREEN) * (72 / 96)
-    maxWidth = screenWidthPoints * 0.9
-    maxHeight = screenHeightPoints * 0.85
+    screenWidthPoints = GetSystemMetrics(SM_CXSCREEN) * SCREEN_POINTS_PER_PIXEL
+    screenHeightPoints = GetSystemMetrics(SM_CYSCREEN) * SCREEN_POINTS_PER_PIXEL
+    usableWidth = CSng(screenWidthPoints * VIEWPORT_WIDTH_RATIO)
+    usableHeight = CSng(screenHeightPoints * VIEWPORT_HEIGHT_RATIO)
 
-    If Me.Width > maxWidth Then Me.Width = maxWidth
-    If Me.Height > maxHeight Then Me.Height = maxHeight
+    Me.ScrollBars = fmScrollBarsNone
+    Me.KeepScrollBarsVisible = fmScrollBarsNone
+    Me.ScrollLeft = 0
+    Me.ScrollTop = 0
+    Me.Width = DESIGN_FORM_WIDTH
+    Me.Height = DESIGN_FORM_HEIGHT
+    Call ApplyFormLayout
+    Call HideOptionalEditorControls
+
+    contentWidth = GetFormContentWidth
+    contentHeight = GetFormContentHeight
+
+    viewportWidth = contentWidth
+    viewportHeight = contentHeight
+    If viewportWidth > usableWidth Then viewportWidth = usableWidth
+    If viewportHeight > usableHeight Then viewportHeight = usableHeight
+
+    needsHorizontalScroll = (contentWidth > viewportWidth)
+    needsVerticalScroll = (contentHeight > viewportHeight)
+
+    scrollMode = fmScrollBarsNone
+    If needsHorizontalScroll And needsVerticalScroll Then
+        scrollMode = fmScrollBarsBoth
+    ElseIf needsHorizontalScroll Then
+        scrollMode = fmScrollBarsHorizontal
+    ElseIf needsVerticalScroll Then
+        scrollMode = fmScrollBarsVertical
+    End If
+
+    Me.Width = viewportWidth
+    Me.Height = viewportHeight
+    Me.ScrollBars = scrollMode
+    Me.KeepScrollBarsVisible = scrollMode
+    Me.ScrollWidth = contentWidth
+    Me.ScrollHeight = contentHeight
+    Me.ScrollLeft = 0
+    Me.ScrollTop = 0
 
     Me.StartUpPosition = 0
-    Me.Left = (screenWidthPoints - Me.Width) / 2
-    Me.Top = (screenHeightPoints - Me.Height) / 2
+    Me.Left = (screenWidthPoints - viewportWidth) / 2
+    Me.Top = (screenHeightPoints - viewportHeight) / 2
     If Me.Left < 0 Then Me.Left = 0
     If Me.Top < 0 Then Me.Top = 0
+    Call ApplyPackageItemsColumnLayout
 End Sub
 
+Private Sub ApplyPackageItemsColumnLayout()
+    Dim availableWidth As Single
+    Dim orderWidth As Single
+    Dim numberWidth As Single
+    Dim dateWidth As Single
+    Dim amountWidth As Single
+    Dim statusWidth As Single
+    Dim documentTypeWidth As Single
+
+    availableWidth = Me.lstPackageItems.Width - 18
+    If availableWidth <= 0 Then Exit Sub
+
+    orderWidth = 24
+    numberWidth = 90
+    dateWidth = 76
+    amountWidth = 84
+    statusWidth = 150
+    documentTypeWidth = availableWidth - (orderWidth + numberWidth + dateWidth + amountWidth + statusWidth)
+    If documentTypeWidth < 220 Then documentTypeWidth = 220
+
+    Me.lstPackageItems.ColumnWidths = _
+        orderWidth & " pt;" & _
+        documentTypeWidth & " pt;" & _
+        numberWidth & " pt;" & _
+        dateWidth & " pt;" & _
+        amountWidth & " pt;" & _
+        statusWidth & " pt;0 pt;0 pt"
+End Sub
+
+Private Function GetFormContentWidth() As Single
+    Dim ctrl As MSForms.Control
+    Dim rightEdge As Single
+
+    rightEdge = 0
+    For Each ctrl In Me.Controls
+        If ctrl.Visible Then
+            If ctrl.Left + ctrl.Width > rightEdge Then rightEdge = ctrl.Left + ctrl.Width
+        End If
+    Next ctrl
+
+    If rightEdge <= 0 Then rightEdge = DESIGN_FORM_WIDTH
+    GetFormContentWidth = rightEdge + 18
+End Function
+
+Private Function GetFormContentHeight() As Single
+    Dim ctrl As MSForms.Control
+    Dim bottomEdge As Single
+
+    bottomEdge = 0
+    For Each ctrl In Me.Controls
+        If ctrl.Visible Then
+            If ctrl.Top + ctrl.Height > bottomEdge Then bottomEdge = ctrl.Top + ctrl.Height
+        End If
+    Next ctrl
+
+    If bottomEdge <= 0 Then bottomEdge = DESIGN_FORM_HEIGHT
+    GetFormContentHeight = bottomEdge + 36
+End Function

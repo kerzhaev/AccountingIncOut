@@ -34,7 +34,7 @@ Public Sub btnMassProcess_Click(control As IRibbonControl)
     End If
 
     Call SafeShowProgress(LocalizationManager.GetText("Mass processing of records"), True)
-    Call ProvodkaIntegrationModule.MassProcessWithFileSelection
+    Call PeriodicMatchingManager.RunPeriodicMatchingWithFileSelection
     Call SafeHideProgress
 
     Call SafeLogOperation("MassProcess", LocalizationManager.GetText("Mass processing completed"), "SUCCESS", Timer - StartTime)
@@ -94,6 +94,18 @@ Public Sub btnMatchDoverennosti_Click(control As IRibbonControl)
 MatchError:
     Call SafeLogOperation("MatchDoverennosti", "Error: " & Err.description, "ERROR", Timer - StartTime)
     MsgBox LocalizationManager.GetText("Doverennosti matching error:") & vbCrLf & Err.description, vbCritical, LocalizationManager.GetText("Error")
+End Sub
+
+Public Sub btnLegacyReview_Click(control As IRibbonControl)
+    On Error GoTo OpenError
+
+    Call LegacyMatchReviewManager.OpenLegacyMatchReviewForm
+    Call SafeLogOperation("LegacyReview", LocalizationManager.GetText("Legacy match review opened"), "INFO", 0)
+    Exit Sub
+
+OpenError:
+    Call SafeLogOperation("LegacyReview", "Error: " & Err.Description, "ERROR", 0)
+    MsgBox LocalizationManager.GetText("Legacy review apply error: ") & Err.Description, vbCritical, LocalizationManager.GetText("Error")
 End Sub
 
 Public Sub btnLegacyBackfill_Click(control As IRibbonControl)
@@ -173,9 +185,15 @@ Private Sub ShowSystemHelp()
 
     helpText = LocalizationManager.GetText("INCOMING AND OUTGOING DOCUMENTS SYSTEM") & vbCrLf & vbCrLf & _
                LocalizationManager.GetText("[1C INTEGRATION]:") & vbCrLf & _
-               LocalizationManager.GetText("- Mass processing - automatic matching of postings") & vbCrLf & _
+               LocalizationManager.GetText("- Periodic matching - one unified launch for all document routes") & vbCrLf & _
                LocalizationManager.GetText("- Statistics - report on integration results") & vbCrLf & _
                LocalizationManager.GetText("- Clear marks - reset for reprocessing") & vbCrLf & vbCrLf & _
+               LocalizationManager.GetText("[PERIODIC MATCHING ROUTING]:") & vbCrLf & _
+               LocalizationManager.GetText("1. Periodic matching -> processes rows that already have package child documents") & vbCrLf & _
+               LocalizationManager.GetText("2. Periodic matching -> writes flat multiple matches to LegacyMatchReview") & vbCrLf & _
+               LocalizationManager.GetText("3. Periodic matching -> writes legacy package recovery proposals to LegacyPackageBackfill") & vbCrLf & _
+               LocalizationManager.GetText("4. Legacy review -> open and resolve LegacyMatchReview queue") & vbCrLf & _
+               LocalizationManager.GetText("5. Restore packages -> open and resolve LegacyPackageBackfill queue") & vbCrLf & vbCrLf & _
                LocalizationManager.GetText("[DOVERENNOSTI ANALYSIS]: (Stage 2)") & vbCrLf & _
                LocalizationManager.GetText("- Matching doverennosti with operations") & vbCrLf & _
                LocalizationManager.GetText("- Workflow analysis") & vbCrLf & vbCrLf & _
